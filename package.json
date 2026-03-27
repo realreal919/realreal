@@ -10,5 +10,9 @@
   "devDependencies": {
     "turbo": "latest"
   },
-  "workspaces": ["apps/*", "packages/*"]
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "packageManager": "npm@10.9.2"
 }
