@@ -28,12 +28,12 @@ export default async function AdminPage() {
 
   return (
     <div className="p-2">
-      <h1 className="text-2xl font-bold mb-6">後台概覽</h1>
+      <h1 className="text-2xl font-bold mb-6 text-[#10305a]">後台概覽</h1>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {stats.map((s) => (
-          <div key={s.label} className="border rounded-lg p-6 bg-white shadow-sm">
-            <p className="text-3xl font-bold">{s.value.toLocaleString()}</p>
-            <p className="text-sm text-zinc-500 mt-1">{s.label}</p>
+          <div key={s.label} className="border border-[#10305a]/10 rounded-[10px] p-6 bg-white shadow-sm">
+            <p className="text-3xl font-bold text-[#10305a]">{s.value.toLocaleString()}</p>
+            <p className="text-sm text-[#687279] mt-1">{s.label}</p>
           </div>
         ))}
       </div>

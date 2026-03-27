@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card"
 import { registerAction } from "../actions"
 import Link from "next/link"
+import Image from "next/image"
 
 export default function RegisterPage() {
   const [state, formAction, isPending] = useActionState(registerAction, null)
@@ -30,14 +31,13 @@ export default function RegisterPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4 py-12">
       <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold tracking-tight">誠真生活</h1>
-          <p className="mt-1 text-sm text-muted-foreground">RealReal</p>
+        <div className="text-center flex flex-col items-center">
+          <Image src="/logo.svg" alt="誠真生活" width={150} height={75} />
         </div>
 
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-xl">建立帳號</CardTitle>
+            <CardTitle className="text-xl" style={{ color: "#10305a" }}>建立帳號</CardTitle>
             <CardDescription>填寫以下資訊以建立您的帳號</CardDescription>
           </CardHeader>
           <CardContent>
@@ -78,7 +78,7 @@ export default function RegisterPage() {
               {state?.success && (
                 <p className="text-sm text-green-600">{state.success}</p>
               )}
-              <Button type="submit" className="w-full" disabled={isPending}>
+              <Button type="submit" className="w-full rounded-[10px]" style={{ backgroundColor: "#10305a", color: "#fff" }} disabled={isPending}>
                 {isPending ? "建立中…" : "註冊"}
               </Button>
             </form>
@@ -88,7 +88,8 @@ export default function RegisterPage() {
               已有帳號？{" "}
               <Link
                 href="/auth/login"
-                className="font-medium text-primary hover:underline"
+                className="font-medium hover:underline"
+                style={{ color: "#10305a" }}
               >
                 立即登入
               </Link>

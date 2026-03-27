@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card"
 import { forgotPasswordAction } from "../actions"
 import Link from "next/link"
+import Image from "next/image"
 
 export default function ForgotPasswordPage() {
   const [state, formAction, isPending] = useActionState(forgotPasswordAction, null)
@@ -30,14 +31,13 @@ export default function ForgotPasswordPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4 py-12">
       <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold tracking-tight">誠真生活</h1>
-          <p className="mt-1 text-sm text-muted-foreground">RealReal</p>
+        <div className="text-center flex flex-col items-center">
+          <Image src="/logo.svg" alt="誠真生活" width={150} height={75} />
         </div>
 
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-xl">忘記密碼</CardTitle>
+            <CardTitle className="text-xl" style={{ color: "#10305a" }}>忘記密碼</CardTitle>
             <CardDescription>
               輸入您的電子郵件，我們將寄送密碼重設連結給您
             </CardDescription>
@@ -60,7 +60,7 @@ export default function ForgotPasswordPage() {
               {state?.success && (
                 <p className="text-sm text-green-600">{state.success}</p>
               )}
-              <Button type="submit" className="w-full" disabled={isPending}>
+              <Button type="submit" className="w-full rounded-[10px]" style={{ backgroundColor: "#10305a", color: "#fff" }} disabled={isPending}>
                 {isPending ? "寄送中…" : "寄送重設連結"}
               </Button>
             </form>
@@ -68,7 +68,8 @@ export default function ForgotPasswordPage() {
           <CardFooter className="justify-center">
             <Link
               href="/auth/login"
-              className="text-sm text-muted-foreground hover:text-primary hover:underline"
+              className="text-sm hover:underline"
+              style={{ color: "#10305a" }}
             >
               返回登入
             </Link>

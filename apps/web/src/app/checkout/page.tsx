@@ -43,11 +43,12 @@ function StepIndicator({ current }: { current: number }) {
                 <span
                   className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold transition-colors ${
                     isActive
-                      ? "bg-primary text-primary-foreground"
+                      ? "text-white"
                       : isCompleted
-                        ? "bg-primary/20 text-primary"
+                        ? "text-white/90"
                         : "bg-zinc-100 text-zinc-400"
                   }`}
+                  style={isActive ? { backgroundColor: "#10305a" } : isCompleted ? { backgroundColor: "#10305a", opacity: 0.6 } : undefined}
                 >
                   {isCompleted ? "✓" : step.num}
                 </span>
@@ -62,8 +63,9 @@ function StepIndicator({ current }: { current: number }) {
               {i < STEPS.length - 1 && (
                 <div
                   className={`mx-3 h-px w-8 sm:w-12 ${
-                    isCompleted ? "bg-primary/40" : "bg-zinc-200"
+                    isCompleted ? "bg-zinc-200" : "bg-zinc-200"
                   }`}
+                  style={isCompleted ? { backgroundColor: "rgba(16,48,90,0.4)" } : undefined}
                 />
               )}
             </li>
@@ -256,9 +258,10 @@ export default function CheckoutPage() {
                         onClick={() => setAddressType(type)}
                         className={`flex items-center justify-center gap-2 rounded-lg border-2 p-3 text-sm font-medium transition-colors ${
                           addressType === type
-                            ? "border-primary bg-primary/5 text-primary"
+                            ? "border-zinc-200 text-zinc-600"
                             : "border-zinc-200 text-zinc-600 hover:border-zinc-300"
                         }`}
+                        style={addressType === type ? { borderColor: "#10305a", backgroundColor: "rgba(16,48,90,0.05)", color: "#10305a" } : undefined}
                       >
                         <span>{type === "home" ? "🏠" : "🏪"}</span>
                         <span>{type === "home" ? "宅配到府" : "超商取貨"}</span>
@@ -277,9 +280,10 @@ export default function CheckoutPage() {
                             key={value}
                             className={`flex items-center justify-between p-3 border-2 rounded-lg cursor-pointer transition-colors ${
                               shippingMethod === value
-                                ? "border-primary bg-primary/5"
+                                ? ""
                                 : "border-zinc-200 hover:border-zinc-300"
                             }`}
+                            style={shippingMethod === value ? { borderColor: "#10305a", backgroundColor: "rgba(16,48,90,0.05)" } : undefined}
                           >
                             <div className="flex items-center gap-3">
                               <input
@@ -363,9 +367,10 @@ export default function CheckoutPage() {
                             key={value}
                             className={`flex items-center justify-between p-3 border-2 rounded-lg cursor-pointer transition-colors ${
                               shippingMethod === value
-                                ? "border-primary bg-primary/5"
+                                ? ""
                                 : "border-zinc-200 hover:border-zinc-300"
                             }`}
+                            style={shippingMethod === value ? { borderColor: "#10305a", backgroundColor: "rgba(16,48,90,0.05)" } : undefined}
                           >
                             <div className="flex items-center gap-3">
                               <input
@@ -477,7 +482,8 @@ export default function CheckoutPage() {
                   </Button>
                 </Link>
                 <Button
-                  className="flex-1"
+                  className="flex-1 rounded-[10px]"
+                  style={{ backgroundColor: "#10305a", color: "#fff" }}
                   onClick={handleNext}
                   disabled={items.length === 0}
                 >
@@ -515,7 +521,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex justify-between font-bold text-lg pt-2 border-t">
                   <span>合計</span>
-                  <span className="text-primary">NT$ {grandTotal.toLocaleString()}</span>
+                  <span style={{ color: "#10305a" }}>NT$ {grandTotal.toLocaleString()}</span>
                 </div>
               </div>
             </div>

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card"
 import { createClient } from "@/lib/supabase/client"
 import Link from "next/link"
+import Image from "next/image"
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState("")
@@ -44,14 +45,13 @@ export default function ResetPasswordPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4 py-12">
       <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold tracking-tight">誠真生活</h1>
-          <p className="mt-1 text-sm text-muted-foreground">RealReal</p>
+        <div className="text-center flex flex-col items-center">
+          <Image src="/logo.svg" alt="誠真生活" width={150} height={75} />
         </div>
 
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-xl">設定新密碼</CardTitle>
+            <CardTitle className="text-xl" style={{ color: "#10305a" }}>設定新密碼</CardTitle>
             <CardDescription>請輸入您的新密碼</CardDescription>
           </CardHeader>
           <CardContent>
@@ -83,7 +83,7 @@ export default function ResetPasswordPage() {
               {error && (
                 <p className="text-sm text-destructive">{error}</p>
               )}
-              <Button type="submit" className="w-full" disabled={isPending}>
+              <Button type="submit" className="w-full rounded-[10px]" style={{ backgroundColor: "#10305a", color: "#fff" }} disabled={isPending}>
                 {isPending ? "更新中…" : "更新密碼"}
               </Button>
             </form>
@@ -91,7 +91,8 @@ export default function ResetPasswordPage() {
           <CardFooter className="justify-center">
             <Link
               href="/auth/login"
-              className="text-sm text-muted-foreground hover:text-primary hover:underline"
+              className="text-sm hover:underline"
+              style={{ color: "#10305a" }}
             >
               返回登入
             </Link>

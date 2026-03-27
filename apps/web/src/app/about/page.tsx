@@ -30,14 +30,14 @@ export default function AboutPage() {
     <div className="container mx-auto px-4 py-12 max-w-3xl">
       {/* Hero */}
       <section className="text-center mb-16">
-        <h1 className="text-3xl font-bold mb-4">關於誠真生活</h1>
-        <p className="text-lg text-zinc-500">純粹投入，誠真健康</p>
+        <h1 className="text-3xl font-bold mb-4 text-[#10305a]">關於誠真生活</h1>
+        <p className="text-lg text-[#687279]">純粹投入，誠真健康</p>
       </section>
 
       {/* Brand Story */}
       <section className="mb-16">
-        <h2 className="text-xl font-semibold mb-4">品牌故事</h2>
-        <div className="space-y-4 text-zinc-700 leading-relaxed">
+        <h2 className="text-xl font-semibold mb-4 text-[#10305a]">品牌故事</h2>
+        <div className="space-y-4 text-[#687279] leading-relaxed">
           <p>
             誠真生活 RealReal
             是一個源自台灣的純素保健食品品牌。我們相信，真正的健康來自大自然最純粹的力量。從一顆種子到一份產品，我們以「誠」為本、以「真」為念，堅持提供最純淨的植物性營養。
@@ -50,9 +50,9 @@ export default function AboutPage() {
 
       {/* Mission */}
       <section className="mb-16">
-        <h2 className="text-xl font-semibold mb-4">品牌使命</h2>
-        <div className="border rounded-lg p-6 bg-zinc-50">
-          <p className="text-zinc-700 leading-relaxed">
+        <h2 className="text-xl font-semibold mb-4 text-[#10305a]">品牌使命</h2>
+        <div className="rounded-lg p-6 bg-[#10305a]">
+          <p className="text-white leading-relaxed">
             我們致力於以植物的力量，為每個人帶來簡單、有效且永續的健康方案。透過科學驗證的純素配方，讓健康飲食不再是妥協，而是一種享受。
           </p>
         </div>
@@ -60,12 +60,12 @@ export default function AboutPage() {
 
       {/* Values */}
       <section className="mb-16">
-        <h2 className="text-xl font-semibold mb-6">核心價值</h2>
+        <h2 className="text-xl font-semibold mb-6 text-[#10305a]">核心價值</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {values.map((v) => (
-            <div key={v.title} className="border rounded-lg p-5">
-              <h3 className="font-semibold mb-2">{v.title}</h3>
-              <p className="text-sm text-zinc-600 leading-relaxed">
+            <div key={v.title} className="bg-[#fffeee] border-none rounded-lg p-5">
+              <h3 className="font-semibold mb-2 text-[#10305a]">{v.title}</h3>
+              <p className="text-sm text-[#687279] leading-relaxed">
                 {v.description}
               </p>
             </div>
@@ -75,7 +75,7 @@ export default function AboutPage() {
 
       {/* Team Placeholder */}
       <section>
-        <h2 className="text-xl font-semibold mb-4">團隊介紹</h2>
+        <h2 className="text-xl font-semibold mb-4 text-[#10305a]">團隊介紹</h2>
         <div className="border rounded-lg p-8 text-center text-zinc-400">
           <p>團隊資訊即將上線，敬請期待。</p>
         </div>

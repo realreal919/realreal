@@ -74,43 +74,43 @@ export default async function MyAccountPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-2">歡迎回來，{displayName}</h1>
-      <p className="text-zinc-500 mb-8">管理您的帳戶、訂單與訂閱</p>
+      <h1 className="text-2xl font-bold mb-2 text-[#10305a]">歡迎回來，{displayName}</h1>
+      <p className="text-[#687279] mb-8">管理您的帳戶、訂單與訂閱</p>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <Card>
+        <Card className="border-[#10305a]/10">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <ShoppingCart className="w-5 h-5 text-primary" />
+            <div className="h-10 w-10 rounded-full bg-[#10305a]/10 flex items-center justify-center">
+              <ShoppingCart className="w-5 h-5 text-[#10305a]" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">總訂單數</p>
-              <p className="text-xl font-semibold">{totalOrders}</p>
+              <p className="text-sm text-[#687279]">總訂單數</p>
+              <p className="text-xl font-semibold text-[#10305a]">{totalOrders}</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-[#10305a]/10">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
-              <Crown className="w-5 h-5 text-amber-600" />
+            <div className="h-10 w-10 rounded-full bg-[#10305a]/10 flex items-center justify-center">
+              <Crown className="w-5 h-5 text-[#10305a]" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">會員等級</p>
-              <p className="text-xl font-semibold">{tierName}</p>
+              <p className="text-sm text-[#687279]">會員等級</p>
+              <p className="text-xl font-semibold text-[#10305a]">{tierName}</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-[#10305a]/10">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-green-600" />
+            <div className="h-10 w-10 rounded-full bg-[#10305a]/10 flex items-center justify-center">
+              <DollarSign className="w-5 h-5 text-[#10305a]" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">累計消費</p>
-              <p className="text-xl font-semibold">
+              <p className="text-sm text-[#687279]">累計消費</p>
+              <p className="text-xl font-semibold text-[#10305a]">
                 NT${totalSpend.toLocaleString()}
               </p>
             </div>
@@ -121,7 +121,7 @@ export default async function MyAccountPage() {
       {/* Recent Orders */}
       <Card className="mb-8">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-lg">近期訂單</CardTitle>
+          <CardTitle className="text-lg text-[#10305a]">近期訂單</CardTitle>
           <Link href="/my-account/orders">
             <Button variant="ghost" size="sm">
               查看全部
@@ -166,7 +166,7 @@ export default async function MyAccountPage() {
       {/* Active Subscriptions */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-lg">訂閱方案</CardTitle>
+          <CardTitle className="text-lg text-[#10305a]">訂閱方案</CardTitle>
           <Link href="/my-account/subscriptions">
             <Button variant="ghost" size="sm">
               管理訂閱

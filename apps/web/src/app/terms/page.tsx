@@ -8,22 +8,22 @@ export const metadata: Metadata = {
 export default function TermsPage() {
   return (
     <div className="container mx-auto px-4 py-12 max-w-3xl">
-      <h1 className="text-3xl font-bold mb-2 text-center">服務條款</h1>
-      <p className="text-zinc-500 text-center mb-10">
+      <h1 className="text-3xl font-bold mb-2 text-center text-[#10305a]">服務條款</h1>
+      <p className="text-[#687279] text-center mb-10">
         最後更新日期：2025 年 1 月 1 日
       </p>
 
       <div className="space-y-10">
-        <p className="text-zinc-700 leading-relaxed">
+        <p className="text-[#687279] leading-relaxed">
           歡迎使用誠真生活 RealReal（以下簡稱「本公司」）所提供的網站及相關服務。當您使用本網站時，即表示您已閱讀、瞭解並同意接受以下服務條款。
         </p>
 
         {/* 服務範圍 */}
         <section>
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+          <h2 className="text-xl font-semibold mb-4 border-b pb-2 text-[#10305a]">
             一、服務範圍
           </h2>
-          <div className="space-y-3 text-zinc-700 leading-relaxed">
+          <div className="space-y-3 text-[#687279] leading-relaxed">
             <p>本公司透過本網站提供以下服務：</p>
             <ul className="list-disc pl-6 space-y-2">
               <li>純素保健食品之線上展示與銷售</li>
@@ -39,10 +39,10 @@ export default function TermsPage() {
 
         {/* 會員帳號 */}
         <section>
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+          <h2 className="text-xl font-semibold mb-4 border-b pb-2 text-[#10305a]">
             二、會員帳號
           </h2>
-          <div className="space-y-3 text-zinc-700 leading-relaxed">
+          <div className="space-y-3 text-[#687279] leading-relaxed">
             <ul className="list-disc pl-6 space-y-2">
               <li>
                 您在註冊帳號時應提供正確、完整且最新的個人資料，並有義務維護資料之正確性。
@@ -62,10 +62,10 @@ export default function TermsPage() {
 
         {/* 商品訂購 */}
         <section>
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+          <h2 className="text-xl font-semibold mb-4 border-b pb-2 text-[#10305a]">
             三、商品訂購
           </h2>
-          <div className="space-y-3 text-zinc-700 leading-relaxed">
+          <div className="space-y-3 text-[#687279] leading-relaxed">
             <ul className="list-disc pl-6 space-y-2">
               <li>
                 網站上所展示之商品資訊（包含價格、規格、圖片等）僅供參考，實際商品以出貨時為準。
@@ -82,10 +82,10 @@ export default function TermsPage() {
 
         {/* 付款方式 */}
         <section>
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+          <h2 className="text-xl font-semibold mb-4 border-b pb-2 text-[#10305a]">
             四、付款方式
           </h2>
-          <div className="space-y-3 text-zinc-700 leading-relaxed">
+          <div className="space-y-3 text-[#687279] leading-relaxed">
             <p>本網站目前提供以下付款方式：</p>
             <ul className="list-disc pl-6 space-y-2">
               <li>信用卡線上刷卡（Visa / Mastercard / JCB）</li>
@@ -100,10 +100,10 @@ export default function TermsPage() {
 
         {/* 配送政策 */}
         <section>
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+          <h2 className="text-xl font-semibold mb-4 border-b pb-2 text-[#10305a]">
             五、配送政策
           </h2>
-          <div className="space-y-3 text-zinc-700 leading-relaxed">
+          <div className="space-y-3 text-[#687279] leading-relaxed">
             <ul className="list-disc pl-6 space-y-2">
               <li>
                 配送範圍限台灣本島及離島地區（離島配送時間可能較長）。
@@ -123,10 +123,10 @@ export default function TermsPage() {
 
         {/* 退換貨政策 */}
         <section>
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+          <h2 className="text-xl font-semibold mb-4 border-b pb-2 text-[#10305a]">
             六、退換貨政策
           </h2>
-          <div className="space-y-3 text-zinc-700 leading-relaxed">
+          <div className="space-y-3 text-[#687279] leading-relaxed">
             <ul className="list-disc pl-6 space-y-2">
               <li>
                 依據消費者保護法第 19 條規定，您享有收到商品後七日內無條件退貨之權利。
@@ -146,10 +146,10 @@ export default function TermsPage() {
 
         {/* 智慧財產權 */}
         <section>
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+          <h2 className="text-xl font-semibold mb-4 border-b pb-2 text-[#10305a]">
             七、智慧財產權
           </h2>
-          <div className="space-y-3 text-zinc-700 leading-relaxed">
+          <div className="space-y-3 text-[#687279] leading-relaxed">
             <p>
               本網站所有內容，包括但不限於文字、圖片、商標、標誌、產品設計、網站版面配置等，均為本公司或其授權人所有，受中華民國著作權法及國際智慧財產權法律保護。
             </p>
@@ -161,10 +161,10 @@ export default function TermsPage() {
 
         {/* 免責聲明 */}
         <section>
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+          <h2 className="text-xl font-semibold mb-4 border-b pb-2 text-[#10305a]">
             八、免責聲明
           </h2>
-          <div className="space-y-3 text-zinc-700 leading-relaxed">
+          <div className="space-y-3 text-[#687279] leading-relaxed">
             <ul className="list-disc pl-6 space-y-2">
               <li>
                 本網站之商品資訊僅供一般參考，不構成醫療建議。如有健康疑慮，請諮詢專業醫療人員。
@@ -187,7 +187,7 @@ export default function TermsPage() {
             如您對本服務條款有任何疑問，歡迎聯繫我們：
             <a
               href="mailto:hello@realreal.cc"
-              className="underline hover:text-zinc-900"
+              className="underline hover:text-[#10305a]"
             >
               hello@realreal.cc
             </a>

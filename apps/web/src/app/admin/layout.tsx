@@ -45,23 +45,23 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="flex min-h-screen bg-zinc-50">
-      <aside className="w-56 shrink-0 border-r border-zinc-200 bg-white flex flex-col">
-        <div className="h-14 flex items-center px-4 border-b border-zinc-200">
-          <span className="font-semibold text-sm text-zinc-900">誠真生活 管理後台</span>
+      <aside className="w-56 shrink-0 bg-[#10305a] flex flex-col">
+        <div className="h-14 flex items-center px-4 border-b border-white/10">
+          <span className="font-semibold text-sm text-white">誠真生活 管理後台</span>
         </div>
         <nav className="flex-1 py-4 space-y-0.5 px-2">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-sm text-white/70 hover:bg-white/10 hover:text-white transition-colors"
             >
               <Icon className="w-4 h-4 shrink-0" />
               {label}
             </Link>
           ))}
         </nav>
-        <div className="p-4 border-t border-zinc-100 text-xs text-zinc-400 truncate">{user.email}</div>
+        <div className="p-4 border-t border-white/10 text-xs text-white/50 truncate">{user.email}</div>
       </aside>
 
       <main className="flex-1 min-w-0 p-6">{children}</main>

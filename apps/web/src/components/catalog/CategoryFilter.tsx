@@ -1,6 +1,5 @@
 "use client"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { Category } from "@/lib/catalog"
 
@@ -34,19 +33,19 @@ export function CategoryFilter({ categories, layout = "horizontal" }: CategoryFi
       className={cn(
         isSidebar
           ? "flex flex-col gap-1"
-          : "flex gap-2 overflow-x-auto pb-2 scrollbar-thin -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap md:overflow-visible md:pb-0"
+          : "flex gap-6 overflow-x-auto pb-2 scrollbar-thin -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap md:overflow-visible md:pb-0 justify-center border-b border-gray-200"
       )}
       aria-label="商品分類"
     >
-      <CategoryButton
+      <TabButton
         active={!current}
         onClick={() => navigate()}
         layout={layout}
       >
         全部商品
-      </CategoryButton>
+      </TabButton>
       {categories.map(cat => (
-        <CategoryButton
+        <TabButton
           key={cat.id}
           active={current === cat.slug}
           onClick={() => navigate(cat.slug)}
@@ -54,13 +53,13 @@ export function CategoryFilter({ categories, layout = "horizontal" }: CategoryFi
           layout={layout}
         >
           {cat.name}
-        </CategoryButton>
+        </TabButton>
       ))}
     </nav>
   )
 }
 
-function CategoryButton({
+function TabButton({
   active,
   onClick,
   children,
@@ -82,16 +81,14 @@ function CategoryButton({
         className={cn(
           "flex items-center justify-between w-full px-3 py-2 text-sm rounded-md transition-colors text-left",
           active
-            ? "bg-primary text-primary-foreground font-medium"
-            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            ? "font-medium"
+            : "hover:bg-gray-50"
         )}
+        style={{ color: "#10305a" }}
       >
         <span>{children}</span>
         {count != null && (
-          <span className={cn(
-            "text-xs tabular-nums",
-            active ? "text-primary-foreground/70" : "text-muted-foreground/60"
-          )}>
+          <span className="text-xs tabular-nums" style={{ color: "#687279" }}>
             {count}
           </span>
         )}
@@ -100,24 +97,22 @@ function CategoryButton({
   }
 
   return (
-    <Button
-      variant={active ? "default" : "outline"}
-      size="sm"
+    <button
       onClick={onClick}
       className={cn(
-        "shrink-0 transition-all",
-        active && "shadow-sm"
+        "shrink-0 pb-3 text-sm font-medium transition-all border-b-2 -mb-[1px]",
+        active
+          ? "border-[#10305a]"
+          : "border-transparent hover:border-gray-300"
       )}
+      style={{ color: active ? "#10305a" : "#687279" }}
     >
       {children}
       {count != null && (
-        <span className={cn(
-          "ml-1 text-xs",
-          active ? "text-primary-foreground/70" : "text-muted-foreground"
-        )}>
+        <span className="ml-1 text-xs" style={{ color: "#687279" }}>
           ({count})
         </span>
       )}
-    </Button>
+    </button>
   )
 }

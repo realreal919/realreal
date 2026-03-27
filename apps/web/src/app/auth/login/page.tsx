@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card"
 import { loginAction } from "../actions"
 import Link from "next/link"
+import Image from "next/image"
 
 export default function LoginPage() {
   const [state, formAction, isPending] = useActionState(loginAction, null)
@@ -28,14 +29,13 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4 py-12">
       <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold tracking-tight">誠真生活</h1>
-          <p className="mt-1 text-sm text-muted-foreground">RealReal</p>
+        <div className="text-center flex flex-col items-center">
+          <Image src="/logo.svg" alt="誠真生活" width={150} height={75} />
         </div>
 
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-xl">登入</CardTitle>
+            <CardTitle className="text-xl" style={{ color: "#10305a" }}>登入</CardTitle>
             <CardDescription>輸入您的帳號資訊以繼續</CardDescription>
           </CardHeader>
           <CardContent>
@@ -55,7 +55,8 @@ export default function LoginPage() {
                   <Label htmlFor="password">密碼</Label>
                   <Link
                     href="/auth/forgot-password"
-                    className="text-xs text-muted-foreground hover:text-primary hover:underline"
+                    className="text-xs hover:underline"
+                    style={{ color: "#10305a" }}
                   >
                     忘記密碼？
                   </Link>
@@ -65,7 +66,7 @@ export default function LoginPage() {
               {state?.error && (
                 <p className="text-sm text-destructive">{state.error}</p>
               )}
-              <Button type="submit" className="w-full" disabled={isPending}>
+              <Button type="submit" className="w-full rounded-[10px]" style={{ backgroundColor: "#10305a", color: "#fff" }} disabled={isPending}>
                 {isPending ? "登入中…" : "登入"}
               </Button>
             </form>
@@ -106,7 +107,8 @@ export default function LoginPage() {
               還沒有帳號？{" "}
               <Link
                 href="/auth/register"
-                className="font-medium text-primary hover:underline"
+                className="font-medium hover:underline"
+                style={{ color: "#10305a" }}
               >
                 立即註冊
               </Link>

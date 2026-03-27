@@ -1,28 +1,39 @@
 "use client"
 import Image from "next/image"
 import Link from "next/link"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import type { Product } from "@/lib/catalog"
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({
+  product,
+  categoryName,
+}: {
+  product: Product
+  categoryName?: string
+}) {
   const image = product.images?.[0]
   const isSoldOut = product.total_stock === 0
-  const price = product.min_price
+  const minPrice = product.min_price
+  const maxPrice = product.max_price
+  const hasRange = minPrice != null && maxPrice != null && minPrice !== maxPrice
+  // Show "特價" badge when there is a price range (variable product with different prices)
+  const showSaleBadge =
+    hasRange && minPrice != null && maxPrice != null && minPrice < maxPrice
+
+  // Determine if product is "variable" (has price range) or "simple"
+  const isVariable = hasRange
 
   return (
-    <Card className="group relative overflow-hidden border hover:shadow-lg transition-all duration-300 cursor-pointer">
+    <div className="flex flex-col h-full bg-white">
+      {/* Image */}
       <Link href={`/shop/${product.slug}`} className="block">
-        {/* Image */}
-        <div className="aspect-[4/5] relative bg-zinc-100 overflow-hidden">
+        <div className="aspect-square relative bg-zinc-50 overflow-hidden">
           {image ? (
             <Image
               src={image}
               alt={product.name}
               fill
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              className="object-cover transition-transform duration-500 group-hover:scale-108"
+              className="object-cover"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-zinc-400 text-sm">
@@ -30,47 +41,103 @@ export function ProductCard({ product }: { product: Product }) {
             </div>
           )}
 
+          {/* Sale badge */}
+          {showSaleBadge && (
+            <div
+              className="absolute top-2 left-2 px-2 py-0.5 text-xs font-semibold text-white rounded-sm"
+              style={{ backgroundColor: "#10305a" }}
+            >
+              特價
+            </div>
+          )}
+
           {/* Sold out overlay */}
           {isSoldOut && (
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-              <Badge variant="destructive" className="text-sm px-3 py-1 font-semibold">
+              <span className="text-white text-sm font-semibold px-3 py-1 bg-red-600 rounded">
                 已售完
-              </Badge>
+              </span>
             </div>
           )}
         </div>
-
-        {/* Content */}
-        <CardContent className="p-3 space-y-1.5">
-          <p className="font-medium text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors">
-            {product.name}
-          </p>
-          {price != null && price > 0 && (
-            <p className="text-sm font-semibold text-zinc-800">
-              NT$ {price.toLocaleString()}
-            </p>
-          )}
-        </CardContent>
       </Link>
 
-      {/* Quick add button - visible on hover, hidden when sold out */}
-      {!isSoldOut && (
-        <div className="absolute bottom-0 left-0 right-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 p-3 pt-0">
-          <Button
-            size="sm"
-            className="w-full text-xs"
-            variant="default"
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              // Navigate to product page for variant selection
-              window.location.href = `/shop/${product.slug}`
-            }}
+      {/* Content */}
+      <div className="flex flex-col flex-1 pt-3 pb-2 px-1 gap-1.5">
+        {/* Product name */}
+        <Link href={`/shop/${product.slug}`}>
+          <p
+            className="text-sm font-medium leading-snug line-clamp-2"
+            style={{ color: "#10305a", fontFamily: "'Gill Sans', 'Gill Sans MT', sans-serif" }}
           >
-            加入購物車
-          </Button>
+            {product.name}
+          </p>
+        </Link>
+
+        {/* Price */}
+        {minPrice != null && minPrice > 0 && (
+          <p
+            className="text-sm font-semibold"
+            style={{ color: "#10305a", fontFamily: "'Gill Sans', 'Gill Sans MT', sans-serif" }}
+          >
+            {hasRange
+              ? `NT$${minPrice.toLocaleString()} – NT$${maxPrice!.toLocaleString()}`
+              : `NT$${minPrice.toLocaleString()}`}
+          </p>
+        )}
+
+        {/* Star rating */}
+        <div className="flex items-center gap-0.5" style={{ color: "#f59e0b" }}>
+          {"★★★★★".split("").map((star, i) => (
+            <span key={i} className="text-sm leading-none">
+              {star}
+            </span>
+          ))}
         </div>
-      )}
-    </Card>
+
+        {/* Category tags */}
+        {categoryName && (
+          <p
+            className="text-xs text-zinc-400 leading-snug"
+            style={{ fontFamily: "'Gill Sans', 'Gill Sans MT', sans-serif" }}
+          >
+            ALL, {categoryName}
+          </p>
+        )}
+
+        {/* Spacer to push button to bottom */}
+        <div className="flex-1" />
+
+        {/* Action button */}
+        {!isSoldOut && (
+          <div className="mt-2">
+            {isVariable ? (
+              <Link
+                href={`/shop/${product.slug}`}
+                className="block w-full text-center text-xs font-semibold py-2.5 border rounded-[10px] transition-colors hover:bg-zinc-50"
+                style={{
+                  color: "#10305a",
+                  borderColor: "#10305a",
+                  fontFamily: "'Gill Sans', 'Gill Sans MT', sans-serif",
+                }}
+              >
+                選擇規格
+              </Link>
+            ) : (
+              <Link
+                href={`/shop/${product.slug}`}
+                className="block w-full text-center text-xs font-semibold py-2.5 text-white rounded-[10px] transition-opacity hover:opacity-90"
+                style={{
+                  backgroundColor: "#10305a",
+                  fontFamily: "'Gill Sans', 'Gill Sans MT', sans-serif",
+                }}
+              >
+                加入購物車
+              </Link>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   )
 }

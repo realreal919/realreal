@@ -35,26 +35,26 @@ const steps = [
 export default function ReturnsPage() {
   return (
     <div className="container mx-auto px-4 py-12 max-w-3xl">
-      <h1 className="text-3xl font-bold mb-2 text-center">退換貨政策</h1>
-      <p className="text-zinc-500 text-center mb-10">
+      <h1 className="text-3xl font-bold mb-2 text-center text-[#10305a]">退換貨政策</h1>
+      <p className="text-[#687279] text-center mb-10">
         依據消費者保護法，保障您的購物權益
       </p>
 
       <div className="space-y-10">
         {/* 七天鑑賞期 */}
-        <section className="border rounded-lg p-6 bg-zinc-50">
-          <h2 className="text-xl font-semibold mb-3">七天鑑賞期保障</h2>
-          <p className="text-zinc-700 leading-relaxed">
+        <section className="border-none rounded-lg p-6 bg-[#fffeee]">
+          <h2 className="text-xl font-semibold mb-3 text-[#10305a]">七天鑑賞期保障</h2>
+          <p className="text-[#687279] leading-relaxed">
             依據消費者保護法第 19 條規定，透過網路購物之消費者，享有收到商品後七日內無條件退貨之權利（鑑賞期非試用期）。您無須說明理由及負擔任何費用，即可申請退貨。
           </p>
         </section>
 
         {/* 退貨條件 */}
         <section>
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+          <h2 className="text-xl font-semibold mb-4 border-b pb-2 text-[#10305a]">
             退貨條件
           </h2>
-          <div className="space-y-3 text-zinc-700 leading-relaxed">
+          <div className="space-y-3 text-[#687279] leading-relaxed">
             <p>符合以下條件之商品，方可辦理退貨：</p>
             <ul className="list-disc pl-6 space-y-2">
               <li>收到商品後七日內提出退貨申請</li>
@@ -67,10 +67,10 @@ export default function ReturnsPage() {
 
         {/* 不適用退貨 */}
         <section>
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+          <h2 className="text-xl font-semibold mb-4 border-b pb-2 text-[#10305a]">
             不適用退貨之情形
           </h2>
-          <div className="space-y-3 text-zinc-700 leading-relaxed">
+          <div className="space-y-3 text-[#687279] leading-relaxed">
             <p>以下情形依法不適用七天鑑賞期退貨規定：</p>
             <ul className="list-disc pl-6 space-y-2">
               <li>食品類商品已拆封（商品本身瑕疵者除外）</li>
@@ -88,13 +88,13 @@ export default function ReturnsPage() {
 
         {/* 退貨流程 */}
         <section>
-          <h2 className="text-xl font-semibold mb-6 border-b pb-2">
+          <h2 className="text-xl font-semibold mb-6 border-b pb-2 text-[#10305a]">
             退貨流程
           </h2>
           <div className="space-y-4">
             {steps.map((item) => (
               <div key={item.step} className="flex gap-4">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-zinc-900 text-white flex items-center justify-center text-sm font-medium">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#10305a] text-white flex items-center justify-center text-sm font-medium">
                   {item.step}
                 </div>
                 <div className="flex-1">
@@ -110,10 +110,10 @@ export default function ReturnsPage() {
 
         {/* 換貨說明 */}
         <section>
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+          <h2 className="text-xl font-semibold mb-4 border-b pb-2 text-[#10305a]">
             換貨說明
           </h2>
-          <div className="space-y-3 text-zinc-700 leading-relaxed">
+          <div className="space-y-3 text-[#687279] leading-relaxed">
             <ul className="list-disc pl-6 space-y-2">
               <li>
                 如收到之商品有瑕疵或與訂購內容不符，請於收到商品後 7 天內申請換貨。
@@ -133,13 +133,13 @@ export default function ReturnsPage() {
 
         {/* 退款時間 */}
         <section>
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+          <h2 className="text-xl font-semibold mb-4 border-b pb-2 text-[#10305a]">
             退款時間
           </h2>
           <div className="border rounded-lg overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-zinc-50">
+                <tr className="bg-[#fffeee]">
                   <th className="text-left px-4 py-3 font-medium">付款方式</th>
                   <th className="text-left px-4 py-3 font-medium">退款時間</th>
                 </tr>
@@ -173,7 +173,7 @@ export default function ReturnsPage() {
             如有退換貨相關問題，歡迎聯繫客服：
             <a
               href="mailto:hello@realreal.cc"
-              className="underline hover:text-zinc-900"
+              className="underline hover:text-[#10305a]"
             >
               hello@realreal.cc
             </a>

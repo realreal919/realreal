@@ -41,7 +41,7 @@ export default async function MyAccountLayout({
               <Link
                 key={href}
                 href={href}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors whitespace-nowrap shrink-0"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-sm text-[#687279] hover:bg-[#10305a]/10 hover:text-[#10305a] data-[active]:bg-[#10305a] data-[active]:text-white transition-colors whitespace-nowrap shrink-0"
               >
                 <Icon className="w-4 h-4 shrink-0" />
                 {label}
@@ -57,13 +57,13 @@ export default async function MyAccountLayout({
           {/* Sidebar - desktop only */}
           <aside className="hidden md:block w-56 shrink-0">
             <div className="sticky top-8">
-              <h2 className="text-lg font-semibold mb-4 px-3">我的帳戶</h2>
+              <h2 className="text-lg font-semibold mb-4 px-3 text-[#10305a]">我的帳戶</h2>
               <nav className="space-y-0.5">
                 {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
                   <Link
                     key={href}
                     href={href}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-sm text-[#687279] hover:bg-[#10305a]/10 hover:text-[#10305a] data-[active]:bg-[#10305a] data-[active]:text-white transition-colors"
                   >
                     <Icon className="w-4 h-4 shrink-0" />
                     {label}

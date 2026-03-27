@@ -1,7 +1,21 @@
 import { ProductCard } from "./ProductCard"
-import type { Product } from "@/lib/catalog"
+import type { Product, Category } from "@/lib/catalog"
 
-export function ProductGrid({ products }: { products: Product[] }) {
+export function ProductGrid({
+  products,
+  categories,
+}: {
+  products: Product[]
+  categories?: Category[]
+}) {
+  // Build a category id -> name lookup
+  const categoryMap = new Map<string, string>()
+  if (categories) {
+    for (const cat of categories) {
+      categoryMap.set(cat.id, cat.name)
+    }
+  }
+
   if (products.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -17,22 +31,31 @@ export function ProductGrid({ products }: { products: Product[] }) {
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-5">
-      {products.map(p => <ProductCard key={p.id} product={p} />)}
+    <div className="bg-white">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+        {products.map((p) => (
+          <ProductCard
+            key={p.id}
+            product={p}
+            categoryName={p.category_id ? categoryMap.get(p.category_id) : undefined}
+          />
+        ))}
+      </div>
     </div>
   )
 }
 
 export function ProductGridSkeleton({ count = 8 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-5">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="rounded-lg border bg-card overflow-hidden">
-          <div className="aspect-[4/5] bg-zinc-200 animate-pulse" />
-          <div className="p-3 space-y-2">
+        <div key={i} className="bg-white overflow-hidden">
+          <div className="aspect-square bg-zinc-200 animate-pulse" />
+          <div className="pt-3 space-y-2">
             <div className="h-4 bg-zinc-200 rounded animate-pulse w-3/4" />
             <div className="h-4 bg-zinc-200 rounded animate-pulse w-1/2" />
-            <div className="h-4 bg-zinc-200 rounded animate-pulse w-1/3" />
+            <div className="h-3 bg-zinc-200 rounded animate-pulse w-1/3" />
+            <div className="h-8 bg-zinc-200 rounded-[10px] animate-pulse w-full mt-2" />
           </div>
         </div>
       ))}

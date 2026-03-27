@@ -49,15 +49,15 @@ const deliveryMethods = [
 export default function ShippingPage() {
   return (
     <div className="container mx-auto px-4 py-12 max-w-3xl">
-      <h1 className="text-3xl font-bold mb-2 text-center">配送說明</h1>
-      <p className="text-zinc-500 text-center mb-10">
+      <h1 className="text-3xl font-bold mb-2 text-center text-[#10305a]">配送說明</h1>
+      <p className="text-[#687279] text-center mb-10">
         我們提供多種配送方式，讓您輕鬆收到商品
       </p>
 
       <div className="space-y-10">
         {/* 配送方式 */}
         <section>
-          <h2 className="text-xl font-semibold mb-6 border-b pb-2">
+          <h2 className="text-xl font-semibold mb-6 border-b pb-2 text-[#10305a]">
             配送方式
           </h2>
           <div className="space-y-6">
@@ -65,24 +65,24 @@ export default function ShippingPage() {
               <div key={method.name} className="border rounded-lg p-5">
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <h3 className="font-semibold text-lg">{method.name}</h3>
+                    <h3 className="font-semibold text-lg text-[#10305a]">{method.name}</h3>
                     <p className="text-sm text-zinc-500">{method.provider}</p>
                   </div>
-                  <span className="text-sm font-medium bg-zinc-100 px-3 py-1 rounded-full">
+                  <span className="text-sm font-medium bg-[#fffeee] text-[#10305a] px-3 py-1 rounded-full">
                     {method.fee}
                   </span>
                 </div>
                 <div className="space-y-2 text-sm text-zinc-600">
                   <p>
-                    <span className="font-medium text-zinc-900">免運門檻：</span>
+                    <span className="font-medium text-[#10305a]">免運門檻：</span>
                     {method.freeThreshold}
                   </p>
                   <p>
-                    <span className="font-medium text-zinc-900">配送時間：</span>
+                    <span className="font-medium text-[#10305a]">配送時間：</span>
                     {method.time}
                   </p>
                   <div>
-                    <span className="font-medium text-zinc-900">注意事項：</span>
+                    <span className="font-medium text-[#10305a]">注意事項：</span>
                     <ul className="list-disc pl-5 mt-1 space-y-1">
                       {method.notes.map((note) => (
                         <li key={note}>{note}</li>
@@ -97,10 +97,10 @@ export default function ShippingPage() {
 
         {/* 配送範圍 */}
         <section>
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+          <h2 className="text-xl font-semibold mb-4 border-b pb-2 text-[#10305a]">
             配送範圍
           </h2>
-          <div className="space-y-3 text-zinc-700 leading-relaxed">
+          <div className="space-y-3 text-[#687279] leading-relaxed">
             <ul className="list-disc pl-6 space-y-2">
               <li>台灣本島全區皆可配送</li>
               <li>
@@ -113,13 +113,13 @@ export default function ShippingPage() {
 
         {/* 運費說明 */}
         <section>
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+          <h2 className="text-xl font-semibold mb-4 border-b pb-2 text-[#10305a]">
             運費說明
           </h2>
           <div className="border rounded-lg overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-zinc-50">
+                <tr className="bg-[#fffeee]">
                   <th className="text-left px-4 py-3 font-medium">配送方式</th>
                   <th className="text-left px-4 py-3 font-medium">運費</th>
                   <th className="text-left px-4 py-3 font-medium">免運門檻</th>
@@ -148,10 +148,10 @@ export default function ShippingPage() {
 
         {/* 注意事項 */}
         <section>
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+          <h2 className="text-xl font-semibold mb-4 border-b pb-2 text-[#10305a]">
             其他注意事項
           </h2>
-          <div className="space-y-3 text-zinc-700 leading-relaxed">
+          <div className="space-y-3 text-[#687279] leading-relaxed">
             <ul className="list-disc pl-6 space-y-2">
               <li>
                 訂單出貨後，系統將自動寄送出貨通知及物流追蹤編號至您的電子信箱。
@@ -174,7 +174,7 @@ export default function ShippingPage() {
             如有配送相關問題，歡迎聯繫客服：
             <a
               href="mailto:hello@realreal.cc"
-              className="underline hover:text-zinc-900"
+              className="underline hover:text-[#10305a]"
             >
               hello@realreal.cc
             </a>

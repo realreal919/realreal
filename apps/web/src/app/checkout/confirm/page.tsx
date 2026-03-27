@@ -33,11 +33,12 @@ function StepIndicator({ current }: { current: number }) {
                 <span
                   className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold transition-colors ${
                     isActive
-                      ? "bg-primary text-primary-foreground"
+                      ? "text-white"
                       : isCompleted
-                        ? "bg-primary/20 text-primary"
+                        ? "text-white/90"
                         : "bg-zinc-100 text-zinc-400"
                   }`}
+                  style={isActive ? { backgroundColor: "#10305a" } : isCompleted ? { backgroundColor: "#10305a", opacity: 0.6 } : undefined}
                 >
                   {isCompleted ? "✓" : step.num}
                 </span>
@@ -52,8 +53,9 @@ function StepIndicator({ current }: { current: number }) {
               {i < STEPS.length - 1 && (
                 <div
                   className={`mx-3 h-px w-8 sm:w-12 ${
-                    step.num < current ? "bg-primary/40" : "bg-zinc-200"
+                    step.num < current ? "" : "bg-zinc-200"
                   }`}
+                  style={step.num < current ? { backgroundColor: "rgba(16,48,90,0.4)" } : undefined}
                 />
               )}
             </li>
@@ -79,9 +81,10 @@ export default async function ConfirmPage({
 
       <div className="text-center">
         {/* Success Icon */}
-        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
+        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(16,48,90,0.1)" }}>
           <svg
-            className="h-10 w-10 text-green-600"
+            className="h-10 w-10"
+            style={{ color: "#10305a" }}
             fill="none"
             viewBox="0 0 24 24"
             strokeWidth={2.5}
@@ -142,10 +145,10 @@ export default async function ConfirmPage({
         {/* Actions */}
         <div className="space-y-3">
           <Link href="/my-account/orders" className="block">
-            <Button className="w-full">查看我的訂單</Button>
+            <Button className="w-full rounded-[10px]" style={{ backgroundColor: "#10305a", color: "#fff" }}>查看我的訂單</Button>
           </Link>
           <Link href="/shop" className="block">
-            <Button variant="outline" className="w-full">繼續購物</Button>
+            <Button variant="outline" className="w-full rounded-[10px]" style={{ borderColor: "#10305a", color: "#10305a" }}>繼續購物</Button>
           </Link>
         </div>
       </div>

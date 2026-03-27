@@ -112,30 +112,30 @@ const sections: FaqSection[] = [
 export default function FaqPage() {
   return (
     <div className="container mx-auto px-4 py-12 max-w-3xl">
-      <h1 className="text-3xl font-bold mb-2 text-center">常見問題</h1>
-      <p className="text-zinc-500 text-center mb-10">
+      <h1 className="text-3xl font-bold mb-2 text-center text-[#10305a]">常見問題</h1>
+      <p className="text-[#687279] text-center mb-10">
         找不到答案？歡迎透過聯絡頁面與我們聯繫
       </p>
 
       <div className="space-y-10">
         {sections.map((section) => (
           <section key={section.title}>
-            <h2 className="text-lg font-semibold mb-4 border-b pb-2">
+            <h2 className="text-lg font-semibold mb-4 border-b pb-2 text-[#10305a]">
               {section.title}
             </h2>
             <div className="space-y-2">
               {section.items.map((item) => (
                 <details
                   key={item.q}
-                  className="group border rounded-lg"
+                  className="group border rounded-lg bg-[#fffeee]"
                 >
-                  <summary className="flex cursor-pointer items-center justify-between px-4 py-3 font-medium text-sm hover:bg-zinc-50 transition-colors">
+                  <summary className="flex cursor-pointer items-center justify-between px-4 py-3 font-medium text-sm text-[#10305a] hover:bg-[#fffeee]/80 transition-colors">
                     <span>{item.q}</span>
                     <span className="ml-4 shrink-0 text-zinc-400 transition-transform group-open:rotate-45">
                       +
                     </span>
                   </summary>
-                  <div className="px-4 pb-4 text-sm text-zinc-600 leading-relaxed">
+                  <div className="px-4 pb-4 text-sm text-[#687279] leading-relaxed">
                     {item.a}
                   </div>
                 </details>

@@ -29,7 +29,8 @@ export function SortSelect() {
     <select
       value={current}
       onChange={(e) => onChange(e.target.value)}
-      className="h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+      className="h-9 rounded-md border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#10305a]/20 focus:border-[#10305a]"
+      style={{ color: "#10305a" }}
       aria-label="排序方式"
     >
       {SORT_OPTIONS.map(opt => (

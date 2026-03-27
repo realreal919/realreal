@@ -27,46 +27,41 @@ export default async function ShopPage({
     getProducts({ category, q, page: currentPage, limit: PAGE_SIZE, sort: sortOption }),
   ])
 
+  // Find current category name for section heading
+  const currentCategory = categories.find(c => c.slug === category)
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">商品列表</h1>
+    <div className="min-h-screen bg-white">
+      <div className="container mx-auto px-4 py-12 max-w-7xl">
+        {/* Page heading */}
+        <h1 className="text-3xl md:text-4xl font-bold text-center mb-2 tracking-tight" style={{ color: "#10305a" }}>
+          {currentCategory ? currentCategory.name : "所有商品"}
+        </h1>
+        <p className="text-center mb-10" style={{ color: "#687279" }}>
+          共 <span className="font-semibold" style={{ color: "#10305a" }}>{total}</span> 件商品
+        </p>
 
-      <div className="flex flex-col lg:flex-row gap-8">
-        {/* Sidebar on desktop */}
-        <aside className="hidden lg:block w-56 shrink-0">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-            商品分類
-          </h2>
+        {/* Horizontal category tabs */}
+        <div className="mb-8">
           <Suspense>
-            <CategoryFilter categories={categories} layout="sidebar" />
+            <CategoryFilter categories={categories} layout="horizontal" />
           </Suspense>
-        </aside>
+        </div>
 
-        {/* Main content */}
-        <div className="flex-1 min-w-0">
-          {/* Mobile horizontal category filter */}
-          <div className="lg:hidden mb-4">
-            <Suspense>
-              <CategoryFilter categories={categories} layout="horizontal" />
-            </Suspense>
-          </div>
-
-          {/* Toolbar: count + sort */}
-          <div className="flex items-center justify-between mb-4 gap-4">
-            <p className="text-sm text-muted-foreground shrink-0">
-              共 <span className="font-semibold text-foreground">{total}</span> 件商品
-            </p>
-            <Suspense>
-              <SortSelect />
-            </Suspense>
-          </div>
-
-          {/* Product grid */}
-          <Suspense fallback={<ProductGridSkeleton />}>
-            <ProductGrid products={products} />
+        {/* Toolbar: sort */}
+        <div className="flex items-center justify-end mb-6">
+          <Suspense>
+            <SortSelect />
           </Suspense>
+        </div>
 
-          {/* Pagination */}
+        {/* Product grid */}
+        <Suspense fallback={<ProductGridSkeleton />}>
+          <ProductGrid products={products} categories={categories} />
+        </Suspense>
+
+        {/* Pagination */}
+        <div className="mt-12">
           <Suspense>
             <Pagination
               total={total}

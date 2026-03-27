@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { Minus, Plus, ShoppingCart } from "lucide-react"
 import { useCart } from "@/lib/cart"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 
 type Variant = {
@@ -54,7 +53,7 @@ export function AddToCartSection({
     <div className="space-y-5">
       {/* Variant selector */}
       <div className="space-y-2">
-        <p className="text-sm font-medium text-muted-foreground">規格</p>
+        <p className="text-sm font-medium" style={{ color: "#687279" }}>規格</p>
         <div className="flex flex-wrap gap-2">
           {variants.map((v) => {
             const isSelected = v.id === selectedVariantId
@@ -70,8 +69,8 @@ export function AddToCartSection({
                 }}
                 className={`rounded-lg border px-4 py-2.5 text-sm transition-colors ${
                   isSelected
-                    ? "border-primary bg-primary/5 font-medium text-primary"
-                    : "border-border hover:border-primary/50"
+                    ? "border-[#10305a] bg-[#10305a]/5 font-medium text-[#10305a]"
+                    : "border-gray-200 hover:border-[#10305a]/50"
                 } ${isOut ? "cursor-not-allowed opacity-40" : "cursor-pointer"}`}
               >
                 {v.name}
@@ -88,11 +87,11 @@ export function AddToCartSection({
 
       {/* Price display */}
       <div className="flex items-baseline gap-3">
-        <span className="text-2xl font-bold">
+        <span className="text-2xl font-bold" style={{ color: "#10305a" }}>
           NT$ {price.toLocaleString()}
         </span>
         {hasDiscount && (
-          <span className="text-base text-muted-foreground line-through">
+          <span className="text-base line-through" style={{ color: "#687279" }}>
             NT$ {originalPrice.toLocaleString()}
           </span>
         )}
@@ -123,14 +122,16 @@ export function AddToCartSection({
           </button>
         </div>
 
-        <Button
-          className="flex-1 h-10 gap-2"
+        <button
+          type="button"
+          className="flex-1 h-10 gap-2 inline-flex items-center justify-center text-sm font-medium text-white rounded-[10px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ backgroundColor: "#10305a" }}
           onClick={handleAdd}
           disabled={outOfStock}
         >
           <ShoppingCart className="h-4 w-4" />
           {outOfStock ? "目前缺貨" : "加入購物車"}
-        </Button>
+        </button>
       </div>
     </div>
   )

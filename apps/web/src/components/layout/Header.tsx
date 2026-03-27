@@ -1,86 +1,261 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
-import { Menu, X, User } from "lucide-react"
+import Image from "next/image"
+import { useState, useRef, useEffect } from "react"
+import { Menu, X, User, ChevronDown } from "lucide-react"
 import { CartButton } from "@/components/cart/CartButton"
-import { Button } from "@/components/ui/button"
 
 const NAV_LINKS = [
-  { href: "/shop", label: "商品" },
-  { href: "/subscribe", label: "訂閱方案" },
-  { href: "/about", label: "關於我們" },
+  { href: "/", label: "首頁" },
+  { href: "/about", label: "品牌故事" },
+  {
+    href: "/shop",
+    label: "了解產品",
+    children: [
+      { href: "/shop?category=protein", label: "植物蛋白粉" },
+      { href: "/shop?category=fruit", label: "凍乾水果" },
+      { href: "/shop?category=sustainable", label: "永續生活" },
+    ],
+  },
+  { href: "/faq", label: "聰明生活" },
+  { href: "/about#charity", label: "公益里程" },
+  { href: "/my-account/membership", label: "會員制度" },
 ]
+
+const MARQUEE_TEXT = "★ 消費滿 999 宅配免運 ★ 消費滿 499 超取免運 ★ 加入會員立即享 95 折優惠"
 
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [productOpen, setProductOpen] = useState(false)
+  const dropdownTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Close mobile menu on route change (resize)
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setMobileOpen(false)
+      }
+    }
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
+  }, [])
+
+  const handleDropdownEnter = () => {
+    if (dropdownTimeout.current) clearTimeout(dropdownTimeout.current)
+    setProductOpen(true)
+  }
+
+  const handleDropdownLeave = () => {
+    dropdownTimeout.current = setTimeout(() => setProductOpen(false), 150)
+  }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2">
-          <span className="text-xl font-bold tracking-tight text-green-700">誠真生活</span>
-          <span className="hidden text-xs text-zinc-400 sm:inline">RealReal</span>
-        </Link>
-
-        {/* Desktop Nav */}
-        <nav className="hidden items-center gap-6 md:flex">
-          {NAV_LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-sm font-medium text-zinc-600 transition-colors hover:text-zinc-900"
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-
-        {/* Right side */}
-        <div className="flex items-center gap-2">
-          <CartButton />
-          <Link href="/my-account" aria-label="我的帳戶">
-            <Button variant="ghost" size="icon" className="h-10 w-10">
-              <User className="h-5 w-5" />
-            </Button>
+    <>
+      <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 shadow-sm">
+        <div className="container mx-auto flex h-[72px] items-center justify-between px-4">
+          {/* Logo */}
+          <Link href="/" className="flex-shrink-0">
+            <Image
+              src="/logo.svg"
+              alt="誠真生活 RealReal"
+              width={176}
+              height={88}
+              className="h-14 w-auto"
+              priority
+            />
           </Link>
 
-          {/* Mobile hamburger */}
-          <button
-            className="inline-flex h-10 w-10 items-center justify-center rounded-md hover:bg-accent md:hidden"
-            onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label="選單"
+          {/* Desktop Nav — center */}
+          <nav
+            className="hidden items-center gap-1 md:flex"
+            style={{ fontFamily: "'Gill Sans', 'Gill Sans MT', Calibri, sans-serif" }}
           >
-            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-        </div>
-      </div>
+            {NAV_LINKS.map((link) => {
+              if (link.children) {
+                return (
+                  <div
+                    key={link.href}
+                    className="relative"
+                    onMouseEnter={handleDropdownEnter}
+                    onMouseLeave={handleDropdownLeave}
+                  >
+                    <Link
+                      href={link.href}
+                      className="group inline-flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors hover:text-[#10305a]/70"
+                      style={{ color: "#10305a" }}
+                    >
+                      {link.label}
+                      <ChevronDown
+                        className="h-3.5 w-3.5 transition-transform duration-200"
+                        style={{
+                          transform: productOpen ? "rotate(180deg)" : "rotate(0deg)",
+                        }}
+                      />
+                      <span className="absolute bottom-0 left-3 right-3 h-0.5 origin-left scale-x-0 bg-[#10305a] transition-transform duration-200 group-hover:scale-x-100" />
+                    </Link>
 
-      {/* Mobile Nav */}
-      {mobileOpen && (
-        <div className="border-t bg-white px-4 pb-4 md:hidden">
-          <nav className="flex flex-col gap-2 pt-2">
-            {NAV_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="rounded-md px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
-                onClick={() => setMobileOpen(false)}
-              >
-                {link.label}
-              </Link>
-            ))}
-            <Link
-              href="/auth/login"
-              className="rounded-md px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
-              onClick={() => setMobileOpen(false)}
-            >
-              登入 / 註冊
-            </Link>
+                    {/* Dropdown */}
+                    <div
+                      className="absolute left-0 top-full pt-1"
+                      style={{
+                        opacity: productOpen ? 1 : 0,
+                        pointerEvents: productOpen ? "auto" : "none",
+                        transition: "opacity 150ms ease",
+                      }}
+                    >
+                      <div className="min-w-[160px] rounded-md border border-gray-100 bg-white py-1 shadow-lg">
+                        {link.children.map((child) => (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            className="block px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-50"
+                            style={{ color: "#10305a" }}
+                            onClick={() => setProductOpen(false)}
+                          >
+                            {child.label}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )
+              }
+
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="group relative px-3 py-2 text-sm font-medium transition-colors hover:text-[#10305a]/70"
+                  style={{ color: "#10305a" }}
+                >
+                  {link.label}
+                  <span className="absolute bottom-0 left-3 right-3 h-0.5 origin-left scale-x-0 bg-[#10305a] transition-transform duration-200 group-hover:scale-x-100" />
+                </Link>
+              )
+            })}
           </nav>
+
+          {/* Right side icons */}
+          <div className="flex items-center gap-1">
+            <CartButton />
+            <Link
+              href="/my-account"
+              aria-label="我的帳戶"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md transition-colors hover:bg-gray-100"
+            >
+              <User className="h-5 w-5" style={{ color: "#10305a" }} />
+            </Link>
+
+            {/* Mobile hamburger */}
+            <button
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md hover:bg-gray-100 md:hidden"
+              onClick={() => setMobileOpen(!mobileOpen)}
+              aria-label="選單"
+            >
+              {mobileOpen ? (
+                <X className="h-5 w-5" style={{ color: "#10305a" }} />
+              ) : (
+                <Menu className="h-5 w-5" style={{ color: "#10305a" }} />
+              )}
+            </button>
+          </div>
         </div>
-      )}
-    </header>
+
+        {/* Mobile Nav */}
+        {mobileOpen && (
+          <div
+            className="border-t border-gray-100 bg-white px-4 pb-4 md:hidden"
+            style={{ fontFamily: "'Gill Sans', 'Gill Sans MT', Calibri, sans-serif" }}
+          >
+            <nav className="flex flex-col gap-1 pt-2">
+              {NAV_LINKS.map((link) => {
+                if (link.children) {
+                  return (
+                    <div key={link.href}>
+                      <button
+                        type="button"
+                        className="flex w-full items-center justify-between rounded-md px-3 py-2.5 text-sm font-medium transition-colors hover:bg-gray-50"
+                        style={{ color: "#10305a" }}
+                        onClick={() => setProductOpen(!productOpen)}
+                      >
+                        {link.label}
+                        <ChevronDown
+                          className="h-4 w-4 transition-transform duration-200"
+                          style={{
+                            transform: productOpen ? "rotate(180deg)" : "rotate(0deg)",
+                          }}
+                        />
+                      </button>
+                      {productOpen && (
+                        <div className="ml-4 flex flex-col gap-1">
+                          {link.children.map((child) => (
+                            <Link
+                              key={child.href}
+                              href={child.href}
+                              className="rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-gray-50"
+                              style={{ color: "#10305a" }}
+                              onClick={() => setMobileOpen(false)}
+                            >
+                              {child.label}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                }
+
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="rounded-md px-3 py-2.5 text-sm font-medium transition-colors hover:bg-gray-50"
+                    style={{ color: "#10305a" }}
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {link.label}
+                  </Link>
+                )
+              })}
+            </nav>
+          </div>
+        )}
+      </header>
+
+      {/* Marquee ticker */}
+      <div
+        className="w-full overflow-hidden border-b border-gray-100 bg-white py-2"
+        style={{ fontFamily: "'Gill Sans', 'Gill Sans MT', Calibri, sans-serif" }}
+      >
+        <div className="marquee-track">
+          <span className="marquee-content" style={{ color: "#10305a" }}>
+            {MARQUEE_TEXT}&nbsp;&nbsp;&nbsp;&nbsp;{MARQUEE_TEXT}&nbsp;&nbsp;&nbsp;&nbsp;{MARQUEE_TEXT}&nbsp;&nbsp;&nbsp;&nbsp;{MARQUEE_TEXT}&nbsp;&nbsp;&nbsp;&nbsp;
+          </span>
+        </div>
+
+        <style jsx>{`
+          .marquee-track {
+            display: flex;
+            white-space: nowrap;
+          }
+          .marquee-content {
+            display: inline-block;
+            animation: marquee-scroll 20s linear infinite;
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+          }
+          @keyframes marquee-scroll {
+            0% {
+              transform: translateX(0);
+            }
+            100% {
+              transform: translateX(-50%);
+            }
+          }
+        `}</style>
+      </div>
+    </>
   )
 }

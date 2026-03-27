@@ -30,10 +30,10 @@ const TIER_COLORS: Record<string, string> = {
 }
 
 const TIER_BADGE_CLASSES: Record<string, string> = {
-  一般會員: "bg-zinc-200 text-zinc-700",
-  銀卡會員: "bg-slate-300 text-slate-800",
-  金卡會員: "bg-amber-400 text-amber-900",
-  鑽石會員: "bg-sky-400 text-sky-900",
+  一般會員: "bg-[#10305a]/20 text-[#10305a]",
+  銀卡會員: "bg-[#10305a]/40 text-white",
+  金卡會員: "bg-[#10305a]/70 text-white",
+  鑽石會員: "bg-[#10305a] text-white",
 }
 
 export default async function MembershipPage() {
@@ -85,7 +85,7 @@ export default async function MembershipPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-2xl">
-      <h1 className="text-2xl font-bold mb-6">會員資格</h1>
+      <h1 className="text-2xl font-bold mb-6 text-[#10305a]">會員資格</h1>
 
       <Card className="mb-6">
         <CardHeader>
@@ -110,7 +110,7 @@ export default async function MembershipPage() {
                 <span className="text-muted-foreground">升級進度</span>
                 <span className="text-muted-foreground">{progressPercent}%</span>
               </div>
-              <Progress value={progressPercent} className="h-3" />
+              <Progress value={progressPercent} className="h-3 [&>div]:bg-[#10305a]" />
               <p className="text-sm text-muted-foreground">
                 再消費{" "}
                 <span className="font-semibold text-foreground">
@@ -137,7 +137,7 @@ export default async function MembershipPage() {
             <ul className="space-y-2">
               {benefits.map((benefit, i) => (
                 <li key={i} className="flex items-center gap-2 text-sm">
-                  <span className="text-primary">✓</span>
+                  <span className="text-[#10305a]">✓</span>
                   <span>{benefit}</span>
                 </li>
               ))}
@@ -155,12 +155,12 @@ export default async function MembershipPage() {
             return (
               <div
                 key={tier.id}
-                className={`flex items-center justify-between p-3 rounded-lg border ${isCurrent ? "border-primary bg-primary/5" : ""}`}
+                className={`flex items-center justify-between p-3 rounded-lg border ${isCurrent ? "border-[#10305a] bg-[#10305a]/5" : ""}`}
               >
                 <div className="flex items-center gap-2">
                   <Badge className={cls}>{tier.name}</Badge>
                   {isCurrent && (
-                    <span className="text-xs text-primary font-medium">目前等級</span>
+                    <span className="text-xs text-[#10305a] font-medium">目前等級</span>
                   )}
                 </div>
                 <div className="text-sm text-muted-foreground">

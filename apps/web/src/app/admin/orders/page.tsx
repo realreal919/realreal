@@ -13,13 +13,13 @@ const STATUS_TABS = [
   { label: "已取消", value: "cancelled" },
 ]
 
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  pending: "outline",
-  processing: "secondary",
-  shipped: "default",
-  completed: "default",
-  cancelled: "destructive",
-  failed: "destructive",
+const STATUS_BADGE_CLASSES: Record<string, string> = {
+  pending: "bg-[#10305a]/10 text-[#10305a] border-[#10305a]/20",
+  processing: "bg-[#10305a]/20 text-[#10305a] border-[#10305a]/30",
+  shipped: "bg-[#10305a] text-white border-[#10305a]",
+  completed: "bg-[#10305a] text-white border-[#10305a]",
+  cancelled: "bg-red-100 text-red-700 border-red-200",
+  failed: "bg-red-100 text-red-700 border-red-200",
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -56,7 +56,7 @@ export default async function AdminOrdersPage({
 
   return (
     <div>
-      <h1 className="text-xl font-semibold mb-4">訂單管理</h1>
+      <h1 className="text-xl font-semibold mb-4 text-[#10305a]">訂單管理</h1>
 
       {/* Status filter tabs */}
       <div className="flex gap-2 mb-4 flex-wrap">
@@ -67,10 +67,10 @@ export default async function AdminOrdersPage({
             <Link
               key={tab.value}
               href={href}
-              className={`px-3 py-1.5 rounded-md text-sm border transition-colors ${
+              className={`px-3 py-1.5 rounded-[10px] text-sm border transition-colors ${
                 isActive
-                  ? "bg-zinc-900 text-white border-zinc-900"
-                  : "bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50"
+                  ? "bg-[#10305a] text-white border-[#10305a]"
+                  : "bg-white text-[#687279] border-[#10305a]/20 hover:bg-[#10305a]/5"
               }`}
             >
               {tab.label}
@@ -81,7 +81,7 @@ export default async function AdminOrdersPage({
 
       <div className="border rounded-lg overflow-hidden bg-white">
         <table className="w-full text-sm">
-          <thead className="bg-zinc-50 text-zinc-500 text-xs uppercase">
+          <thead className="bg-[#10305a]/5 text-[#687279] text-xs uppercase">
             <tr>
               <th className="px-4 py-3 text-left">訂單號</th>
               <th className="px-4 py-3 text-left">顧客</th>
@@ -111,7 +111,7 @@ export default async function AdminOrdersPage({
                       <p className="text-zinc-400 text-xs">{profile?.email ?? "—"}</p>
                     </td>
                     <td className="px-4 py-3">
-                      <Badge variant={STATUS_VARIANT[order.status] ?? "outline"}>
+                      <Badge className={STATUS_BADGE_CLASSES[order.status] ?? "bg-[#10305a]/10 text-[#10305a] border-[#10305a]/20"}>
                         {STATUS_LABEL[order.status] ?? order.status}
                       </Badge>
                     </td>
@@ -124,7 +124,7 @@ export default async function AdminOrdersPage({
                     <td className="px-4 py-3">
                       <Link
                         href={`/admin/orders/${order.id}`}
-                        className="text-blue-600 hover:underline text-xs"
+                        className="text-[#10305a] hover:underline text-xs font-medium"
                       >
                         查看
                       </Link>
