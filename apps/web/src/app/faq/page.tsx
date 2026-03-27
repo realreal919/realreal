@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { getSiteContent } from "@/lib/content"
 
 export const metadata: Metadata = {
   title: "常見問題 | 誠真生活 RealReal",
@@ -12,7 +13,7 @@ type FaqSection = {
   items: FaqItem[]
 }
 
-const sections: FaqSection[] = [
+const hardcodedSections: FaqSection[] = [
   {
     title: "訂購流程",
     items: [
@@ -109,7 +110,14 @@ const sections: FaqSection[] = [
   },
 ]
 
-export default function FaqPage() {
+export default async function FaqPage() {
+  // Try fetching dynamic FAQ items from the API
+  const dynamicItems = await getSiteContent<FaqSection[]>("faq_items")
+  const sections =
+    Array.isArray(dynamicItems) && dynamicItems.length > 0
+      ? dynamicItems
+      : hardcodedSections
+
   return (
     <div className="container mx-auto px-4 py-12 max-w-3xl">
       <h1 className="text-3xl font-bold mb-2 text-center text-[#10305a]">常見問題</h1>

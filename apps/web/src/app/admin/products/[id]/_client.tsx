@@ -4,12 +4,13 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { TiptapEditor } from "@/components/editor"
 import { ProductImageUpload } from "@/components/catalog/ProductImageUpload"
 
 export default function AdminProductEditClient({ product }: { product: any }) {
   const router = useRouter()
   const [images, setImages] = useState<string[]>(product.images ?? [])
+  const [description, setDescription] = useState(product.description ?? "")
   const [saving, setSaving] = useState(false)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -19,7 +20,7 @@ export default function AdminProductEditClient({ product }: { product: any }) {
     const body = {
       name: fd.get("name") as string,
       slug: fd.get("slug") as string,
-      description: fd.get("description") as string,
+      description,
       images,
     }
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/products/${product.id}`, {
@@ -38,7 +39,7 @@ export default function AdminProductEditClient({ product }: { product: any }) {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div><Label htmlFor="name">商品名稱</Label><Input id="name" name="name" defaultValue={product.name} required /></div>
         <div><Label htmlFor="slug">網址代碼</Label><Input id="slug" name="slug" defaultValue={product.slug} pattern="[a-z0-9-]+" required /></div>
-        <div><Label htmlFor="description">商品描述</Label><Textarea id="description" name="description" defaultValue={product.description ?? ""} rows={4} /></div>
+        <div><Label>商品描述</Label><TiptapEditor content={description} onChange={setDescription} placeholder="輸入商品描述..." /></div>
         <div><Label>商品圖片</Label><ProductImageUpload value={images} onChange={setImages} /></div>
         <div className="flex gap-2">
           <Button type="submit" disabled={saving}>{saving ? "儲存中..." : "更新商品"}</Button>

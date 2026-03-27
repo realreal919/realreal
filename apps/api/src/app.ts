@@ -16,6 +16,13 @@ import { jkopayWebhookRouter } from "./routes/webhooks/jkopay"
 import { ecpayLogisticsWebhookRouter } from "./routes/webhooks/ecpay-logistics"
 import { subscriptionPlansRouter, subscriptionsRouter } from "./routes/subscriptions"
 import { pchomepayTokenWebhookRouter } from "./routes/webhooks/pchomepay-token"
+import { postsPublicRouter, postsAdminRouter } from "./routes/posts"
+import { postCategoriesPublicRouter, postCategoriesAdminRouter } from "./routes/post-categories"
+import { postTagsPublicRouter, postTagsAdminRouter } from "./routes/post-tags"
+import { mediaRouter } from "./routes/media"
+import { requireEditor } from "./middleware/editor"
+import { siteContentsRouter } from "./routes/site-contents"
+import { usersRouter } from "./routes/users"
 
 export const app = express()
 
@@ -42,6 +49,15 @@ app.use("/webhooks/ecpay-logistics", ecpayLogisticsWebhookRouter)
 app.use("/subscription-plans", subscriptionPlansRouter)
 app.use("/subscriptions", requireAuth, subscriptionsRouter)
 app.use("/webhooks/pchomepay-token", pchomepayTokenWebhookRouter)
+app.use("/posts", postsPublicRouter)
+app.use("/admin/posts", postsAdminRouter)
+app.use("/post-categories", postCategoriesPublicRouter)
+app.use("/admin/post-categories", postCategoriesAdminRouter)
+app.use("/post-tags", postTagsPublicRouter)
+app.use("/admin/post-tags", postTagsAdminRouter)
+app.use("/admin/media", requireAuth, requireEditor, mediaRouter)
+app.use("/", siteContentsRouter)
+app.use("/", usersRouter)
 app.use((_req, res) => { res.status(404).json({ error: "Not found" }) })
 // Global error handler (must have 4 args for Express to treat it as error handler)
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {

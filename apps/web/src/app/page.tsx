@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { getProducts, getCategories } from "@/lib/catalog"
 import type { Product, Category } from "@/lib/catalog"
+import { getSiteContent, getPosts } from "@/lib/content"
+import type { Post } from "@/lib/content"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
@@ -38,7 +40,18 @@ async function findCategorySlug(needle: string): Promise<string | undefined> {
 
 /* ---------- sections ---------- */
 
-function HeroSection() {
+type HeroContent = {
+  heading?: string
+  subheading?: string
+  cta_text?: string
+  cta_link?: string
+}
+
+function HeroSection({ content }: { content?: HeroContent | null }) {
+  const heading = content?.heading ?? "自純淨中補給，在誠真中安心"
+  const ctaText = content?.cta_text ?? "探索商品"
+  const ctaLink = content?.cta_link ?? "/shop"
+
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-[#f5f0fa] via-[#f8f4f0] to-[#faf6f2]">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -46,16 +59,22 @@ function HeroSection() {
           {/* Left: text */}
           <div className="order-2 md:order-1">
             <h1 className="text-3xl font-bold leading-tight tracking-tight text-[#10305a] sm:text-4xl lg:text-[2.75rem] lg:leading-[1.3]">
-              自純淨中補給，在誠真中安心
+              {heading}
             </h1>
             <div className="mt-6 space-y-3 text-base leading-relaxed text-[#687279] sm:text-[17px]">
-              <p>誠真堅持選用非動物來源</p>
-              <p>每一份營養，都來自對生命與土地的尊重。</p>
-              <p>
-                每一口，補進的不只是純真的能量，更是一種安心與純粹的生活態度。
-              </p>
-              <p>回歸自然，也回到自己，致上對身體與生命最深的善意</p>
-              <p className="italic">——愛正活在生活裡。</p>
+              {content?.subheading ? (
+                <p>{content.subheading}</p>
+              ) : (
+                <>
+                  <p>誠真堅持選用非動物來源</p>
+                  <p>每一份營養，都來自對生命與土地的尊重。</p>
+                  <p>
+                    每一口，補進的不只是純真的能量，更是一種安心與純粹的生活態度。
+                  </p>
+                  <p>回歸自然，也回到自己，致上對身體與生命最深的善意</p>
+                  <p className="italic">——愛正活在生活裡。</p>
+                </>
+              )}
             </div>
             <div className="mt-8">
               <Button
@@ -63,7 +82,7 @@ function HeroSection() {
                 size="lg"
                 className="bg-[#10305a] text-white rounded-[10px] px-8 text-base h-12 hover:bg-[#10305a]/90"
               >
-                <Link href="/shop">探索商品</Link>
+                <Link href={ctaLink}>{ctaText}</Link>
               </Button>
             </div>
           </div>
@@ -235,24 +254,24 @@ function ProductSection({
   )
 }
 
-function BlogSection() {
-  const posts = [
+function BlogSection({ posts }: { posts: Post[] }) {
+  // Fallback to hardcoded placeholder if no real posts
+  const fallbackPosts = [
     {
       title: "植物蛋白vs動物蛋白：你該知道的事",
       excerpt: "了解兩者差異，選擇最適合自己的蛋白質來源。",
-      image: null,
     },
     {
       title: "凍乾水果的營養價值完整保留嗎？",
       excerpt: "科學解析凍乾技術如何鎖住水果的天然營養。",
-      image: null,
     },
     {
       title: "純素飲食入門指南",
       excerpt: "從日常飲食開始，輕鬆踏上純素生活的第一步。",
-      image: null,
     },
   ]
+
+  const hasPosts = posts.length > 0
 
   return (
     <section className="bg-[#fffeee] py-16 sm:py-20">
@@ -262,25 +281,110 @@ function BlogSection() {
         </h2>
 
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {posts.map((post) => (
-            <Card
-              key={post.title}
-              className="overflow-hidden border-0 shadow-sm hover:shadow-md transition-shadow"
-            >
-              <div className="aspect-[16/9] bg-gradient-to-br from-[#f5f0fa] to-[#faf6f2] flex items-center justify-center">
-                <span className="text-4xl text-[#10305a]/20">📝</span>
-              </div>
-              <CardContent className="p-5">
-                <h3 className="font-semibold text-[#10305a] line-clamp-2">
-                  {post.title}
-                </h3>
-                <p className="mt-2 text-sm text-[#687279] line-clamp-2">
-                  {post.excerpt}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
+          {hasPosts
+            ? posts.map((post) => (
+                <Link
+                  key={post.id}
+                  href={`/blog/${post.slug}`}
+                  className="group"
+                >
+                  <Card className="overflow-hidden border-0 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="aspect-[16/9] relative bg-gradient-to-br from-[#f5f0fa] to-[#faf6f2] overflow-hidden">
+                      {post.cover_image ? (
+                        <Image
+                          src={post.cover_image}
+                          alt={post.title}
+                          fill
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                          className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-[#10305a]/20 text-4xl">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="40"
+                            height="40"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2" />
+                            <path d="M18 14h-8" />
+                            <path d="M15 18h-5" />
+                            <path d="M10 6h8v4h-8V6Z" />
+                          </svg>
+                        </div>
+                      )}
+                      {post.category && (
+                        <span className="absolute top-3 left-3 rounded-full bg-[#10305a] px-3 py-1 text-xs font-medium text-white">
+                          {post.category}
+                        </span>
+                      )}
+                    </div>
+                    <CardContent className="p-5">
+                      <h3 className="font-semibold text-[#10305a] line-clamp-2 group-hover:underline">
+                        {post.title}
+                      </h3>
+                      {post.excerpt && (
+                        <p className="mt-2 text-sm text-[#687279] line-clamp-2">
+                          {post.excerpt}
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))
+            : fallbackPosts.map((post) => (
+                <Card
+                  key={post.title}
+                  className="overflow-hidden border-0 shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <div className="aspect-[16/9] bg-gradient-to-br from-[#f5f0fa] to-[#faf6f2] flex items-center justify-center">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="40"
+                      height="40"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="text-[#10305a]/20"
+                    >
+                      <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2" />
+                      <path d="M18 14h-8" />
+                      <path d="M15 18h-5" />
+                      <path d="M10 6h8v4h-8V6Z" />
+                    </svg>
+                  </div>
+                  <CardContent className="p-5">
+                    <h3 className="font-semibold text-[#10305a] line-clamp-2">
+                      {post.title}
+                    </h3>
+                    <p className="mt-2 text-sm text-[#687279] line-clamp-2">
+                      {post.excerpt}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
         </div>
+
+        {hasPosts && (
+          <div className="mt-10 text-center">
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              className="rounded-[10px] border-[#10305a]/30 text-[#10305a] hover:bg-[#10305a]/5 px-8"
+            >
+              <Link href="/blog">查看更多文章 →</Link>
+            </Button>
+          </div>
+        )}
       </div>
     </section>
   )
@@ -341,16 +445,19 @@ export default async function HomePage() {
     findCategorySlug("凍乾"),
   ])
 
-  // Fetch products by category (fall back to slug guess if category not found)
-  const [proteinProducts, fruitProducts] = await Promise.all([
-    getProductsByCategory(proteinSlug ?? "protein"),
-    getProductsByCategory(fruitSlug ?? "freeze-dried"),
-  ])
+  // Fetch products, content and blog posts in parallel
+  const [proteinProducts, fruitProducts, heroContent, blogResult] =
+    await Promise.all([
+      getProductsByCategory(proteinSlug ?? "protein"),
+      getProductsByCategory(fruitSlug ?? "freeze-dried"),
+      getSiteContent<HeroContent>("homepage_hero"),
+      getPosts({ limit: 3 }),
+    ])
 
   return (
     <main className="min-h-screen">
       {/* 1. Hero */}
-      <HeroSection />
+      <HeroSection content={heroContent} />
 
       {/* 2. Membership tiers */}
       <MembershipSection />
@@ -374,7 +481,7 @@ export default async function HomePage() {
       </div>
 
       {/* 5. Blog section */}
-      <BlogSection />
+      <BlogSection posts={blogResult.data} />
 
       {/* 6. Customer reviews */}
       <ReviewsSection />

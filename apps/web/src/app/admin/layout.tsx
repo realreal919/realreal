@@ -12,19 +12,36 @@ import {
   Cpu,
   Settings,
   LayoutDashboard,
+  ImageIcon,
+  PenSquare,
+  Home,
 } from "lucide-react"
 
-const NAV_ITEMS = [
-  { href: "/admin", label: "概覽", icon: LayoutDashboard },
-  { href: "/admin/orders", label: "訂單管理", icon: ShoppingCart },
-  { href: "/admin/products", label: "商品管理", icon: Package },
-  { href: "/admin/customers", label: "客戶管理", icon: Users },
-  { href: "/admin/subscriptions", label: "訂閱管理", icon: RefreshCw },
-  { href: "/admin/invoices", label: "發票管理", icon: FileText },
-  { href: "/admin/coupons", label: "優惠券", icon: Tag },
-  { href: "/admin/analytics", label: "數據分析", icon: BarChart2 },
-  { href: "/admin/jobs", label: "工作佇列", icon: Cpu },
-  { href: "/admin/settings", label: "系統設定", icon: Settings },
+type Role = "admin" | "editor" | "viewer"
+
+interface NavItem {
+  href: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  roles?: Role[]
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { href: "/admin", label: "概覽", icon: LayoutDashboard, roles: ["admin", "editor"] },
+  { href: "/admin/orders", label: "訂單管理", icon: ShoppingCart, roles: ["admin", "editor"] },
+  { href: "/admin/products", label: "商品管理", icon: Package, roles: ["admin", "editor"] },
+  { href: "/admin/customers", label: "客戶管理", icon: Users, roles: ["admin", "editor"] },
+  { href: "/admin/subscriptions", label: "訂閱管理", icon: RefreshCw, roles: ["admin", "editor"] },
+  { href: "/admin/invoices", label: "發票管理", icon: FileText, roles: ["admin", "editor"] },
+  { href: "/admin/coupons", label: "優惠券", icon: Tag, roles: ["admin", "editor"] },
+  { href: "/admin/analytics", label: "數據分析", icon: BarChart2, roles: ["admin", "editor"] },
+  { href: "/admin/jobs", label: "工作佇列", icon: Cpu, roles: ["admin", "editor"] },
+  { href: "/admin/posts", label: "文章管理", icon: FileText, roles: ["admin", "editor"] },
+  { href: "/admin/media", label: "媒體庫", icon: ImageIcon, roles: ["admin", "editor"] },
+  { href: "/admin/pages", label: "頁面編輯", icon: PenSquare, roles: ["admin", "editor"] },
+  { href: "/admin/homepage", label: "首頁管理", icon: Home, roles: ["admin", "editor"] },
+  { href: "/admin/users", label: "團隊成員", icon: Users, roles: ["admin"] },
+  { href: "/admin/settings", label: "系統設定", icon: Settings, roles: ["admin", "editor"] },
 ]
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -41,7 +58,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     .eq("user_id", user.id)
     .single()
 
-  if (profile?.role !== "admin") redirect("/")
+  const role = (profile?.role ?? "viewer") as Role
+
+  if (role === "viewer") redirect("/")
+
+  const visibleItems = NAV_ITEMS.filter(
+    (item) => !item.roles || item.roles.includes(role),
+  )
 
   return (
     <div className="flex min-h-screen bg-zinc-50">
@@ -50,7 +73,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <span className="font-semibold text-sm text-white">誠真生活 管理後台</span>
         </div>
         <nav className="flex-1 py-4 space-y-0.5 px-2">
-          {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
+          {visibleItems.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}
