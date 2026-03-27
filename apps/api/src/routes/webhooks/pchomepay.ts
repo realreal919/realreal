@@ -1,0 +1,82 @@
+import { Router } from "express"
+import { supabase } from "../../lib/supabase"
+import { verifyCheckMacValue } from "../../lib/pchomepay"
+
+export const pchomepayWebhookRouter = Router()
+
+const HASH_KEY = process.env.PCHOMEPAY_HASH_KEY ?? ""
+const HASH_IV = process.env.PCHOMEPAY_HASH_IV ?? ""
+
+// POST /webhooks/pchomepay — PChomePay server notification
+// PChomePay sends form-encoded POST; must return "1|OK" on success
+pchomepayWebhookRouter.post("/", async (req, res) => {
+  const params = req.body as Record<string, string>
+
+  // Verify CheckMacValue (timing-safe)
+  if (!verifyCheckMacValue(params, HASH_KEY, HASH_IV)) {
+    res.status(400).send("0|SignatureError"); return
+  }
+
+  const { MerchantTradeNo, TradeNo, RtnCode } = params
+  if (!MerchantTradeNo) {
+    res.status(400).send("0|MissingTradeNo"); return
+  }
+
+  // Idempotency guard — insert into webhook_events, catch unique constraint "23505"
+  const { error: idempotencyError } = await supabase
+    .from("webhook_events")
+    .insert({
+      gateway: "pchomepay",
+      merchant_trade_no: MerchantTradeNo,
+      payload: JSON.stringify(params),
+    })
+
+  if (idempotencyError) {
+    if (idempotencyError.code === "23505") {
+      // Duplicate webhook — already processed, return success
+      res.send("1|OK"); return
+    }
+    console.error("[webhooks/pchomepay] idempotency insert failed:", idempotencyError)
+    res.status(500).send("0|InternalError"); return
+  }
+
+  const success = RtnCode === "1"
+
+  // Find the payment transaction by MerchantTradeNo
+  const { data: tx } = await supabase
+    .from("payment_transactions")
+    .select("id, order_id")
+    .eq("merchant_trade_no", MerchantTradeNo)
+    .single()
+
+  if (tx) {
+    await supabase
+      .from("payment_transactions")
+      .update({
+        status: success ? "captured" : "failed",
+        gateway_trade_no: TradeNo ?? null,
+        raw_response: JSON.stringify(params),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", tx.id)
+
+    await supabase
+      .from("orders")
+      .update({ status: success ? "paid" : "payment_failed", updated_at: new Date().toISOString() })
+      .eq("id", tx.order_id)
+
+    if (success) {
+      // Enqueue email + invoice jobs
+      try {
+        const { inventoryQueue } = await import("../../lib/queue")
+        await inventoryQueue.add("order-paid-email", { orderId: tx.order_id })
+        await inventoryQueue.add("order-paid-invoice", { orderId: tx.order_id })
+      } catch (err) {
+        console.warn("[webhooks/pchomepay] enqueue jobs failed (non-fatal):", err)
+      }
+    }
+  }
+
+  // PChomePay requires this exact response
+  res.send("1|OK")
+})
