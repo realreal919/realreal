@@ -1,0 +1,6 @@
+Wordpress/
+node_modules/
+.next/
+supabase/.temp/
+docs/
+*.md
