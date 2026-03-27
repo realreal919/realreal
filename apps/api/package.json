@@ -25,9 +25,14 @@
     "vitest": "^4.1.2"
   },
   "dependencies": {
+    "@react-email/components": "^0.0.28",
+    "@react-email/render": "^1",
     "@supabase/supabase-js": "^2.100.1",
+    "bullmq": "^5",
     "express": "^5.2.1",
+    "ioredis": "^5",
     "pino": "^10.3.1",
+    "resend": "^4",
     "zod": "^4.3.6"
   }
 }
