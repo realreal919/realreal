@@ -9,6 +9,12 @@ const loginSchema = z.object({
   password: z.string().min(8),
 })
 
+const registerSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  displayName: z.string().min(1),
+})
+
 export async function loginAction(_prev: unknown, formData: FormData) {
   const parsed = loginSchema.safeParse({
     email: formData.get("email"),
@@ -24,11 +30,7 @@ export async function loginAction(_prev: unknown, formData: FormData) {
 }
 
 export async function registerAction(_prev: unknown, formData: FormData) {
-  const parsed = z.object({
-    email: z.string().email(),
-    password: z.string().min(8),
-    displayName: z.string().min(1),
-  }).safeParse({
+  const parsed = registerSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
     displayName: formData.get("displayName"),
@@ -42,13 +44,15 @@ export async function registerAction(_prev: unknown, formData: FormData) {
     options: { data: { display_name: parsed.data.displayName } },
   })
   if (error) return { error: error.message }
-
-  redirect("/my-account")
+  return { success: "註冊成功！請檢查您的信箱並點擊確認連結以完成註冊" }
 }
 
 export async function forgotPasswordAction(_prev: unknown, formData: FormData) {
-  const email = formData.get("email")?.toString()
-  if (!email) return { error: "請輸入 Email" }
+  const parsed = z.object({ email: z.string().email() }).safeParse({
+    email: formData.get("email"),
+  })
+  if (!parsed.success) return { error: "請輸入有效的 Email" }
+  const email = parsed.data.email
 
   const supabase = await createClient()
   const { error } = await supabase.auth.resetPasswordForEmail(email, {

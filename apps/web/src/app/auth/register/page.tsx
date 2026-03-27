@@ -30,6 +30,7 @@ export default function RegisterPage() {
               <Input id="password" name="password" type="password" minLength={8} required />
             </div>
             {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
+            {state?.success && <p className="text-sm text-green-600">{state.success}</p>}
             <Button type="submit" className="w-full" disabled={isPending}>
               {isPending ? "建立中…" : "建立帳號"}
             </Button>
