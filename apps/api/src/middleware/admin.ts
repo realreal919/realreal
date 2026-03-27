@@ -5,9 +5,10 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
   const userId = res.locals.userId as string | undefined
   if (!userId) { res.status(401).json({ error: "Unauthorized" }); return }
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("user_profiles").select("role").eq("user_id", userId).single()
 
+  if (error) { res.status(500).json({ error: "Internal server error" }); return }
   if (data?.role !== "admin") { res.status(403).json({ error: "Forbidden" }); return }
   next()
 }
