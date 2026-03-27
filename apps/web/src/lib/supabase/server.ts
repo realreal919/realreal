@@ -15,6 +15,8 @@ export async function createClient() {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             )
+          // setAll is called from Server Components where cookies() is read-only.
+          // Silently ignore — this is intentional per @supabase/ssr docs.
           } catch {}
         },
       },
