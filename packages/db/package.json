@@ -2,7 +2,11 @@
   "name": "@realreal/db",
   "version": "1.0.0",
   "main": "src/index.ts",
-  "scripts": { "typecheck": "tsc --noEmit" },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "generate": "drizzle-kit generate",
+    "push": "drizzle-kit push"
+  },
   "dependencies": {
     "drizzle-orm": "^0.36",
     "@supabase/supabase-js": "^2"

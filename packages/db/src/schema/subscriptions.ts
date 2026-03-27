@@ -1,5 +1,7 @@
 import { pgTable, uuid, text, numeric, integer, boolean, date, timestamp, jsonb } from "drizzle-orm/pg-core"
 
+type BenefitItem = { label: string; description?: string }
+
 export const subscriptionPlans = pgTable("subscription_plans", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
@@ -8,7 +10,7 @@ export const subscriptionPlans = pgTable("subscription_plans", {
   price: numeric("price", { precision: 10, scale: 2 }).notNull(),
   variantId: uuid("variant_id"),
   qty: integer("qty"),
-  benefits: jsonb("benefits"),
+  benefits: jsonb("benefits").$type<BenefitItem[]>(),
   isActive: boolean("is_active").notNull().default(true),
 })
 

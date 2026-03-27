@@ -1,11 +1,13 @@
 import { pgTable, uuid, text, numeric, integer, timestamp, date, jsonb } from "drizzle-orm/pg-core"
 
+type BenefitItem = { label: string; description?: string }
+
 export const membershipTiers = pgTable("membership_tiers", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   minSpend: numeric("min_spend", { precision: 10, scale: 2 }).notNull().default("0"),
   discountRate: numeric("discount_rate", { precision: 5, scale: 4 }).notNull().default("0"),
-  benefits: jsonb("benefits"),
+  benefits: jsonb("benefits").$type<BenefitItem[]>(),
   sortOrder: integer("sort_order").notNull().default(0),
 })
 

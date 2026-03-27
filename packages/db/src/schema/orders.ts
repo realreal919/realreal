@@ -1,5 +1,13 @@
 import { pgTable, uuid, text, numeric, integer, timestamp, jsonb } from "drizzle-orm/pg-core"
 
+type ProductSnapshot = {
+  name: string
+  sku: string | null
+  variantName: string
+  price: string
+  imageUrl?: string
+}
+
 export const orders = pgTable("orders", {
   id: uuid("id").primaryKey().defaultRandom(),
   orderNumber: text("order_number").notNull().unique(),
@@ -23,7 +31,7 @@ export const orderItems = pgTable("order_items", {
   id: uuid("id").primaryKey().defaultRandom(),
   orderId: uuid("order_id").notNull(),
   variantId: uuid("variant_id"),
-  productSnapshot: jsonb("product_snapshot").notNull(),
+  productSnapshot: jsonb("product_snapshot").notNull().$type<ProductSnapshot>(),
   qty: integer("qty").notNull(),
   unitPrice: numeric("unit_price", { precision: 10, scale: 2 }).notNull(),
 })

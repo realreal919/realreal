@@ -204,7 +204,8 @@ CREATE TABLE coupon_uses (
   user_id UUID REFERENCES auth.users(id),
   order_id UUID REFERENCES orders(id),
   subscription_id UUID REFERENCES subscriptions(id),
-  used_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  used_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (coupon_id, order_id)
 );
 
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -220,3 +221,32 @@ INSERT INTO membership_tiers (name, min_spend, discount_rate, sort_order) VALUES
   ('銀卡會員', 3000, 0.03, 2),
   ('金卡會員', 10000, 0.05, 3),
   ('鑽石會員', 30000, 0.08, 4);
+
+-- FK: orders.invoice_id -> invoices (deferred because invoices is defined after orders)
+ALTER TABLE orders ADD CONSTRAINT fk_orders_invoice FOREIGN KEY (invoice_id) REFERENCES invoices(id);
+
+-- Indexes for foreign keys and commonly queried columns
+CREATE INDEX idx_user_profiles_membership_tier ON user_profiles(membership_tier_id);
+CREATE INDEX idx_categories_parent ON categories(parent_id);
+CREATE INDEX idx_products_category ON products(category_id);
+CREATE INDEX idx_products_slug ON products(slug);
+CREATE INDEX idx_product_variants_product ON product_variants(product_id);
+CREATE INDEX idx_product_variants_sku ON product_variants(sku) WHERE sku IS NOT NULL;
+CREATE INDEX idx_orders_user ON orders(user_id);
+CREATE INDEX idx_orders_status ON orders(status);
+CREATE INDEX idx_orders_payment_status ON orders(payment_status);
+CREATE INDEX idx_orders_created_at ON orders(created_at DESC);
+CREATE INDEX idx_order_items_order ON order_items(order_id);
+CREATE INDEX idx_order_items_variant ON order_items(variant_id);
+CREATE INDEX idx_order_addresses_order ON order_addresses(order_id);
+CREATE INDEX idx_payments_order ON payments(order_id);
+CREATE INDEX idx_logistics_order ON logistics(order_id);
+CREATE INDEX idx_logistics_status ON logistics(status);
+CREATE INDEX idx_invoices_order ON invoices(order_id);
+CREATE INDEX idx_subscriptions_user ON subscriptions(user_id);
+CREATE INDEX idx_subscriptions_status ON subscriptions(status);
+CREATE INDEX idx_subscriptions_next_billing ON subscriptions(next_billing_date) WHERE status = 'active';
+CREATE INDEX idx_subscription_orders_subscription ON subscription_orders(subscription_id);
+CREATE INDEX idx_coupon_uses_coupon ON coupon_uses(coupon_id);
+CREATE INDEX idx_coupon_uses_user ON coupon_uses(user_id);
+CREATE INDEX idx_coupon_uses_order ON coupon_uses(order_id);
