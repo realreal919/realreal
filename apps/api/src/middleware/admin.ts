@@ -1,0 +1,13 @@
+import type { Request, Response, NextFunction } from "express"
+import { supabase } from "../lib/supabase"
+
+export async function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  const userId = res.locals.userId as string | undefined
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return }
+
+  const { data } = await supabase
+    .from("user_profiles").select("role").eq("user_id", userId).single()
+
+  if (data?.role !== "admin") { res.status(403).json({ error: "Forbidden" }); return }
+  next()
+}
