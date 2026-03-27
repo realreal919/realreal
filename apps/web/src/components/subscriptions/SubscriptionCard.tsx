@@ -3,6 +3,7 @@ import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { toast } from "sonner"
 
 type Sub = {
   id: string
@@ -21,14 +22,25 @@ export function SubscriptionCard({ sub, onAction }: { sub: Sub; onAction: () => 
   const [loading, setLoading] = useState(false)
   const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
 
+  const actionLabels = { pause: "訂閱已暫停", resume: "訂閱已恢復", cancel: "訂閱已取消" }
+
   async function handleAction(action: "pause" | "resume" | "cancel") {
     setLoading(true)
-    await fetch(`${API_URL}/subscriptions/${sub.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ action }),
-    })
+    try {
+      const res = await fetch(`${API_URL}/subscriptions/${sub.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action }),
+      })
+      if (res.ok) {
+        toast.success(actionLabels[action])
+      } else {
+        toast.error("操作失敗，請稍後再試")
+      }
+    } catch {
+      toast.error("操作失敗，請稍後再試")
+    }
     setLoading(false)
     onAction()
   }

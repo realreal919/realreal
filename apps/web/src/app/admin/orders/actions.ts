@@ -7,8 +7,10 @@ export async function updateOrderStatusAction(id: string, status: string) {
   await apiClient(`/admin/orders/${id}/status`, {
     method: "PATCH",
     body: JSON.stringify({ status }),
+    internal: true,
   })
   revalidatePath("/admin/orders")
+  revalidatePath(`/admin/orders/${id}`)
 }
 
 export async function bulkUpdateOrderStatusAction(ids: string[], status: string) {

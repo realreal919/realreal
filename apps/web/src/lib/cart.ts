@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { toast } from "sonner"
 
 export type CartItem = {
   variantId: string
@@ -25,6 +26,7 @@ export const useCart = create<CartStore>()(
       items: [],
       addItem: (item) => set(state => {
         const existing = state.items.find(i => i.variantId === item.variantId)
+        toast.success("已加入購物車")
         if (existing) {
           return { items: state.items.map(i => i.variantId === item.variantId ? { ...i, qty: i.qty + item.qty } : i) }
         }

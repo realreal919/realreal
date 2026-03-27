@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { useCart } from "@/lib/cart"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { InvoiceSelector, type InvoiceData } from "@/components/checkout/InvoiceSelector"
 
 type AddressType = "home" | "cvs"
 type ShippingMethod = "711" | "family" | "home_delivery"
@@ -16,6 +18,71 @@ const SHIPPING_LABELS: Record<ShippingMethod, string> = {
   "home_delivery": "宅配",
 }
 
+const SHIPPING_FEES: Record<ShippingMethod, number> = {
+  "711": 60,
+  "family": 60,
+  "home_delivery": 100,
+}
+
+const STEPS = [
+  { num: 1, label: "收件資訊" },
+  { num: 2, label: "付款方式" },
+  { num: 3, label: "確認訂單" },
+]
+
+function StepIndicator({ current }: { current: number }) {
+  return (
+    <nav className="mb-8" aria-label="結帳步驟">
+      <ol className="flex items-center justify-center gap-0">
+        {STEPS.map((step, i) => {
+          const isActive = step.num === current
+          const isCompleted = step.num < current
+          return (
+            <li key={step.num} className="flex items-center">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold transition-colors ${
+                    isActive
+                      ? "bg-primary text-primary-foreground"
+                      : isCompleted
+                        ? "bg-primary/20 text-primary"
+                        : "bg-zinc-100 text-zinc-400"
+                  }`}
+                >
+                  {isCompleted ? "✓" : step.num}
+                </span>
+                <span
+                  className={`text-sm font-medium ${
+                    isActive ? "text-foreground" : "text-zinc-400"
+                  }`}
+                >
+                  {step.label}
+                </span>
+              </div>
+              {i < STEPS.length - 1 && (
+                <div
+                  className={`mx-3 h-px w-8 sm:w-12 ${
+                    isCompleted ? "bg-primary/40" : "bg-zinc-200"
+                  }`}
+                />
+              )}
+            </li>
+          )
+        })}
+      </ol>
+    </nav>
+  )
+}
+
+type FieldErrors = {
+  name?: string
+  phone?: string
+  city?: string
+  postalCode?: string
+  address?: string
+  cvsStore?: string
+}
+
 export default function CheckoutPage() {
   const router = useRouter()
   const items = useCart(s => s.items)
@@ -24,22 +91,77 @@ export default function CheckoutPage() {
 
   const [name, setName] = useState("")
   const [phone, setPhone] = useState("")
+  const [email, setEmail] = useState("")
   const [addressType, setAddressType] = useState<AddressType>("home")
   const [city, setCity] = useState("")
+  const [district, setDistrict] = useState("")
   const [postalCode, setPostalCode] = useState("")
+  const [addressLine, setAddressLine] = useState("")
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>("home_delivery")
+  const [cvsStoreName, setCvsStoreName] = useState("")
+  const [cvsStoreId, setCvsStoreId] = useState("")
+  const [invoice, setInvoice] = useState<InvoiceData>({ type: "B2C_2" })
+  const [errors, setErrors] = useState<FieldErrors>({})
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     useCart.persist.rehydrate()
     setHydrated(true)
   }, [])
 
+  // When switching to CVS, auto-select a CVS shipping method
+  useEffect(() => {
+    if (addressType === "cvs" && shippingMethod === "home_delivery") {
+      setShippingMethod("711")
+    }
+    if (addressType === "home" && shippingMethod !== "home_delivery") {
+      setShippingMethod("home_delivery")
+    }
+  }, [addressType, shippingMethod])
+
+  function validate(): FieldErrors {
+    const errs: FieldErrors = {}
+    if (!name.trim()) errs.name = "請輸入收件人姓名"
+    if (!phone.trim()) errs.phone = "請輸入手機號碼"
+    else if (!/^09\d{8}$/.test(phone.trim())) errs.phone = "手機號碼格式不正確（09xxxxxxxx）"
+
+    if (addressType === "home") {
+      if (!city.trim()) errs.city = "請選擇縣市"
+      if (!addressLine.trim()) errs.address = "請輸入詳細地址"
+    } else {
+      if (!cvsStoreName) errs.cvsStore = "請選擇取貨門市"
+    }
+    return errs
+  }
+
+  function handleBlur(field: string) {
+    setTouched(prev => ({ ...prev, [field]: true }))
+  }
+
   function handleNext() {
-    if (!name || !phone) return
+    const errs = validate()
+    setErrors(errs)
+    // Mark all as touched to show errors
+    setTouched({ name: true, phone: true, city: true, address: true, cvsStore: true })
+    if (Object.keys(errs).length > 0) return
+
     const checkoutData = {
       items,
-      address: { name, phone, addressType, city, postalCode },
+      address: {
+        name,
+        phone,
+        email,
+        addressType,
+        city,
+        district,
+        postalCode,
+        addressLine,
+        cvsStoreName,
+        cvsStoreId,
+      },
       shippingMethod,
+      shippingFee: SHIPPING_FEES[shippingMethod],
+      invoice,
     }
     localStorage.setItem("realreal-checkout", JSON.stringify(checkoutData))
     router.push("/checkout/payment")
@@ -47,126 +169,359 @@ export default function CheckoutPage() {
 
   if (!hydrated) return null
 
-  return (
-    <div className="container mx-auto px-4 py-8 max-w-2xl">
-      <h1 className="text-2xl font-bold mb-6">結帳</h1>
+  const shippingFee = SHIPPING_FEES[shippingMethod]
+  const subtotal = total()
+  const grandTotal = subtotal + shippingFee
 
-      {/* Cart Summary */}
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold mb-3">購物車明細</h2>
-        {items.length === 0 ? (
-          <p className="text-zinc-500">購物車是空的</p>
-        ) : (
-          <div className="border rounded-lg divide-y">
-            {items.map(item => (
-              <div key={item.variantId} className="flex items-center justify-between p-3">
-                <div>
-                  <p className="font-medium text-sm">{item.productName}</p>
-                  <p className="text-xs text-zinc-500">{item.variantName} × {item.qty}</p>
-                </div>
-                <p className="font-medium">NT$ {(item.price * item.qty).toLocaleString()}</p>
-              </div>
-            ))}
-            <div className="flex justify-between p-3 font-semibold">
-              <span>小計</span>
-              <span>NT$ {total().toLocaleString()}</span>
+  return (
+    <div className="container mx-auto px-4 py-8 max-w-5xl">
+      <StepIndicator current={1} />
+
+      <div className="flex flex-col lg:flex-row gap-8">
+        {/* Main Form */}
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl font-bold mb-6">收件資訊</h1>
+
+          {items.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-zinc-500 mb-4">購物車是空的</p>
+              <Link href="/shop">
+                <Button variant="outline">前往選購</Button>
+              </Link>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-8">
+              {/* Contact Info */}
+              <section className="space-y-4">
+                <h2 className="text-lg font-semibold border-b pb-2">聯絡資訊</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="name">
+                      姓名 <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="name"
+                      value={name}
+                      onChange={e => { setName(e.target.value); if (touched.name) setErrors(prev => ({ ...prev, name: undefined })) }}
+                      onBlur={() => handleBlur("name")}
+                      placeholder="收件人姓名"
+                      className={touched.name && errors.name ? "border-red-400 focus-visible:ring-red-400" : ""}
+                    />
+                    {touched.name && errors.name && (
+                      <p className="text-xs text-red-500">{errors.name}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="phone">
+                      手機號碼 <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="phone"
+                      value={phone}
+                      onChange={e => { setPhone(e.target.value); if (touched.phone) setErrors(prev => ({ ...prev, phone: undefined })) }}
+                      onBlur={() => handleBlur("phone")}
+                      placeholder="09xxxxxxxx"
+                      className={touched.phone && errors.phone ? "border-red-400 focus-visible:ring-red-400" : ""}
+                    />
+                    {touched.phone && errors.phone && (
+                      <p className="text-xs text-red-500">{errors.phone}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="email">電子信箱（選填，用於寄送發票通知）</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="example@email.com"
+                  />
+                </div>
+              </section>
+
+              {/* Delivery Method */}
+              <section className="space-y-4">
+                <h2 className="text-lg font-semibold border-b pb-2">配送方式</h2>
+
+                <div className="space-y-2">
+                  <Label>取貨方式</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(["home", "cvs"] as AddressType[]).map(type => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setAddressType(type)}
+                        className={`flex items-center justify-center gap-2 rounded-lg border-2 p-3 text-sm font-medium transition-colors ${
+                          addressType === type
+                            ? "border-primary bg-primary/5 text-primary"
+                            : "border-zinc-200 text-zinc-600 hover:border-zinc-300"
+                        }`}
+                      >
+                        <span>{type === "home" ? "🏠" : "🏪"}</span>
+                        <span>{type === "home" ? "宅配到府" : "超商取貨"}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {addressType === "home" && (
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      {(Object.entries(SHIPPING_LABELS) as [ShippingMethod, string][])
+                        .filter(([v]) => v === "home_delivery")
+                        .map(([value, label]) => (
+                          <label
+                            key={value}
+                            className={`flex items-center justify-between p-3 border-2 rounded-lg cursor-pointer transition-colors ${
+                              shippingMethod === value
+                                ? "border-primary bg-primary/5"
+                                : "border-zinc-200 hover:border-zinc-300"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="radio"
+                                name="shippingMethod"
+                                value={value}
+                                checked={shippingMethod === value}
+                                onChange={() => setShippingMethod(value)}
+                                className="h-4 w-4 accent-primary"
+                              />
+                              <span className="font-medium text-sm">🚚 {label}</span>
+                            </div>
+                            <span className="text-sm text-zinc-500">NT$ {SHIPPING_FEES[value]}</span>
+                          </label>
+                        ))}
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="postalCode">郵遞區號</Label>
+                        <Input
+                          id="postalCode"
+                          value={postalCode}
+                          onChange={e => setPostalCode(e.target.value)}
+                          placeholder="100"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="city">
+                          縣市 <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          id="city"
+                          value={city}
+                          onChange={e => { setCity(e.target.value); if (touched.city) setErrors(prev => ({ ...prev, city: undefined })) }}
+                          onBlur={() => handleBlur("city")}
+                          placeholder="台北市"
+                          className={touched.city && errors.city ? "border-red-400 focus-visible:ring-red-400" : ""}
+                        />
+                        {touched.city && errors.city && (
+                          <p className="text-xs text-red-500">{errors.city}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="district">鄉鎮市區</Label>
+                        <Input
+                          id="district"
+                          value={district}
+                          onChange={e => setDistrict(e.target.value)}
+                          placeholder="中正區"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="addressLine">
+                        詳細地址 <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="addressLine"
+                        value={addressLine}
+                        onChange={e => { setAddressLine(e.target.value); if (touched.address) setErrors(prev => ({ ...prev, address: undefined })) }}
+                        onBlur={() => handleBlur("address")}
+                        placeholder="路名、巷弄、樓層"
+                        className={touched.address && errors.address ? "border-red-400 focus-visible:ring-red-400" : ""}
+                      />
+                      {touched.address && errors.address && (
+                        <p className="text-xs text-red-500">{errors.address}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {addressType === "cvs" && (
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      {(Object.entries(SHIPPING_LABELS) as [ShippingMethod, string][])
+                        .filter(([v]) => v !== "home_delivery")
+                        .map(([value, label]) => (
+                          <label
+                            key={value}
+                            className={`flex items-center justify-between p-3 border-2 rounded-lg cursor-pointer transition-colors ${
+                              shippingMethod === value
+                                ? "border-primary bg-primary/5"
+                                : "border-zinc-200 hover:border-zinc-300"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="radio"
+                                name="shippingMethod"
+                                value={value}
+                                checked={shippingMethod === value}
+                                onChange={() => setShippingMethod(value)}
+                                className="h-4 w-4 accent-primary"
+                              />
+                              <span className="font-medium text-sm">
+                                {value === "711" ? "🏪" : "🏬"} {label}
+                              </span>
+                            </div>
+                            <span className="text-sm text-zinc-500">NT$ {SHIPPING_FEES[value]}</span>
+                          </label>
+                        ))}
+                    </div>
+
+                    {/* CVS Store Selector */}
+                    <div className="rounded-lg border-2 border-dashed border-zinc-300 bg-zinc-50 p-4">
+                      {cvsStoreName ? (
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-sm">{cvsStoreName}</p>
+                            <p className="text-xs text-zinc-500">門市編號：{cvsStoreId}</p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => { setCvsStoreName(""); setCvsStoreId("") }}
+                          >
+                            重新選擇
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="text-center space-y-2">
+                          <p className="text-sm text-zinc-500">尚未選擇取貨門市</p>
+                          <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                            <Input
+                              placeholder="輸入門市名稱搜尋"
+                              value={cvsStoreName}
+                              onChange={e => setCvsStoreName(e.target.value)}
+                              className="max-w-xs"
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                // Placeholder: In production this would open the CVS map selector API
+                                setCvsStoreName(shippingMethod === "711" ? "7-ELEVEN 誠真門市" : "全家 誠真店")
+                                setCvsStoreId(shippingMethod === "711" ? "170622" : "006834")
+                              }}
+                            >
+                              選擇門市
+                            </Button>
+                          </div>
+                          {touched.cvsStore && errors.cvsStore && (
+                            <p className="text-xs text-red-500">{errors.cvsStore}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              {/* Invoice */}
+              <section className="space-y-4">
+                <h2 className="text-lg font-semibold border-b pb-2">發票資訊</h2>
+                <InvoiceSelector value={invoice} onChange={setInvoice} />
+              </section>
+
+              {/* Mobile-only order summary */}
+              <section className="lg:hidden space-y-3">
+                <h2 className="text-lg font-semibold border-b pb-2">訂單摘要</h2>
+                <div className="rounded-lg border divide-y">
+                  {items.map(item => (
+                    <div key={item.variantId} className="flex items-center justify-between p-3">
+                      <div>
+                        <p className="font-medium text-sm">{item.productName}</p>
+                        <p className="text-xs text-zinc-500">{item.variantName} x {item.qty}</p>
+                      </div>
+                      <p className="font-medium text-sm">NT$ {(item.price * item.qty).toLocaleString()}</p>
+                    </div>
+                  ))}
+                  <div className="p-3 space-y-1 text-sm">
+                    <div className="flex justify-between text-zinc-500">
+                      <span>商品小計</span>
+                      <span>NT$ {subtotal.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-zinc-500">
+                      <span>運費</span>
+                      <span>NT$ {shippingFee.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between font-semibold text-base pt-1 border-t">
+                      <span>合計</span>
+                      <span>NT$ {grandTotal.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Actions */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <Link href="/shop" className="sm:order-first">
+                  <Button variant="outline" className="w-full sm:w-auto">
+                    ← 繼續購物
+                  </Button>
+                </Link>
+                <Button
+                  className="flex-1"
+                  onClick={handleNext}
+                  disabled={items.length === 0}
+                >
+                  下一步：選擇付款方式
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Order Summary Sidebar */}
+        {items.length > 0 && (
+          <aside className="hidden lg:block w-80 shrink-0">
+            <div className="sticky top-8 rounded-lg border bg-zinc-50/50 p-5 space-y-4">
+              <h2 className="font-semibold text-lg">訂單摘要</h2>
+              <div className="divide-y">
+                {items.map(item => (
+                  <div key={item.variantId} className="flex justify-between py-2.5 text-sm">
+                    <div className="min-w-0 flex-1 pr-3">
+                      <p className="font-medium truncate">{item.productName}</p>
+                      <p className="text-xs text-zinc-500">{item.variantName} x {item.qty}</p>
+                    </div>
+                    <p className="font-medium whitespace-nowrap">NT$ {(item.price * item.qty).toLocaleString()}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="border-t pt-3 space-y-2 text-sm">
+                <div className="flex justify-between text-zinc-500">
+                  <span>商品小計</span>
+                  <span>NT$ {subtotal.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-zinc-500">
+                  <span>運費（{SHIPPING_LABELS[shippingMethod]}）</span>
+                  <span>NT$ {shippingFee.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between font-bold text-lg pt-2 border-t">
+                  <span>合計</span>
+                  <span className="text-primary">NT$ {grandTotal.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          </aside>
         )}
       </div>
-
-      {/* Address Form */}
-      <div className="mb-8 space-y-4">
-        <h2 className="text-lg font-semibold">收件資訊</h2>
-
-        <div className="space-y-2">
-          <Label htmlFor="name">姓名</Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            placeholder="收件人姓名"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="phone">電話</Label>
-          <Input
-            id="phone"
-            value={phone}
-            onChange={e => setPhone(e.target.value)}
-            placeholder="手機號碼"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label>地址類型</Label>
-          <div className="flex gap-3">
-            {(["home", "cvs"] as AddressType[]).map(type => (
-              <label key={type} className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="addressType"
-                  value={type}
-                  checked={addressType === type}
-                  onChange={() => setAddressType(type)}
-                  className="h-4 w-4"
-                />
-                <span>{type === "home" ? "住家" : "超商"}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <Label htmlFor="city">縣市</Label>
-            <Input
-              id="city"
-              value={city}
-              onChange={e => setCity(e.target.value)}
-              placeholder="台北市"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="postalCode">郵遞區號</Label>
-            <Input
-              id="postalCode"
-              value={postalCode}
-              onChange={e => setPostalCode(e.target.value)}
-              placeholder="100"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Shipping Method */}
-      <div className="mb-8 space-y-3">
-        <h2 className="text-lg font-semibold">配送方式</h2>
-        <div className="space-y-2">
-          {(Object.entries(SHIPPING_LABELS) as [ShippingMethod, string][]).map(([value, label]) => (
-            <label key={value} className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-zinc-50 transition-colors">
-              <input
-                type="radio"
-                name="shippingMethod"
-                value={value}
-                checked={shippingMethod === value}
-                onChange={() => setShippingMethod(value)}
-                className="h-4 w-4"
-              />
-              <span>{label}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <Button
-        className="w-full"
-        onClick={handleNext}
-        disabled={items.length === 0 || !name || !phone}
-      >
-        下一步
-      </Button>
     </div>
   )
 }

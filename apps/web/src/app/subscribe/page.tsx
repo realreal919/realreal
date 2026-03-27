@@ -14,7 +14,10 @@ async function getSubscriptionPlans() {
   } catch { return [] }
 }
 
-export const metadata = { title: "訂閱方案 | 誠真生活 RealReal" }
+export const metadata = {
+  title: "訂閱方案",
+  description: "誠真生活定期訂閱方案，每月自動補貨享優惠，輕鬆維持健康好習慣。",
+}
 
 export default async function SubscribePage() {
   const plans = await getSubscriptionPlans()

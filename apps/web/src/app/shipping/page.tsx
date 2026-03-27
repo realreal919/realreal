@@ -1,0 +1,187 @@
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "配送說明 | 誠真生活 RealReal",
+  description: "誠真生活 RealReal 配送方式、運費及配送時間說明。",
+}
+
+const deliveryMethods = [
+  {
+    name: "宅配到府",
+    provider: "黑貓宅急便",
+    fee: "NT$100",
+    freeThreshold: "單筆訂單滿 NT$800 免運",
+    time: "付款後 1–3 個工作日出貨，約 1–2 天送達",
+    notes: [
+      "配送時段可選：13:00 前、14:00–18:00",
+      "支援貨到付款（需另加手續費 NT$30）",
+      "離島地區配送時間約 3–5 個工作日",
+    ],
+  },
+  {
+    name: "7-11 超商取貨",
+    provider: "統一超商",
+    fee: "NT$60",
+    freeThreshold: "單筆訂單滿 NT$800 免運",
+    time: "付款後 1–3 個工作日出貨，約 2–3 天到店",
+    notes: [
+      "包裹到店後將以簡訊通知取件",
+      "請於到店通知後 7 天內前往取貨",
+      "逾期未取將退回，運費不予退還",
+      "單件包裹限重 5 公斤、限長 45 公分",
+    ],
+  },
+  {
+    name: "全家超商取貨",
+    provider: "全家便利商店",
+    fee: "NT$60",
+    freeThreshold: "單筆訂單滿 NT$800 免運",
+    time: "付款後 1–3 個工作日出貨，約 2–3 天到店",
+    notes: [
+      "包裹到店後將以簡訊通知取件",
+      "請於到店通知後 7 天內前往取貨",
+      "逾期未取將退回，運費不予退還",
+      "單件包裹限重 5 公斤、限長 45 公分",
+    ],
+  },
+]
+
+export default function ShippingPage() {
+  return (
+    <div className="container mx-auto px-4 py-12 max-w-3xl">
+      <h1 className="text-3xl font-bold mb-2 text-center">配送說明</h1>
+      <p className="text-zinc-500 text-center mb-10">
+        我們提供多種配送方式，讓您輕鬆收到商品
+      </p>
+
+      <div className="space-y-10">
+        {/* 配送方式 */}
+        <section>
+          <h2 className="text-xl font-semibold mb-6 border-b pb-2">
+            配送方式
+          </h2>
+          <div className="space-y-6">
+            {deliveryMethods.map((method) => (
+              <div key={method.name} className="border rounded-lg p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h3 className="font-semibold text-lg">{method.name}</h3>
+                    <p className="text-sm text-zinc-500">{method.provider}</p>
+                  </div>
+                  <span className="text-sm font-medium bg-zinc-100 px-3 py-1 rounded-full">
+                    {method.fee}
+                  </span>
+                </div>
+                <div className="space-y-2 text-sm text-zinc-600">
+                  <p>
+                    <span className="font-medium text-zinc-900">免運門檻：</span>
+                    {method.freeThreshold}
+                  </p>
+                  <p>
+                    <span className="font-medium text-zinc-900">配送時間：</span>
+                    {method.time}
+                  </p>
+                  <div>
+                    <span className="font-medium text-zinc-900">注意事項：</span>
+                    <ul className="list-disc pl-5 mt-1 space-y-1">
+                      {method.notes.map((note) => (
+                        <li key={note}>{note}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* 配送範圍 */}
+        <section>
+          <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+            配送範圍
+          </h2>
+          <div className="space-y-3 text-zinc-700 leading-relaxed">
+            <ul className="list-disc pl-6 space-y-2">
+              <li>台灣本島全區皆可配送</li>
+              <li>
+                離島地區（金門、馬祖、澎湖等）僅支援宅配，配送時間約 3–5 個工作日
+              </li>
+              <li>目前暫不提供海外配送服務</li>
+            </ul>
+          </div>
+        </section>
+
+        {/* 運費說明 */}
+        <section>
+          <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+            運費說明
+          </h2>
+          <div className="border rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-zinc-50">
+                  <th className="text-left px-4 py-3 font-medium">配送方式</th>
+                  <th className="text-left px-4 py-3 font-medium">運費</th>
+                  <th className="text-left px-4 py-3 font-medium">免運門檻</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <tr>
+                  <td className="px-4 py-3">宅配到府</td>
+                  <td className="px-4 py-3">NT$100</td>
+                  <td className="px-4 py-3">滿 NT$800</td>
+                </tr>
+                <tr>
+                  <td className="px-4 py-3">7-11 超商取貨</td>
+                  <td className="px-4 py-3">NT$60</td>
+                  <td className="px-4 py-3">滿 NT$800</td>
+                </tr>
+                <tr>
+                  <td className="px-4 py-3">全家超商取貨</td>
+                  <td className="px-4 py-3">NT$60</td>
+                  <td className="px-4 py-3">滿 NT$800</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* 注意事項 */}
+        <section>
+          <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+            其他注意事項
+          </h2>
+          <div className="space-y-3 text-zinc-700 leading-relaxed">
+            <ul className="list-disc pl-6 space-y-2">
+              <li>
+                訂單出貨後，系統將自動寄送出貨通知及物流追蹤編號至您的電子信箱。
+              </li>
+              <li>
+                如遇天災、連續假期或物流量大增等情況，配送時間可能延長，敬請見諒。
+              </li>
+              <li>
+                請確保收件資訊正確無誤。因收件資訊錯誤導致配送失敗，衍生之額外運費由消費者負擔。
+              </li>
+              <li>
+                超商取貨包裹逾期未取達兩次者，本公司保留暫停該配送方式使用權之權利。
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <div className="border-t pt-6 text-sm text-zinc-500">
+          <p>
+            如有配送相關問題，歡迎聯繫客服：
+            <a
+              href="mailto:hello@realreal.cc"
+              className="underline hover:text-zinc-900"
+            >
+              hello@realreal.cc
+            </a>
+            {" "}或致電 (02) 2345-6789
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}

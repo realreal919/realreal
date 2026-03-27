@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge"
+import { CreateCouponForm } from "./_client"
 
 export const metadata = { title: "優惠券管理 | Admin" }
 
@@ -19,9 +20,27 @@ interface CouponsResponse {
 }
 
 const TYPE_LABEL: Record<string, string> = {
-  percentage: "百分比折扣",
-  fixed: "固定折扣",
+  percentage: "百分比",
+  fixed: "固定金額",
   free_shipping: "免運費",
+}
+
+function couponStatus(coupon: CouponRow): {
+  label: string
+  variant: "default" | "secondary" | "destructive" | "outline"
+} {
+  if (!coupon.is_active) return { label: "停用", variant: "secondary" }
+  if (coupon.max_uses != null && coupon.used_count >= coupon.max_uses)
+    return { label: "已用完", variant: "destructive" }
+  if (coupon.expires_at && new Date(coupon.expires_at) < new Date())
+    return { label: "已過期", variant: "destructive" }
+  return { label: "啟用中", variant: "default" }
+}
+
+function formatValue(coupon: CouponRow): string {
+  if (coupon.type === "percentage") return `${coupon.value}%`
+  if (coupon.type === "free_shipping") return "免運"
+  return `NT$ ${coupon.value.toLocaleString()}`
 }
 
 export default async function AdminCouponsPage() {
@@ -43,58 +62,87 @@ export default async function AdminCouponsPage() {
   }
 
   return (
-    <div>
-      <h1 className="text-xl font-semibold mb-6">優惠券管理</h1>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">優惠券管理</h1>
+      </div>
 
+      {/* Inline create form */}
+      <CreateCouponForm />
+
+      {/* Stats summary */}
+      {coupons.length > 0 && (
+        <div className="flex gap-4 text-sm text-zinc-500">
+          <span>共 {coupons.length} 張</span>
+          <span>啟用中 {coupons.filter((c) => couponStatus(c).label === "啟用中").length} 張</span>
+          <span>已過期/用完 {coupons.filter((c) => ["已過期", "已用完"].includes(couponStatus(c).label)).length} 張</span>
+        </div>
+      )}
+
+      {/* Table */}
       <div className="border rounded-lg overflow-hidden bg-white">
         <table className="w-full text-sm">
-          <thead className="bg-zinc-50 text-zinc-500 text-xs uppercase">
+          <thead className="bg-zinc-50 text-zinc-500 text-xs">
             <tr>
               <th className="px-4 py-3 text-left">代碼</th>
               <th className="px-4 py-3 text-left">類型</th>
               <th className="px-4 py-3 text-right">折扣值</th>
-              <th className="px-4 py-3 text-left">使用次數</th>
+              <th className="px-4 py-3 text-right">已使用 / 上限</th>
               <th className="px-4 py-3 text-left">到期日</th>
-              <th className="px-4 py-3 text-left">適用範圍</th>
-              <th className="px-4 py-3 text-left">狀態</th>
+              <th className="px-4 py-3 text-center">狀態</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {coupons.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-zinc-400">
-                  暫無優惠券資料
+                <td colSpan={6} className="px-4 py-12 text-center text-zinc-400">
+                  暫無優惠券資料，點擊上方按鈕新增
                 </td>
               </tr>
             ) : (
-              coupons.map((coupon) => (
-                <tr key={coupon.id} className="hover:bg-zinc-50">
-                  <td className="px-4 py-3 font-mono font-bold">{coupon.code}</td>
-                  <td className="px-4 py-3">{TYPE_LABEL[coupon.type] ?? coupon.type}</td>
-                  <td className="px-4 py-3 text-right">
-                    {coupon.type === "percentage"
-                      ? `${coupon.value}%`
-                      : coupon.type === "free_shipping"
-                        ? "—"
-                        : `NT$ ${coupon.value}`}
-                  </td>
-                  <td className="px-4 py-3">
-                    {coupon.used_count}
-                    {coupon.max_uses != null ? ` / ${coupon.max_uses}` : ""}
-                  </td>
-                  <td className="px-4 py-3 text-zinc-500 text-xs">
-                    {coupon.expires_at
-                      ? new Date(coupon.expires_at).toLocaleDateString("zh-TW")
-                      : "無限期"}
-                  </td>
-                  <td className="px-4 py-3 text-xs">{coupon.applicable_to ?? "全部商品"}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant={coupon.is_active ? "default" : "secondary"}>
-                      {coupon.is_active ? "啟用" : "停用"}
-                    </Badge>
-                  </td>
-                </tr>
-              ))
+              coupons.map((coupon) => {
+                const status = couponStatus(coupon)
+                return (
+                  <tr key={coupon.id} className="hover:bg-zinc-50">
+                    <td className="px-4 py-3">
+                      <code className="bg-zinc-100 px-1.5 py-0.5 rounded text-xs font-bold">
+                        {coupon.code}
+                      </code>
+                    </td>
+                    <td className="px-4 py-3 text-zinc-600">
+                      {TYPE_LABEL[coupon.type] ?? coupon.type}
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium">
+                      {formatValue(coupon)}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums">
+                      <span className="font-medium">{coupon.used_count}</span>
+                      <span className="text-zinc-400">
+                        {" / "}
+                        {coupon.max_uses != null ? coupon.max_uses : "∞"}
+                      </span>
+                      {coupon.max_uses != null && coupon.max_uses > 0 && (
+                        <div className="mt-1 h-1 w-16 ml-auto bg-zinc-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-zinc-900 rounded-full"
+                            style={{
+                              width: `${Math.min(100, (coupon.used_count / coupon.max_uses) * 100)}%`,
+                            }}
+                          />
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-500 text-xs">
+                      {coupon.expires_at
+                        ? new Date(coupon.expires_at).toLocaleDateString("zh-TW")
+                        : "無限期"}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <Badge variant={status.variant}>{status.label}</Badge>
+                    </td>
+                  </tr>
+                )
+              })
             )}
           </tbody>
         </table>

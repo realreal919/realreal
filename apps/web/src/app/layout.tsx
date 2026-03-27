@@ -2,18 +2,46 @@ import type { Metadata } from "next"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { Toaster } from "@/components/ui/sonner"
+import { Header } from "@/components/layout/Header"
+import { Footer } from "@/components/layout/Footer"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "誠真生活 RealReal",
-  description: "純粹投入，誠真健康",
+  metadataBase: new URL("https://realreal-rho.vercel.app"),
+  title: {
+    default: "誠真生活 RealReal | 純淨植物力健康食品",
+    template: "%s | 誠真生活 RealReal",
+  },
+  description:
+    "誠真生活 RealReal 是來自台灣的純素健康食品品牌，嚴選天然植物原料，提供高品質營養補充與健康零食，純粹投入，誠真健康。",
+  keywords: [
+    "誠真生活",
+    "RealReal",
+    "純素",
+    "健康食品",
+    "植物性",
+    "台灣",
+    "天然",
+    "營養補充",
+    "vegan",
+  ],
+  openGraph: {
+    type: "website",
+    locale: "zh_TW",
+    siteName: "誠真生活 RealReal",
+    title: "誠真生活 RealReal | 純淨植物力健康食品",
+    description:
+      "來自台灣的純素健康食品品牌，嚴選天然植物原料，純粹投入，誠真健康。",
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh-TW" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body className="font-sans antialiased">
-        {children}
+        <Header />
+        <main className="min-h-[calc(100vh-4rem)]">{children}</main>
+        <Footer />
         <Toaster />
       </body>
     </html>
