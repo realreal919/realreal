@@ -1,0 +1,14 @@
+{
+  "name": "realreal",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "test": "turbo test"
+  },
+  "devDependencies": {
+    "turbo": "latest"
+  },
+  "workspaces": ["apps/*", "packages/*"]
+}
