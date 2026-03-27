@@ -25,7 +25,12 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   if ((pathname.startsWith("/admin") || pathname.startsWith("/my-account")) && !user) {
-    return NextResponse.redirect(new URL("/auth/login", request.url))
+    // Encode the original destination so login can redirect back after auth.
+    // Note: any token refresh that occurred during getUser() is intentionally
+    // discarded here — the user must complete the full login flow.
+    const loginUrl = new URL("/auth/login", request.url)
+    loginUrl.searchParams.set("next", pathname)
+    return NextResponse.redirect(loginUrl)
   }
 
   return supabaseResponse
