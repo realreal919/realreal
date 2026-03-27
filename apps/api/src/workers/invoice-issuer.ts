@@ -1,0 +1,52 @@
+import { Worker, Queue } from "bullmq"
+import { Redis } from "ioredis"
+import { supabase } from "../lib/supabase"
+import { issueInvoice, type IssueInvoiceParams } from "../lib/amego"
+
+const connection = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379", { maxRetriesPerRequest: null })
+
+export const invoiceQueue = new Queue("invoice", { connection })
+
+export const invoiceWorker = new Worker("invoice", async (job) => {
+  const { invoiceId } = job.data as { invoiceId: string }
+
+  const { data: invoice } = await supabase
+    .from("invoices")
+    .select("*, orders(order_number, total, user_id, order_items(*))")
+    .eq("id", invoiceId)
+    .single()
+
+  if (!invoice) throw new Error(`Invoice ${invoiceId} not found`)
+  if (invoice.status === "issued") return { skipped: true }
+
+  try {
+    const result = await issueInvoice({
+      orderId: invoice.order_id,
+      orderNumber: (invoice.orders as any).order_number,
+      amount: Number(invoice.amount),
+      taxAmount: Number(invoice.tax_amount),
+      type: invoice.type as any,
+      carrierType: invoice.carrier_type as any,
+      carrierNumber: invoice.carrier_number ?? undefined,
+      loveCode: invoice.love_code ?? undefined,
+      taxId: invoice.tax_id ?? undefined,
+      companyTitle: invoice.company_title ?? undefined,
+      items: [],
+    })
+
+    await supabase.from("invoices").update({
+      status: "issued",
+      invoice_number: result.invoiceNumber,
+      random_code: result.randomCode,
+      amego_id: result.amegoId,
+      issued_at: new Date().toISOString(),
+    }).eq("id", invoiceId)
+
+  } catch (err: any) {
+    await supabase.from("invoices").update({
+      error_message: err.message,
+      retry_count: (invoice.retry_count ?? 0) + 1,
+    }).eq("id", invoiceId)
+    throw err
+  }
+}, { connection })
