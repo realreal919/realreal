@@ -23,6 +23,8 @@ import { mediaRouter } from "./routes/media"
 import { requireEditor } from "./middleware/editor"
 import { siteContentsRouter } from "./routes/site-contents"
 import { usersRouter } from "./routes/users"
+import { tiersRouter } from "./routes/tiers"
+import { campaignsRouter } from "./routes/campaigns"
 
 export const app = express()
 
@@ -58,6 +60,8 @@ app.use("/admin/post-tags", postTagsAdminRouter)
 app.use("/admin/media", requireAuth, requireEditor, mediaRouter)
 app.use("/", siteContentsRouter)
 app.use("/", usersRouter)
+app.use("/", tiersRouter)
+app.use("/", campaignsRouter)
 app.use((_req, res) => { res.status(404).json({ error: "Not found" }) })
 // Global error handler (must have 4 args for Express to treat it as error handler)
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {

@@ -19,6 +19,7 @@ const couponCreateSchema = z.object({
   expires_at: z.string().datetime().optional().nullable(),
   applicable_to: z.enum(["order", "subscription", "both"]).optional().default("order"),
   is_active: z.boolean().optional().default(true),
+  tier_id: z.string().uuid().optional().nullable(),
 })
 
 const couponUpdateSchema = couponCreateSchema.partial()
@@ -45,13 +46,29 @@ couponsRouter.post("/coupons/validate", requireAuth, async (req, res) => {
 
   const { data: coupon, error } = await supabase
     .from("coupons")
-    .select("id, code, type, value, min_order, max_uses, used_count, expires_at, applicable_to, is_active")
+    .select("id, code, type, value, min_order, max_uses, used_count, expires_at, applicable_to, is_active, tier_id")
     .eq("code", code)
     .single()
 
   if (error || !coupon) { res.status(404).json({ error: "Coupon not found" }); return }
 
   if (!coupon.is_active) { res.status(400).json({ error: "Coupon is not active" }); return }
+
+  // Check tier eligibility
+  if (coupon.tier_id) {
+    const userId = res.locals.userId as string | undefined
+    if (!userId) { res.status(403).json({ error: "Coupon requires membership tier eligibility" }); return }
+
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("membership_tier_id")
+      .eq("user_id", userId)
+      .single()
+
+    if (!profile || profile.membership_tier_id !== coupon.tier_id) {
+      res.status(403).json({ error: "You are not eligible for this coupon based on your membership tier" }); return
+    }
+  }
 
   // Check expiry
   if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {

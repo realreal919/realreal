@@ -1,14 +1,38 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createCouponAction } from "./actions"
 
+interface MembershipTier {
+  id: string
+  name: string
+}
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
+
 export function CreateCouponForm() {
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const [tiers, setTiers] = useState<MembershipTier[]>([])
+
+  const fetchTiers = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/membership-tiers`)
+      if (res.ok) {
+        const json = await res.json()
+        setTiers(json.data ?? json.tiers ?? json ?? [])
+      }
+    } catch {
+      /* API unavailable */
+    }
+  }, [])
+
+  useEffect(() => {
+    if (open) fetchTiers()
+  }, [open, fetchTiers])
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -22,6 +46,7 @@ export function CreateCouponForm() {
         value: Number(fd.get("value")),
         max_uses: fd.get("max_uses") ? Number(fd.get("max_uses")) : null,
         expires_at: (fd.get("expires_at") as string) || null,
+        tier_id: (fd.get("tier_id") as string) || null,
       })
       form.reset()
       setOpen(false)
@@ -76,6 +101,20 @@ export function CreateCouponForm() {
         <div className="space-y-1.5">
           <Label htmlFor="expires_at" className="text-xs">到期日</Label>
           <Input id="expires_at" name="expires_at" type="date" />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="tier_id" className="text-xs">限定等級</Label>
+          <select
+            id="tier_id"
+            name="tier_id"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <option value="">全部等級</option>
+            {tiers.map((t) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
         </div>
       </div>
 

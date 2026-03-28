@@ -6,34 +6,75 @@ import { Progress } from "@/components/ui/progress"
 
 export const metadata = { title: "會員資格 | 我的帳戶" }
 
+interface TierBenefits {
+  base_discount?: number
+  rebate_rate?: number
+  birthday_discount?: number
+  birthday_charity_double?: boolean
+  online_lectures?: boolean
+  offline_events?: boolean
+  birthday_gift?: boolean
+  [key: string]: unknown
+}
+
 interface MembershipTier {
   id: string
   name: string
   min_spend: number
   discount_rate: number
-  benefits: string[]
+  benefits: TierBenefits
 }
 
 interface UserProfile {
   user_id: string
   display_name: string | null
   total_spend: number
+  charity_savings: number
   membership_tier_id: string | null
   membership_tiers: MembershipTier | null
 }
 
-const TIER_COLORS: Record<string, string> = {
-  一般會員: "secondary",
-  銀卡會員: "secondary",
-  金卡會員: "default",
-  鑽石會員: "default",
+const TIER_BADGE_CLASSES: Record<string, string> = {
+  初心之友: "bg-[#10305a]/20 text-[#10305a]",
+  知心之友: "bg-[#10305a]/50 text-white",
+  同心之友: "bg-[#10305a] text-white",
 }
 
-const TIER_BADGE_CLASSES: Record<string, string> = {
-  一般會員: "bg-[#10305a]/20 text-[#10305a]",
-  銀卡會員: "bg-[#10305a]/40 text-white",
-  金卡會員: "bg-[#10305a]/70 text-white",
-  鑽石會員: "bg-[#10305a] text-white",
+const TIER_THRESHOLDS = [
+  { name: "初心之友", min_spend: 0 },
+  { name: "知心之友", min_spend: 3500 },
+  { name: "同心之友", min_spend: 12000 },
+]
+
+function formatDiscount(rate: number): string {
+  const zhe = Math.round((1 - rate) * 10)
+  return `${zhe}折`
+}
+
+function describeBenefits(benefits: TierBenefits): string[] {
+  const items: string[] = []
+  if (benefits.base_discount) {
+    items.push(`常態購物 ${formatDiscount(benefits.base_discount)}`)
+  }
+  if (benefits.rebate_rate) {
+    items.push(`消費 ${(benefits.rebate_rate * 100).toFixed(1)}% 累積公益存款或購物金`)
+  }
+  if (benefits.birthday_discount) {
+    items.push(`生日當月 ${formatDiscount(benefits.birthday_discount)}`)
+  }
+  if (benefits.birthday_charity_double) {
+    items.push("生日當月公益存款雙倍累積")
+  }
+  if (benefits.birthday_gift) {
+    items.push("專屬生日禮")
+  }
+  if (benefits.online_lectures) {
+    items.push("線上講座參與資格")
+  }
+  if (benefits.offline_events) {
+    items.push("線上 + 實體活動參與資格")
+  }
+  return items
 }
 
 export default async function MembershipPage() {
@@ -45,7 +86,7 @@ export default async function MembershipPage() {
 
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("user_id, display_name, total_spend, membership_tier_id, membership_tiers(*)")
+    .select("user_id, display_name, total_spend, charity_savings, membership_tier_id, membership_tiers(*)")
     .eq("user_id", user.id)
     .single<UserProfile>()
 
@@ -56,6 +97,7 @@ export default async function MembershipPage() {
 
   const tiers: MembershipTier[] = allTiers ?? []
   const totalSpend: number = profile?.total_spend ?? 0
+  const charitySavings: number = profile?.charity_savings ?? 0
   const currentTier: MembershipTier | null = profile?.membership_tiers ?? null
 
   const currentTierIndex = tiers.findIndex((t) => t.id === currentTier?.id)
@@ -66,22 +108,28 @@ export default async function MembershipPage() {
 
   let progressPercent = 100
   let spendToNext: number | null = null
-  if (nextTier && currentTier) {
-    const range = nextTier.min_spend - currentTier.min_spend
-    const progress = totalSpend - currentTier.min_spend
+  if (nextTier) {
+    const range = nextTier.min_spend - (currentTier?.min_spend ?? 0)
+    const progress = totalSpend - (currentTier?.min_spend ?? 0)
     progressPercent = range > 0 ? Math.min(100, Math.round((progress / range) * 100)) : 100
     spendToNext = Math.max(0, nextTier.min_spend - totalSpend)
   }
 
-  const tierName = currentTier?.name ?? "一般會員"
+  const tierName = currentTier?.name ?? "初心之友"
   const badgeClass =
     TIER_BADGE_CLASSES[tierName] ?? "bg-zinc-200 text-zinc-700"
-  const discountDisplay =
-    currentTier && currentTier.discount_rate > 0
-      ? `${(currentTier.discount_rate * 100).toFixed(0)}%`
-      : "無折扣"
 
-  const benefits: string[] = currentTier?.benefits ?? []
+  const tierBenefits: TierBenefits =
+    (typeof currentTier?.benefits === "object" && currentTier?.benefits) ? currentTier.benefits : {}
+  const benefitsList = describeBenefits(tierBenefits)
+
+  const discountDisplay = tierBenefits.base_discount
+    ? formatDiscount(tierBenefits.base_discount)
+    : "95折"
+
+  const rebateDisplay = tierBenefits.rebate_rate
+    ? `${(tierBenefits.rebate_rate * 100).toFixed(1)}%`
+    : "2.3%"
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-2xl">
@@ -100,8 +148,16 @@ export default async function MembershipPage() {
             <span className="font-semibold">NT${totalSpend.toLocaleString()}</span>
           </div>
           <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">公益存款</span>
+            <span className="font-semibold">NT${charitySavings.toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">會員折扣</span>
             <span className="font-semibold">{discountDisplay}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">回饋比例</span>
+            <span className="font-semibold">{rebateDisplay}</span>
           </div>
 
           {nextTier && (
@@ -128,14 +184,14 @@ export default async function MembershipPage() {
         </CardContent>
       </Card>
 
-      {benefits.length > 0 && (
-        <Card>
+      {benefitsList.length > 0 && (
+        <Card className="mb-6">
           <CardHeader>
             <CardTitle>會員專屬權益</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
-              {benefits.map((benefit, i) => (
+              {benefitsList.map((benefit, i) => (
                 <li key={i} className="flex items-center gap-2 text-sm">
                   <span className="text-[#10305a]">✓</span>
                   <span>{benefit}</span>
@@ -147,33 +203,73 @@ export default async function MembershipPage() {
       )}
 
       <div className="mt-8">
-        <h2 className="text-lg font-semibold mb-4">等級說明</h2>
-        <div className="space-y-2">
-          {tiers.map((tier) => {
-            const isCurrent = tier.id === currentTier?.id
-            const cls = TIER_BADGE_CLASSES[tier.name] ?? "bg-zinc-200 text-zinc-700"
-            return (
-              <div
-                key={tier.id}
-                className={`flex items-center justify-between p-3 rounded-lg border ${isCurrent ? "border-[#10305a] bg-[#10305a]/5" : ""}`}
-              >
-                <div className="flex items-center gap-2">
-                  <Badge className={cls}>{tier.name}</Badge>
-                  {isCurrent && (
-                    <span className="text-xs text-[#10305a] font-medium">目前等級</span>
-                  )}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  累計 NT${tier.min_spend.toLocaleString()} 以上
-                  {tier.discount_rate > 0 && (
-                    <span className="ml-2 font-medium text-foreground">
-                      {(tier.discount_rate * 100).toFixed(0)}% OFF
-                    </span>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+        <h2 className="text-lg font-semibold mb-4">等級比較</h2>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="border-b">
+                <th className="py-3 px-3 text-left text-muted-foreground font-medium">權益</th>
+                {TIER_THRESHOLDS.map((t) => (
+                  <th key={t.name} className="py-3 px-3 text-center font-medium">
+                    <Badge className={TIER_BADGE_CLASSES[t.name] ?? "bg-zinc-200 text-zinc-700"}>
+                      {t.name}
+                    </Badge>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="text-center">
+              <tr className="border-b">
+                <td className="py-3 px-3 text-left text-muted-foreground">累計消費門檻</td>
+                <td className="py-3 px-3">NT$0</td>
+                <td className="py-3 px-3">NT$3,500</td>
+                <td className="py-3 px-3">NT$12,000</td>
+              </tr>
+              <tr className="border-b">
+                <td className="py-3 px-3 text-left text-muted-foreground">常態折扣</td>
+                <td className="py-3 px-3">95折</td>
+                <td className="py-3 px-3">95折</td>
+                <td className="py-3 px-3">9折</td>
+              </tr>
+              <tr className="border-b">
+                <td className="py-3 px-3 text-left text-muted-foreground">回饋比例</td>
+                <td className="py-3 px-3">2.3%</td>
+                <td className="py-3 px-3">3.3%</td>
+                <td className="py-3 px-3">3.3%</td>
+              </tr>
+              <tr className="border-b">
+                <td className="py-3 px-3 text-left text-muted-foreground">生日折扣</td>
+                <td className="py-3 px-3">95折</td>
+                <td className="py-3 px-3">9折</td>
+                <td className="py-3 px-3">—</td>
+              </tr>
+              <tr className="border-b">
+                <td className="py-3 px-3 text-left text-muted-foreground">生日公益存款雙倍</td>
+                <td className="py-3 px-3">✓</td>
+                <td className="py-3 px-3">✓</td>
+                <td className="py-3 px-3">✓</td>
+              </tr>
+              <tr className="border-b">
+                <td className="py-3 px-3 text-left text-muted-foreground">專屬生日禮</td>
+                <td className="py-3 px-3">—</td>
+                <td className="py-3 px-3">—</td>
+                <td className="py-3 px-3">✓</td>
+              </tr>
+              <tr className="border-b">
+                <td className="py-3 px-3 text-left text-muted-foreground">線上講座</td>
+                <td className="py-3 px-3">—</td>
+                <td className="py-3 px-3">✓</td>
+                <td className="py-3 px-3">✓</td>
+              </tr>
+              <tr>
+                <td className="py-3 px-3 text-left text-muted-foreground">實體活動</td>
+                <td className="py-3 px-3">—</td>
+                <td className="py-3 px-3">—</td>
+                <td className="py-3 px-3">✓</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

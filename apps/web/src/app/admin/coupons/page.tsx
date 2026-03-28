@@ -13,6 +13,8 @@ interface CouponRow {
   expires_at: string | null
   applicable_to: string | null
   is_active: boolean
+  tier_id: string | null
+  tier?: { name: string } | null
 }
 
 interface CouponsResponse {
@@ -86,6 +88,7 @@ export default async function AdminCouponsPage() {
             <tr>
               <th className="px-4 py-3 text-left">代碼</th>
               <th className="px-4 py-3 text-left">類型</th>
+              <th className="px-4 py-3 text-left">限定等級</th>
               <th className="px-4 py-3 text-right">折扣值</th>
               <th className="px-4 py-3 text-right">已使用 / 上限</th>
               <th className="px-4 py-3 text-left">到期日</th>
@@ -95,7 +98,7 @@ export default async function AdminCouponsPage() {
           <tbody className="divide-y divide-zinc-100">
             {coupons.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-zinc-400">
+                <td colSpan={7} className="px-4 py-12 text-center text-zinc-400">
                   暫無優惠券資料，點擊上方按鈕新增
                 </td>
               </tr>
@@ -111,6 +114,13 @@ export default async function AdminCouponsPage() {
                     </td>
                     <td className="px-4 py-3 text-zinc-600">
                       {TYPE_LABEL[coupon.type] ?? coupon.type}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-600 text-xs">
+                      {coupon.tier?.name ? (
+                        <Badge variant="outline">{coupon.tier.name}</Badge>
+                      ) : (
+                        <span className="text-zinc-400">全部</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right font-medium">
                       {formatValue(coupon)}

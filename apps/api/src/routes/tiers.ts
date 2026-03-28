@@ -1,0 +1,99 @@
+import { Router } from "express"
+import { z } from "zod"
+import { supabase } from "../lib/supabase"
+import { requireAuth } from "../middleware/auth"
+import { requireAdmin } from "../middleware/admin"
+
+export const tiersRouter = Router()
+
+// ---------------------------------------------------------------------------
+// Zod schemas
+// ---------------------------------------------------------------------------
+
+const tierCreateSchema = z.object({
+  name: z.string().min(1).max(100),
+  min_spend: z.number().nonnegative(),
+  discount_rate: z.number().nonnegative(),
+  benefits: z.record(z.unknown()).optional().default({}),
+  sort_order: z.number().int().nonnegative().optional().default(0),
+})
+
+const tierUpdateSchema = tierCreateSchema.partial()
+
+// ---------------------------------------------------------------------------
+// GET /membership-tiers — public, list all tiers ordered by sort_order
+// ---------------------------------------------------------------------------
+
+tiersRouter.get("/membership-tiers", async (_req, res) => {
+  const { data, error } = await supabase
+    .from("membership_tiers")
+    .select("*")
+    .order("sort_order", { ascending: true })
+
+  if (error) { res.status(500).json({ error: error.message }); return }
+  res.json({ data: data ?? [] })
+})
+
+// ---------------------------------------------------------------------------
+// POST /admin/membership-tiers — create tier (admin only)
+// ---------------------------------------------------------------------------
+
+tiersRouter.post("/admin/membership-tiers", requireAuth, requireAdmin, async (req, res) => {
+  const parsed = tierCreateSchema.safeParse(req.body)
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.flatten() }); return }
+
+  const { data, error } = await supabase
+    .from("membership_tiers")
+    .insert(parsed.data)
+    .select()
+    .single()
+
+  if (error) { res.status(500).json({ error: error.message }); return }
+  res.status(201).json({ data })
+})
+
+// ---------------------------------------------------------------------------
+// PUT /admin/membership-tiers/:id — update tier (admin only)
+// ---------------------------------------------------------------------------
+
+tiersRouter.put("/admin/membership-tiers/:id", requireAuth, requireAdmin, async (req, res) => {
+  const parsed = tierUpdateSchema.safeParse(req.body)
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.flatten() }); return }
+
+  const { data, error } = await supabase
+    .from("membership_tiers")
+    .update(parsed.data)
+    .eq("id", req.params.id)
+    .select()
+    .single()
+
+  if (error) { res.status(500).json({ error: error.message }); return }
+  if (!data) { res.status(404).json({ error: "Tier not found" }); return }
+  res.json({ data })
+})
+
+// ---------------------------------------------------------------------------
+// DELETE /admin/membership-tiers/:id — delete tier (admin only)
+// Prevent deletion if users exist on this tier.
+// ---------------------------------------------------------------------------
+
+tiersRouter.delete("/admin/membership-tiers/:id", requireAuth, requireAdmin, async (req, res) => {
+  // Check if any users are on this tier
+  const { count, error: countError } = await supabase
+    .from("user_profiles")
+    .select("*", { count: "exact", head: true })
+    .eq("membership_tier_id", req.params.id)
+
+  if (countError) { res.status(500).json({ error: countError.message }); return }
+  if (count && count > 0) {
+    res.status(409).json({ error: "Cannot delete tier: users are currently assigned to this tier" }); return
+  }
+
+  const { error } = await supabase
+    .from("membership_tiers")
+    .delete()
+    .eq("id", req.params.id)
+
+  if (error) { res.status(500).json({ error: error.message }); return }
+  res.status(204).send()
+})

@@ -109,31 +109,34 @@ function MembershipSection() {
     {
       name: "初心之友",
       stars: 1,
-      benefits: ["公益存款 2.3% 累積", "生日禮金 50 元", "會員專屬優惠通知"],
+      benefits: [
+        "常態 95折",
+        "消費 2.3% 累積公益存款或購物金",
+        "生日 95折 + 公益存款雙倍",
+      ],
       qualification: "註冊即可成為",
     },
     {
       name: "知心之友",
       stars: 2,
       benefits: [
-        "公益存款 2.3% 累積",
-        "生日禮金 100 元",
-        "每季專屬折扣碼",
-        "新品優先體驗",
+        "常態 95折",
+        "消費 3.3% 累積公益存款或購物金",
+        "生日 9折 + 公益存款雙倍",
+        "線上講座參與資格",
       ],
-      qualification: "年消費滿 NT$3,000",
+      qualification: "累計消費滿 NT$3,500",
     },
     {
       name: "同心之友",
       stars: 3,
       benefits: [
-        "公益存款 2.3% 累積",
-        "生日禮金 200 元",
-        "每月專屬折扣碼",
-        "新品優先體驗",
-        "免運費優惠",
+        "常態 9折",
+        "消費 3.3% 累積公益存款或購物金",
+        "生日公益存款雙倍 + 專屬生日禮",
+        "線上 + 實體活動參與資格",
       ],
-      qualification: "年消費滿 NT$10,000",
+      qualification: "累計消費滿 NT$12,000",
     },
   ]
 
@@ -141,7 +144,7 @@ function MembershipSection() {
     <section className="bg-[#fffeee] py-16 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <h2 className="text-center text-2xl font-bold tracking-tight text-[#10305a] sm:text-3xl">
-          消費額 2.3% 累積 公益存款 或 購物金
+          消費額 2.3% 累積公益存款或購物金
         </h2>
 
         {/* Option A: show the uploaded membership image */}

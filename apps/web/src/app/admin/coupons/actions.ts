@@ -9,6 +9,7 @@ interface CreateCouponInput {
   value: number
   max_uses: number | null
   expires_at: string | null
+  tier_id: string | null
 }
 
 export async function createCouponAction(input: CreateCouponInput) {
