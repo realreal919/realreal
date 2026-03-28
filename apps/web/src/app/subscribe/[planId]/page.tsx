@@ -2,18 +2,18 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
-import { apiClient } from "@/lib/api-client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
 
 interface Plan {
   id: string
   name: string
   interval: string
   price: string
-  benefits: Record<string, unknown> | null
+  benefits: { label: string }[] | null
 }
 
 export default function SubscribeConfirmPage() {
@@ -29,10 +29,13 @@ export default function SubscribeConfirmPage() {
       setIsSubscribing(true)
       setError("")
       try {
-        await apiClient("/api/subscriptions", {
+        const res = await fetch(`${API_URL}/subscriptions`, {
           method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ planId, paymentToken: token }),
         })
+        if (!res.ok) throw new Error("subscribe failed")
         toast.success("訂閱成功！")
         router.push("/my-account/subscriptions")
       } catch {
@@ -43,21 +46,23 @@ export default function SubscribeConfirmPage() {
     [planId, router]
   )
 
+  // Fetch plan details from API
   useEffect(() => {
-    const supabase = createClient()
-    supabase
-      .from("subscription_plans")
-      .select("*")
-      .eq("id", planId)
-      .single()
-      .then(({ data, error: fetchError }) => {
-        if (fetchError || !data) setError("找不到此方案")
-        else setPlan(data as Plan)
-        setIsLoading(false)
-      })
+    async function fetchPlan() {
+      try {
+        const res = await fetch(`${API_URL}/subscription-plans/${planId}`)
+        if (!res.ok) throw new Error("not found")
+        const json = await res.json()
+        setPlan(json.data ?? json)
+      } catch {
+        setError("找不到此方案")
+      }
+      setIsLoading(false)
+    }
+    fetchPlan()
   }, [planId])
 
-  // Handle return from PChomePay: ?pchomepay_token= param → call POST /subscriptions
+  // Handle return from PChomePay: ?pchomepay_token= param -> call POST /subscriptions
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const token = params.get("pchomepay_token")
@@ -68,10 +73,6 @@ export default function SubscribeConfirmPage() {
 
   function handleRegisterToken() {
     if (!plan) return
-    // Redirect to PChomePay token registration page.
-    // After registration, PChomePay redirects back with ?pchomepay_token=...
-    // MerchantOrderNo is TOKREG_{subscriptionId} — we use planId as a placeholder
-    // before the subscription is created; the webhook updates the token after creation.
     const returnUrl = encodeURIComponent(`${window.location.origin}/subscribe/${planId}`)
     const registrationUrl =
       `https://payment.pchomepay.com.tw/api/token/register` +
@@ -90,11 +91,11 @@ export default function SubscribeConfirmPage() {
 
   return (
     <div className="container mx-auto max-w-md px-4 py-12">
-      <h1 className="text-2xl font-bold mb-6">確認訂閱</h1>
+      <h1 className="text-2xl font-bold text-[#10305a] mb-6">確認訂閱</h1>
 
-      <Card className="mb-6">
+      <Card className="mb-6 rounded-[10px] border-zinc-200">
         <CardHeader>
-          <CardTitle>{plan.name}</CardTitle>
+          <CardTitle className="text-[#10305a]">{plan.name}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex justify-between items-center">
@@ -103,8 +104,21 @@ export default function SubscribeConfirmPage() {
           </div>
           <div className="flex justify-between items-center mt-2">
             <span className="text-zinc-500">每期金額</span>
-            <span className="text-xl font-bold">NT${Number(plan.price).toLocaleString()}</span>
+            <span className="text-xl font-bold text-[#10305a]">NT${Number(plan.price).toLocaleString()}</span>
           </div>
+          {plan.benefits && Array.isArray(plan.benefits) && plan.benefits.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-zinc-100">
+              <p className="text-sm font-medium text-zinc-700 mb-2">方案內容</p>
+              <ul className="space-y-1 text-sm text-zinc-600">
+                {plan.benefits.map((b, i) => (
+                  <li key={b.label ?? i} className="flex items-start gap-1.5">
+                    <span className="text-[#10305a] mt-0.5">✓</span>
+                    <span>{b.label}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <p className="text-xs text-zinc-400 mt-4">
             訂閱後將以 PChomePay 綁定信用卡自動扣款。您可隨時在帳戶中暫停或取消訂閱。
           </p>
@@ -112,13 +126,13 @@ export default function SubscribeConfirmPage() {
       </Card>
 
       {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mb-4 rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
 
       <Button
-        className="w-full"
+        className="w-full rounded-[10px] bg-[#10305a] hover:bg-[#1a4070]"
         size="lg"
         onClick={handleRegisterToken}
         disabled={isSubscribing}

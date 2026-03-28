@@ -57,10 +57,10 @@ export function CartDrawer({
                 {cartItems.map((item) => (
                   <li
                     key={item.variantId}
-                    className="flex gap-3 rounded-lg border p-3"
+                    className="flex gap-3 rounded-[10px] border p-3"
                   >
                     {item.imageUrl ? (
-                      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-zinc-100">
+                      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-[10px] bg-zinc-100">
                         <Image
                           src={item.imageUrl}
                           alt={item.productName}
@@ -69,7 +69,7 @@ export function CartDrawer({
                         />
                       </div>
                     ) : (
-                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-xs text-zinc-400">
+                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[10px] bg-zinc-100 text-xs text-zinc-400">
                         無圖
                       </div>
                     )}
@@ -88,7 +88,7 @@ export function CartDrawer({
                         <div className="flex items-center gap-1">
                           <button
                             type="button"
-                            className="flex h-7 w-7 items-center justify-center rounded-md border text-sm hover:bg-accent transition-colors"
+                            className="flex h-7 w-7 items-center justify-center rounded-[10px] border text-sm hover:bg-accent transition-colors"
                             onClick={() =>
                               updateQty(item.variantId, item.qty - 1)
                             }
@@ -101,7 +101,7 @@ export function CartDrawer({
                           </span>
                           <button
                             type="button"
-                            className="flex h-7 w-7 items-center justify-center rounded-md border text-sm hover:bg-accent transition-colors"
+                            className="flex h-7 w-7 items-center justify-center rounded-[10px] border text-sm hover:bg-accent transition-colors"
                             onClick={() =>
                               updateQty(item.variantId, item.qty + 1)
                             }
@@ -117,7 +117,7 @@ export function CartDrawer({
                           </span>
                           <button
                             type="button"
-                            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            className="flex h-7 w-7 items-center justify-center rounded-[10px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                             onClick={() => removeItem(item.variantId)}
                             aria-label={`移除 ${item.productName}`}
                           >
@@ -136,7 +136,7 @@ export function CartDrawer({
                 <span>小計</span>
                 <span>NT$ {subtotal.toLocaleString()}</span>
               </div>
-              <Button asChild className="w-full" onClick={() => onOpenChange(false)}>
+              <Button asChild className="w-full rounded-[10px] bg-[#10305a] text-white hover:bg-[#10305a]/90" onClick={() => onOpenChange(false)}>
                 <Link href="/checkout">前往結帳</Link>
               </Button>
             </SheetFooter>

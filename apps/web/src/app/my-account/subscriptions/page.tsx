@@ -32,10 +32,10 @@ export default async function MySubscriptionsPage() {
   return (
     <div className="container mx-auto max-w-3xl px-4 py-12">
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-bold">我的訂閱</h1>
+        <h1 className="text-2xl font-bold text-[#10305a]">我的訂閱</h1>
         <Link
           href="/subscribe"
-          className="text-sm text-primary underline underline-offset-4"
+          className="text-sm text-[#10305a] underline underline-offset-4 hover:text-[#1a4070]"
         >
           新增訂閱
         </Link>
@@ -44,7 +44,10 @@ export default async function MySubscriptionsPage() {
       {!subscriptions?.length ? (
         <div className="text-center py-20 text-zinc-400">
           <p>您目前沒有訂閱方案</p>
-          <Link href="/subscribe" className="mt-4 inline-block text-primary underline">
+          <Link
+            href="/subscribe"
+            className="mt-4 inline-block rounded-[10px] bg-[#10305a] hover:bg-[#1a4070] text-white px-6 py-2 text-sm"
+          >
             立即訂閱
           </Link>
         </div>

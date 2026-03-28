@@ -25,28 +25,35 @@ export default async function SubscribePage() {
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="text-center mb-10">
-        <h1 className="text-3xl font-bold mb-3">定期訂閱方案</h1>
+        <h1 className="text-3xl font-bold text-[#10305a] mb-3">定期訂閱方案</h1>
         <p className="text-zinc-500">每月自動補貨，無需擔心斷貨</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
         {plans.length === 0 && <p className="col-span-3 text-center text-zinc-400">方案暫未開放</p>}
         {plans.map((plan: any) => (
-          <Card key={plan.id} className="flex flex-col">
+          <Card key={plan.id} className="flex flex-col rounded-[10px] border-zinc-200 hover:shadow-md transition-shadow">
             <CardHeader>
               <Badge variant="secondary" className="w-fit mb-2">{plan.interval === "monthly" ? "每月" : "每雙月"}</Badge>
-              <CardTitle>{plan.name}</CardTitle>
-              <CardDescription>NT${Number(plan.price).toLocaleString()} / 期</CardDescription>
+              <CardTitle className="text-[#10305a]">{plan.name}</CardTitle>
+              <CardDescription className="text-lg font-semibold">
+                NT${Number(plan.price).toLocaleString()} <span className="text-sm font-normal">/ 期</span>
+              </CardDescription>
             </CardHeader>
             <CardContent className="flex-1">
               {plan.benefits && Array.isArray(plan.benefits) && (
-                <ul className="space-y-1 text-sm text-zinc-600">
-                  {plan.benefits.map((b: any, i: number) => <li key={b.label ?? i}>✓ {b.label}</li>)}
+                <ul className="space-y-1.5 text-sm text-zinc-600">
+                  {plan.benefits.map((b: any, i: number) => (
+                    <li key={b.label ?? i} className="flex items-start gap-1.5">
+                      <span className="text-[#10305a] mt-0.5">✓</span>
+                      <span>{b.label}</span>
+                    </li>
+                  ))}
                 </ul>
               )}
             </CardContent>
             <CardFooter>
               <Link href={`/subscribe/${plan.id}`} className="w-full">
-                <Button className="w-full">選擇此方案</Button>
+                <Button className="w-full rounded-[10px] bg-[#10305a] hover:bg-[#1a4070]">選擇此方案</Button>
               </Link>
             </CardFooter>
           </Card>

@@ -25,6 +25,7 @@ import { siteContentsRouter } from "./routes/site-contents"
 import { usersRouter } from "./routes/users"
 import { tiersRouter } from "./routes/tiers"
 import { campaignsRouter } from "./routes/campaigns"
+import { reviewsPublicRouter, reviewsAdminRouter } from "./routes/reviews"
 
 export const app = express()
 
@@ -62,6 +63,8 @@ app.use("/", siteContentsRouter)
 app.use("/", usersRouter)
 app.use("/", tiersRouter)
 app.use("/", campaignsRouter)
+app.use("/products/:productId/reviews", reviewsPublicRouter)
+app.use("/admin/reviews", reviewsAdminRouter)
 app.use((_req, res) => { res.status(404).json({ error: "Not found" }) })
 // Global error handler (must have 4 args for Express to treat it as error handler)
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {

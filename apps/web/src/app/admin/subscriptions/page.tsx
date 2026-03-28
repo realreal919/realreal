@@ -31,8 +31,7 @@ export default async function AdminSubscriptionsPage({
     .from("subscriptions")
     .select(
       `
-      id, status, next_billing_date, retry_count, created_at,
-      user_profiles(display_name, email),
+      id, user_id, status, next_billing_date, retry_count, created_at,
       subscription_plans(name, price)
     `
     )
@@ -43,9 +42,22 @@ export default async function AdminSubscriptionsPage({
 
   const { data: subscriptions } = await query
 
+  // Fetch user profiles for display names (no direct FK from subscriptions to user_profiles)
+  const userIds = [...new Set((subscriptions ?? []).map((s) => s.user_id))]
+  const profileMap = new Map<string, string>()
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("user_profiles")
+      .select("user_id, display_name")
+      .in("user_id", userIds)
+    for (const p of profiles ?? []) {
+      profileMap.set(p.user_id, p.display_name ?? "—")
+    }
+  }
+
   return (
     <div>
-      <h1 className="text-xl font-semibold mb-4">訂閱管理</h1>
+      <h1 className="text-xl font-semibold mb-4 text-[#10305a]">訂閱管理</h1>
 
       {/* Status filter tabs */}
       <div className="flex gap-2 mb-4 flex-wrap">
@@ -58,10 +70,10 @@ export default async function AdminSubscriptionsPage({
             <Link
               key={tab.value}
               href={href}
-              className={`px-3 py-1.5 rounded-md text-sm border transition-colors ${
+              className={`px-3 py-1.5 rounded-[10px] text-sm border transition-colors ${
                 isActive
-                  ? "bg-zinc-900 text-white border-zinc-900"
-                  : "bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50"
+                  ? "bg-[#10305a] text-white border-[#10305a]"
+                  : "bg-white text-[#687279] border-[#10305a]/10 hover:bg-[#fffeee]/50"
               }`}
             >
               {tab.label}
@@ -70,45 +82,41 @@ export default async function AdminSubscriptionsPage({
         })}
       </div>
 
-      <div className="border rounded-lg overflow-hidden bg-white">
+      <div className="border border-[#10305a]/10 rounded-[10px] overflow-hidden bg-white">
         <table className="w-full text-sm">
-          <thead className="bg-zinc-50 text-zinc-500 text-xs uppercase">
+          <thead className="bg-[#10305a]/5 text-[#10305a] text-xs">
             <tr>
-              <th className="px-4 py-3 text-left">會員</th>
-              <th className="px-4 py-3 text-left">方案</th>
-              <th className="px-4 py-3 text-left">狀態</th>
-              <th className="px-4 py-3 text-left">下次扣款</th>
-              <th className="px-4 py-3 text-left">重試次數</th>
-              <th className="px-4 py-3 text-left">操作</th>
+              <th className="px-4 py-3 text-left font-medium">會員</th>
+              <th className="px-4 py-3 text-left font-medium">方案</th>
+              <th className="px-4 py-3 text-left font-medium">狀態</th>
+              <th className="px-4 py-3 text-left font-medium">下次扣款</th>
+              <th className="px-4 py-3 text-left font-medium">重試次數</th>
+              <th className="px-4 py-3 text-left font-medium">操作</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100">
+          <tbody className="divide-y divide-gray-100">
             {!subscriptions || subscriptions.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-zinc-400">
+                <td colSpan={6} className="px-4 py-8 text-center text-[#687279]">
                   暫無訂閱資料
                 </td>
               </tr>
             ) : (
               subscriptions.map((sub) => (
-                <tr key={sub.id} className="hover:bg-zinc-50">
+                <tr key={sub.id} className="hover:bg-[#fffeee]/50">
                   <td className="px-4 py-3">
-                    <p className="font-medium">
-                      {(sub.user_profiles as unknown as { display_name: string; email: string } | null)
-                        ?.display_name ?? "—"}
-                    </p>
-                    <p className="text-zinc-400 text-xs">
-                      {(sub.user_profiles as unknown as { email: string } | null)?.email}
+                    <p className="font-medium text-[#10305a]">
+                      {profileMap.get(sub.user_id) ?? "—"}
                     </p>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 text-[#10305a]">
                     {(sub.subscription_plans as unknown as { name: string; price: number } | null)?.name ??
                       "—"}
                   </td>
                   <td className="px-4 py-3">
                     <Badge variant={STATUS_VARIANT[sub.status] ?? "outline"}>{sub.status}</Badge>
                   </td>
-                  <td className="px-4 py-3 text-zinc-500">
+                  <td className="px-4 py-3 text-[#687279]">
                     {sub.next_billing_date
                       ? new Date(sub.next_billing_date).toLocaleDateString("zh-TW")
                       : "—"}
@@ -123,7 +131,7 @@ export default async function AdminSubscriptionsPage({
                   <td className="px-4 py-3">
                     <Link
                       href={`/admin/subscriptions/${sub.id}`}
-                      className="text-blue-600 hover:underline text-xs"
+                      className="text-[#10305a] hover:underline text-xs font-medium"
                     >
                       管理
                     </Link>

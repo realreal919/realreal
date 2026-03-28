@@ -126,9 +126,9 @@ export default function AddressesPage() {
   return (
     <div className="max-w-2xl">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">收件地址</h1>
+        <h1 className="text-2xl font-bold text-[#10305a]">收件地址</h1>
         {!showForm && (
-          <Button onClick={openAddForm} size="sm">
+          <Button onClick={openAddForm} size="sm" className="bg-[#10305a] hover:bg-[#10305a]/90">
             <Plus className="w-4 h-4 mr-1" />
             新增地址
           </Button>
@@ -139,7 +139,7 @@ export default function AddressesPage() {
       {showForm && (
         <Card className="mb-6">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg">
+            <CardTitle className="text-lg text-[#10305a]">
               {editingId ? "編輯地址" : "新增地址"}
             </CardTitle>
             <Button
@@ -230,7 +230,7 @@ export default function AddressesPage() {
             </div>
 
             <div className="flex gap-2 pt-2">
-              <Button onClick={handleSubmit}>
+              <Button onClick={handleSubmit} className="bg-[#10305a] hover:bg-[#10305a]/90">
                 {editingId ? "更新地址" : "新增地址"}
               </Button>
               <Button
@@ -266,7 +266,7 @@ export default function AddressesPage() {
                     <div className="flex items-center gap-2">
                       <p className="font-medium">{addr.name}</p>
                       {addr.is_default && (
-                        <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                        <span className="text-xs bg-[#10305a]/10 text-[#10305a] px-2 py-0.5 rounded-full">
                           預設
                         </span>
                       )}

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -23,6 +24,7 @@ export default function ProfilePage() {
   })
   const [loading, setLoading] = useState(true)
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
 
   useEffect(() => {
     async function load() {
@@ -30,7 +32,10 @@ export default function ProfilePage() {
       const {
         data: { user },
       } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        router.push("/auth/login?redirect=/my-account/profile")
+        return
+      }
 
       const { data } = await supabase
         .from("user_profiles")
@@ -88,11 +93,11 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl font-bold mb-6">個人資料</h1>
+      <h1 className="text-2xl font-bold mb-6 text-[#10305a]">個人資料</h1>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">基本資訊</CardTitle>
+          <CardTitle className="text-lg text-[#10305a]">基本資訊</CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="space-y-2">
@@ -136,7 +141,7 @@ export default function ProfilePage() {
           </div>
 
           <div className="pt-2">
-            <Button onClick={handleSave} disabled={isPending}>
+            <Button onClick={handleSave} disabled={isPending} className="bg-[#10305a] hover:bg-[#10305a]/90">
               {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               儲存變更
             </Button>

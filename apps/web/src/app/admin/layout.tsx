@@ -16,6 +16,7 @@ import {
   PenSquare,
   Home,
   Megaphone,
+  MessageSquare,
 } from "lucide-react"
 
 type Role = "admin" | "editor" | "viewer"
@@ -35,6 +36,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/admin/subscriptions", label: "訂閱管理", icon: RefreshCw, roles: ["admin", "editor"] },
   { href: "/admin/invoices", label: "發票管理", icon: FileText, roles: ["admin", "editor"] },
   { href: "/admin/coupons", label: "優惠券", icon: Tag, roles: ["admin", "editor"] },
+  { href: "/admin/reviews", label: "評價管理", icon: MessageSquare, roles: ["admin", "editor"] },
   { href: "/admin/campaigns", label: "行銷活動", icon: Megaphone, roles: ["admin", "editor"] },
   { href: "/admin/analytics", label: "數據分析", icon: BarChart2, roles: ["admin", "editor"] },
   { href: "/admin/jobs", label: "工作佇列", icon: Cpu, roles: ["admin", "editor"] },

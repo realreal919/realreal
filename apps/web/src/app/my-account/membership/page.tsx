@@ -132,7 +132,7 @@ export default async function MembershipPage() {
     : "2.3%"
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-2xl">
+    <div>
       <h1 className="text-2xl font-bold mb-6 text-[#10305a]">會員資格</h1>
 
       <Card className="mb-6">
@@ -203,7 +203,7 @@ export default async function MembershipPage() {
       )}
 
       <div className="mt-8">
-        <h2 className="text-lg font-semibold mb-4">等級比較</h2>
+        <h2 className="text-lg font-semibold mb-4 text-[#10305a]">等級比較</h2>
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">

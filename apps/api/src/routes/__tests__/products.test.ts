@@ -24,7 +24,7 @@ const mockProduct = {
 
 describe("GET /products", () => {
   it("returns paginated products", async () => {
-    const mockQuery = {
+    const mockProductsQuery = {
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
       ilike: vi.fn().mockReturnThis(),
@@ -36,12 +36,22 @@ describe("GET /products", () => {
       }),
       order: vi.fn().mockReturnThis(),
     }
-    vi.mocked(supabase.from).mockReturnValue(mockQuery as any)
+    const mockVariantsQuery = {
+      select: vi.fn().mockReturnThis(),
+      in: vi.fn().mockResolvedValue({
+        data: [{ product_id: "prod-1", price: 100, stock_qty: 10 }],
+        error: null,
+      }),
+    }
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === "product_variants") return mockVariantsQuery as any
+      return mockProductsQuery as any
+    })
 
     const res = await request(app).get("/products?page=1&limit=20")
     expect(res.status).toBe(200)
     expect(res.body).toHaveProperty("data")
-    expect(res.body).toHaveProperty("pagination")
+    expect(res.body).toHaveProperty("total")
   })
 })
 

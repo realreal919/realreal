@@ -5,11 +5,11 @@ export default function AdminJobsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">背景任務監控</h1>
-      <p className="text-sm text-zinc-500">
+      <h1 className="text-xl font-semibold text-[#10305a]">背景任務監控</h1>
+      <p className="text-sm text-[#687279]">
         透過 Bull Board 監控 BullMQ 佇列狀態。可查看排隊中、進行中、失敗的任務，並手動重試或清除。
       </p>
-      <div className="border rounded-lg overflow-hidden" style={{ height: "calc(100vh - 200px)" }}>
+      <div className="border border-[#10305a]/10 rounded-[10px] overflow-hidden" style={{ height: "calc(100vh - 200px)" }}>
         <iframe
           src={`${apiUrl}/admin/bull-board`}
           className="w-full h-full"

@@ -90,10 +90,10 @@ export default async function OrderDetailPage({
   const currentStepIndex = TIMELINE_ORDER.indexOf(status)
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-3xl">
+    <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">訂單詳情</h1>
-        <p className="text-zinc-500 font-mono mt-1">{order.order_number}</p>
+        <h1 className="text-2xl font-bold text-[#10305a]">訂單詳情</h1>
+        <p className="text-[#687279] font-mono mt-1">{order.order_number}</p>
       </div>
 
       {/* Timeline */}
@@ -109,7 +109,7 @@ export default async function OrderDetailPage({
                     className={[
                       "h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium border-2",
                       isCompleted
-                        ? "bg-primary border-primary text-primary-foreground"
+                        ? "bg-[#10305a] border-[#10305a] text-white"
                         : "border-zinc-300 text-zinc-400",
                     ].join(" ")}
                   >
@@ -128,7 +128,7 @@ export default async function OrderDetailPage({
           {/* Connector line */}
           <div className="relative -mt-10 mb-4 mx-4 h-0.5 bg-zinc-200">
             <div
-              className="h-full bg-primary transition-all"
+              className="h-full bg-[#10305a] transition-all"
               style={{ width: `${(currentStepIndex / (TIMELINE_STEPS.length - 1)) * 100}%` }}
             />
           </div>
@@ -147,7 +147,7 @@ export default async function OrderDetailPage({
 
       {/* Items Table */}
       <div className="mb-8">
-        <h2 className="text-lg font-semibold mb-3">訂購商品</h2>
+        <h2 className="text-lg font-semibold mb-3 text-[#10305a]">訂購商品</h2>
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-zinc-50">
@@ -186,7 +186,7 @@ export default async function OrderDetailPage({
       {/* Address & Payment */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div>
-          <h2 className="text-lg font-semibold mb-3">收件資訊</h2>
+          <h2 className="text-lg font-semibold mb-3 text-[#10305a]">收件資訊</h2>
           <div className="p-4 bg-zinc-50 rounded-lg space-y-1 text-sm">
             <p><span className="text-zinc-500">姓名：</span>{order.address.name}</p>
             <p><span className="text-zinc-500">電話：</span>{order.address.phone}</p>
@@ -195,7 +195,7 @@ export default async function OrderDetailPage({
           </div>
         </div>
         <div>
-          <h2 className="text-lg font-semibold mb-3">付款 / 配送</h2>
+          <h2 className="text-lg font-semibold mb-3 text-[#10305a]">付款 / 配送</h2>
           <div className="p-4 bg-zinc-50 rounded-lg space-y-1 text-sm">
             <p><span className="text-zinc-500">付款方式：</span>{order.payment_method}</p>
             <p>

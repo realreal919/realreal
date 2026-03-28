@@ -36,7 +36,7 @@ export default function ContactPage() {
       toast.success("訊息已送出，我們會盡快回覆您！")
       e.currentTarget.reset()
     } catch {
-      toast.success("訊息已送出，我們會盡快回覆您！")
+      toast.error("送出失敗，請稍後再試")
     } finally {
       setSending(false)
     }

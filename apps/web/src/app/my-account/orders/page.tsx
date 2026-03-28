@@ -51,8 +51,8 @@ export default async function OrdersPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-3xl">
-      <h1 className="text-2xl font-bold mb-6">我的訂單</h1>
+    <div>
+      <h1 className="text-2xl font-bold mb-6 text-[#10305a]">我的訂單</h1>
 
       {orders.length === 0 ? (
         <div className="text-center py-16">

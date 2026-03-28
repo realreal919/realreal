@@ -16,7 +16,7 @@ const campaignCreateSchema = z.object({
   description: z.string().optional().nullable(),
   tier_id: z.string().uuid().optional().nullable(),
   type: z.enum(["discount", "freebie", "points_multiplier", "free_shipping", "bundle"]),
-  config: z.record(z.unknown()).optional().default({}),
+  config: z.record(z.string(), z.unknown()).optional().default({}),
   coupon_id: z.string().uuid().optional().nullable(),
   is_active: z.boolean().optional().default(true),
   starts_at: z.string().datetime(),

@@ -25,35 +25,35 @@ export default async function AdminAnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">數據分析</h1>
+      <h1 className="text-xl font-semibold text-[#10305a]">數據分析</h1>
 
       {/* KPI row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-xs text-zinc-500">30 日營收</CardTitle>
+            <CardTitle className="text-xs text-[#687279]">30 日營收</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-bold">
+          <CardContent className="text-2xl font-bold text-[#10305a]">
             NT$ {totalRevenue.toLocaleString()}
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-xs text-zinc-500">訂閱 MRR</CardTitle>
+            <CardTitle className="text-xs text-[#687279]">訂閱 MRR</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-bold">NT$ {mrr.toLocaleString()}</CardContent>
+          <CardContent className="text-2xl font-bold text-[#10305a]">NT$ {mrr.toLocaleString()}</CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-xs text-zinc-500">總訂單數</CardTitle>
+            <CardTitle className="text-xs text-[#687279]">總訂單數</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-bold">{totalOrders}</CardContent>
+          <CardContent className="text-2xl font-bold text-[#10305a]">{totalOrders}</CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-xs text-zinc-500">已完成訂單</CardTitle>
+            <CardTitle className="text-xs text-[#687279]">已完成訂單</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-bold">
+          <CardContent className="text-2xl font-bold text-[#10305a]">
             {ordersByStatus.find((o) => o.status === "completed")?.count ?? 0}
           </CardContent>
         </Card>
@@ -87,16 +87,16 @@ export default async function AdminAnalyticsPage() {
         <CardContent>
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-zinc-500 text-xs border-b">
+              <tr className="text-[#687279] text-xs border-b">
                 <th className="text-left py-2">商品</th>
                 <th className="text-right py-2">銷售量</th>
                 <th className="text-right py-2">營收</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100">
+            <tbody className="divide-y divide-gray-100">
               {topProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="py-4 text-center text-zinc-400">
+                  <td colSpan={3} className="py-4 text-center text-[#687279]">
                     暫無資料
                   </td>
                 </tr>
@@ -122,12 +122,12 @@ export default async function AdminAnalyticsPage() {
         <CardContent>
           <div className="flex gap-6 flex-wrap">
             {tierDistribution.length === 0 ? (
-              <p className="text-zinc-400 text-sm">暫無資料</p>
+              <p className="text-[#687279] text-sm">暫無資料</p>
             ) : (
               tierDistribution.map((t) => (
                 <div key={t.tier} className="text-center">
-                  <p className="text-2xl font-bold">{t.count}</p>
-                  <p className="text-zinc-500 text-xs">{t.tier}</p>
+                  <p className="text-2xl font-bold text-[#10305a]">{t.count}</p>
+                  <p className="text-[#687279] text-xs">{t.tier}</p>
                 </div>
               ))
             )}

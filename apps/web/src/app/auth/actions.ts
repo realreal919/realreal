@@ -26,7 +26,7 @@ export async function loginAction(_prev: unknown, formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword(parsed.data)
   if (error) return { error: error.message }
 
-  redirect("/my-account")
+  redirect("/")
 }
 
 export async function registerAction(_prev: unknown, formData: FormData) {
@@ -61,6 +61,26 @@ export async function forgotPasswordAction(_prev: unknown, formData: FormData) {
   if (error) return { error: error.message }
 
   return { success: "重設密碼連結已寄出，請檢查您的信箱" }
+}
+
+export async function resetPasswordAction(_prev: unknown, formData: FormData) {
+  const parsed = z.object({
+    password: z.string().min(8),
+    confirmPassword: z.string().min(8),
+  }).safeParse({
+    password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
+  })
+  if (!parsed.success) return { error: "密碼至少需要 8 個字元" }
+  if (parsed.data.password !== parsed.data.confirmPassword) {
+    return { error: "兩次輸入的密碼不一致" }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password })
+  if (error) return { error: error.message }
+
+  redirect("/")
 }
 
 export async function logoutAction() {

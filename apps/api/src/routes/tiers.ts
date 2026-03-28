@@ -14,7 +14,7 @@ const tierCreateSchema = z.object({
   name: z.string().min(1).max(100),
   min_spend: z.number().nonnegative(),
   discount_rate: z.number().nonnegative(),
-  benefits: z.record(z.unknown()).optional().default({}),
+  benefits: z.record(z.string(), z.unknown()).optional().default({}),
   sort_order: z.number().int().nonnegative().optional().default(0),
 })
 

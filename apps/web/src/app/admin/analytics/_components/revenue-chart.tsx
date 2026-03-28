@@ -17,7 +17,7 @@ export default function RevenueChart({ data }: { data: RevenuePoint[] }) {
         <Line
           type="monotone"
           dataKey="revenue"
-          stroke="#18181b"
+          stroke="#10305a"
           strokeWidth={2}
           dot={false}
         />

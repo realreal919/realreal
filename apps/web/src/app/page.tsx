@@ -8,6 +8,8 @@ import { getSiteContent, getPosts } from "@/lib/content"
 import type { Post } from "@/lib/content"
 import type { Metadata } from "next"
 
+export const dynamic = "force-dynamic"
+
 export const metadata: Metadata = {
   title: "誠真生活 RealReal — 純淨植物力，為你的健康加分",
   description:

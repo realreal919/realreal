@@ -2,7 +2,7 @@
 
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts"
 
-const COLORS = ["#18181b", "#71717a", "#a1a1aa", "#d4d4d8", "#e4e4e7", "#f4f4f5"]
+const COLORS = ["#10305a", "#1a4a7a", "#2a6a9a", "#4a8aba", "#7aaada", "#a0c4ea"]
 
 type StatusPoint = { status: string; count: number }
 
