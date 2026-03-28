@@ -395,21 +395,25 @@ function BlogSection({ posts }: { posts: Post[] }) {
   )
 }
 
-function ReviewsSection() {
-  const reviews = [
-    {
-      name: "小美",
-      text: "喝了一個月的植物蛋白粉，精神變得好多！味道也很好入口，推薦給怕奶味的人。",
-    },
-    {
-      name: "阿凱",
-      text: "凍乾水果真的超方便，帶去辦公室當零食，同事都問我在哪裡買的。",
-    },
-    {
-      name: "Jenny",
-      text: "很喜歡誠真的理念，買東西還能做公益，而且產品品質真的很好！",
-    },
-  ]
+type Testimonial = { name: string; text: string; rating?: number }
+
+const defaultReviews: Testimonial[] = [
+  {
+    name: "小美",
+    text: "喝了一個月的植物蛋白粉，精神變得好多！味道也很好入口，推薦給怕奶味的人。",
+  },
+  {
+    name: "阿凱",
+    text: "凍乾水果真的超方便，帶去辦公室當零食，同事都問我在哪裡買的。",
+  },
+  {
+    name: "Jenny",
+    text: "很喜歡誠真的理念，買東西還能做公益，而且產品品質真的很好！",
+  },
+]
+
+function ReviewsSection({ testimonials }: { testimonials?: Testimonial[] | null }) {
+  const reviews = testimonials && testimonials.length > 0 ? testimonials : defaultReviews
 
   return (
     <section className="py-16 sm:py-20">
@@ -425,7 +429,7 @@ function ReviewsSection() {
               className="border-0 bg-[#f9f9f6] shadow-sm p-6"
             >
               <div className="flex items-center gap-1 text-yellow-400 text-lg mb-3">
-                {"★★★★★"}
+                {"★".repeat(review.rating ?? 5)}
               </div>
               <p className="text-sm leading-relaxed text-[#687279] italic">
                 &ldquo;{review.text}&rdquo;
@@ -451,12 +455,13 @@ export default async function HomePage() {
   ])
 
   // Fetch products, content and blog posts in parallel
-  const [proteinProducts, fruitProducts, heroContent, blogResult] =
+  const [proteinProducts, fruitProducts, heroContent, blogResult, testimonials] =
     await Promise.all([
       getProductsByCategory(proteinSlug ?? "protein"),
       getProductsByCategory(fruitSlug ?? "freeze-dried"),
       getSiteContent<HeroContent>("homepage_hero"),
       getPosts({ limit: 3 }),
+      getSiteContent<Testimonial[]>("testimonials"),
     ])
 
   return (
@@ -489,7 +494,7 @@ export default async function HomePage() {
       <BlogSection posts={blogResult.data} />
 
       {/* 6. Customer reviews */}
-      <ReviewsSection />
+      <ReviewsSection testimonials={testimonials} />
     </main>
   )
 }

@@ -1,0 +1,26 @@
+[
+  {
+    "email": "somchai@example.com",
+    "display_name": "Somchai Jaidee",
+    "phone": "0812345678",
+    "birthday": "1985-03-12",
+    "tax_id": "1234567890123",
+    "membership_tier_id": null
+  },
+  {
+    "email": "napa@example.com",
+    "display_name": "Napa Srisuk",
+    "phone": "0898765432",
+    "birthday": "1992-07-25",
+    "tax_id": null,
+    "membership_tier_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+  },
+  {
+    "email": "wichai@example.com",
+    "display_name": "Wichai Thongdee",
+    "phone": null,
+    "birthday": null,
+    "tax_id": null,
+    "membership_tier_id": null
+  }
+]
