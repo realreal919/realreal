@@ -85,12 +85,16 @@ beforeEach(() => {
 
 describe("GET /posts", () => {
   it("returns paginated published posts", async () => {
-    vi.mocked(supabase.from).mockReturnValue({
+    const result = { data: [mockPost], error: null, count: 1 }
+    const chainable: any = {
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
+      in: vi.fn().mockReturnThis(),
       order: vi.fn().mockReturnThis(),
-      range: vi.fn().mockResolvedValue({ data: [mockPost], error: null, count: 1 }),
-    } as any)
+      range: vi.fn().mockReturnThis(),
+      then: vi.fn((resolve: any) => resolve(result)),
+    }
+    vi.mocked(supabase.from).mockReturnValue(chainable)
 
     const res = await request(app).get("/posts?page=1&limit=10")
     expect(res.status).toBe(200)
@@ -103,12 +107,16 @@ describe("GET /posts", () => {
   })
 
   it("returns empty list when no posts", async () => {
-    vi.mocked(supabase.from).mockReturnValue({
+    const result = { data: [], error: null, count: 0 }
+    const chainable: any = {
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
+      in: vi.fn().mockReturnThis(),
       order: vi.fn().mockReturnThis(),
-      range: vi.fn().mockResolvedValue({ data: [], error: null, count: 0 }),
-    } as any)
+      range: vi.fn().mockReturnThis(),
+      then: vi.fn((resolve: any) => resolve(result)),
+    }
+    vi.mocked(supabase.from).mockReturnValue(chainable)
 
     const res = await request(app).get("/posts")
     expect(res.status).toBe(200)
@@ -117,12 +125,16 @@ describe("GET /posts", () => {
   })
 
   it("returns 500 on supabase error", async () => {
-    vi.mocked(supabase.from).mockReturnValue({
+    const result = { data: null, error: { message: "db error" }, count: null }
+    const chainable: any = {
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
+      in: vi.fn().mockReturnThis(),
       order: vi.fn().mockReturnThis(),
-      range: vi.fn().mockResolvedValue({ data: null, error: { message: "db error" }, count: null }),
-    } as any)
+      range: vi.fn().mockReturnThis(),
+      then: vi.fn((resolve: any) => resolve(result)),
+    }
+    vi.mocked(supabase.from).mockReturnValue(chainable)
 
     const res = await request(app).get("/posts")
     expect(res.status).toBe(500)

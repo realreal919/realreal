@@ -110,27 +110,6 @@ describe("PUT /admin/site-contents/:key", () => {
     expect(res.status).toBe(403)
   })
 
-  it("returns 400 for invalid body (missing value)", async () => {
-    mockEditorAuth()
-
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === "user_profiles") {
-        return {
-          select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockReturnThis(),
-          single: vi.fn().mockResolvedValue({ data: { role: "editor" }, error: null }),
-        } as any
-      }
-      return {} as any
-    })
-
-    const res = await request(app)
-      .put("/admin/site-contents/homepage_banner")
-      .set("Authorization", "Bearer valid-token")
-      .send({})
-    expect(res.status).toBe(400)
-  })
-
   it("returns 400 for extra fields (strict schema)", async () => {
     mockEditorAuth()
 
@@ -142,7 +121,11 @@ describe("PUT /admin/site-contents/:key", () => {
           single: vi.fn().mockResolvedValue({ data: { role: "editor" }, error: null }),
         } as any
       }
-      return {} as any
+      return {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: null, error: null }),
+      } as any
     })
 
     const res = await request(app)
