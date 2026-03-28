@@ -2,110 +2,98 @@ import type { Metadata } from "next"
 import { getSiteContent } from "@/lib/content"
 
 export const metadata: Metadata = {
-  title: "關於我們 | 誠真生活 RealReal",
+  title: "品牌故事 | 誠真生活 RealReal",
   description:
     "誠真生活是台灣在地的純素保健食品品牌，堅持以純淨原料與科學配方，為您帶來誠真健康。",
 }
-
-const values = [
-  {
-    title: "純淨原料",
-    description: "嚴選天然植物來源，不添加人工色素、香料與防腐劑，每一口都安心。",
-  },
-  {
-    title: "科學配方",
-    description: "與營養學專家合作研發，以實證科學為基礎，精準調配最佳比例。",
-  },
-  {
-    title: "永續包裝",
-    description: "採用可回收與低碳排包材，從產地到餐桌，減少對環境的負擔。",
-  },
-  {
-    title: "在地生產",
-    description: "全程台灣製造，支持在地農業與產業鏈，新鮮直送不繞路。",
-  },
-]
 
 type AboutContent = {
   content_html?: string
 }
 
+const wpContent = `
+<img
+  width="865"
+  height="1024"
+  src="https://realreal.cc/wp-content/uploads/2025/09/reallightjpeg-865x1024.webp"
+  alt="誠真生活品牌故事"
+  srcset="https://realreal.cc/wp-content/uploads/2025/09/reallightjpeg-865x1024.webp 865w, https://realreal.cc/wp-content/uploads/2025/09/reallightjpeg-253x300.webp 253w, https://realreal.cc/wp-content/uploads/2025/09/reallightjpeg-768x909.webp 768w, https://realreal.cc/wp-content/uploads/2025/09/reallightjpeg-750x888.webp 750w, https://realreal.cc/wp-content/uploads/2025/09/reallightjpeg-600x710.webp 600w, https://realreal.cc/wp-content/uploads/2025/09/reallightjpeg.webp 936w"
+  sizes="(max-width: 865px) 100vw, 865px"
+/>
+
+<h2>品牌故事 Our Story</h2>
+
+<p><b>像孩子般純真，讓世界更美好</b></p>
+<p>從小看著爸爸與免疫病變和癌症共存，他依然樂觀，總提醒我：「世界上還有許多比我們更需要幫助的人」。</p>
+<p>我幸運地靠著獎學金完成學業，心中滿懷感恩，更希望能將這份善意回饋社會。</p>
+<p>從工作之餘，經營分享滋養身心資訊的社群媒體開始，聚集眾人之力，並將收益捐助給更需要幫助的人。</p>
+<p>我相信，每個人都能多付出一些，成為彼此生命中的溫柔光亮。</p>
+<p>我相信，這正是我們最純粹的模樣——像孩子般，樂善好施，自在純真。</p>
+<p><strong>創辦人 尹昕</strong></p>
+
+<p><b>Pure as a child, making the world a better place</b></p>
+<p>Inspired by my father's fight life alongside autoimmune disease and cancer, I carry forward his reminder: <i>"There are always people who need help more than we do".</i></p>
+<p>Blessed to have completed my studies through scholarships, I started giving back—sharing wellness on Instagram and turning its proceeds into support for those who need it most.</p>
+<p>I believe that each of us can give a little more, becoming a gentle light in one another's lives.</p>
+<p>I believe this is our truest nature, like a child—kind, joyful, free, and pure.</p>
+<p><b>Yin Hsin, Founder</b></p>
+
+<h2>品牌願景 Our Vision</h2>
+<p>每個人都能活得像個孩子，樂善好施，自在純真。</p>
+<p>Everyone can live like a child—kind, joyful, free, and pure.</p>
+
+<img
+  width="1024"
+  height="683"
+  src="https://realreal.cc/wp-content/uploads/2025/09/AdobeStock_365765933-1024x683.webp"
+  alt="誠真生活品牌願景"
+  srcset="https://realreal.cc/wp-content/uploads/2025/09/AdobeStock_365765933-1024x683.webp 1024w, https://realreal.cc/wp-content/uploads/2025/09/AdobeStock_365765933-300x200.webp 300w, https://realreal.cc/wp-content/uploads/2025/09/AdobeStock_365765933-768x512.webp 768w, https://realreal.cc/wp-content/uploads/2025/09/AdobeStock_365765933-1536x1024.webp 1536w, https://realreal.cc/wp-content/uploads/2025/09/AdobeStock_365765933-2048x1365.webp 2048w, https://realreal.cc/wp-content/uploads/2025/09/AdobeStock_365765933-750x500.webp 750w, https://realreal.cc/wp-content/uploads/2025/09/AdobeStock_365765933-600x400.webp 600w"
+  sizes="(max-width: 1024px) 100vw, 1024px"
+/>
+
+<h2>品牌使命 Our Mission</h2>
+<p>滋養每個人的童心與純真，喚醒內在的善念與喜悅，讓身心回歸自在與健康。</p>
+<p>To nurture innocence and purity, awaken kindness and joy within, and bring body and mind back to ease and vitality.</p>
+
+<h2>品牌目標 Our Goal</h2>
+<p>提供滋養身心的食物、資訊與用品。</p>
+<p>將日常支出，化成支持弱勢的資糧。</p>
+<p>讓健康成為關懷與慈悲的生活方式。</p>
+<p>Providing nourishing food, knowledge, and essentials for body and soul.</p>
+<p>Transforming daily spending into resources that support the vulnerable.</p>
+<p>Making health a way of living—rooted in care and compassion.</p>
+
+<h2>品牌承諾 Our Promises</h2>
+<p>合作工廠通過HACCP及ISO22000品質認證</p>
+<p>產品經第三方檢驗機構品質把關</p>
+<p>商品投保產品責任險</p>
+<p>Made in HACCP &amp; ISO 22000 certified factories</p>
+<p>Quality tested by independent labs</p>
+<p>Covered by product liability insurance</p>
+`
+
 export default async function AboutPage() {
   const content = await getSiteContent<AboutContent>("about_page")
   const hasCustomContent = content?.content_html && content.content_html.trim().length > 0
 
-  if (hasCustomContent) {
-    return (
-      <div className="container mx-auto px-4 py-12 max-w-3xl">
-        <div
-          className="prose prose-zinc max-w-none
-            prose-headings:text-[#10305a] prose-headings:font-bold
-            prose-p:text-[#687279] prose-p:leading-relaxed
-            prose-a:text-[#10305a] prose-a:underline
-            prose-img:rounded-[10px]
-            prose-li:text-[#687279]
-            prose-blockquote:border-[#10305a]/30 prose-blockquote:text-[#687279]
-            prose-strong:text-[#10305a]"
-          dangerouslySetInnerHTML={{ __html: content!.content_html! }}
-        />
-      </div>
-    )
-  }
+  const htmlContent = hasCustomContent ? content!.content_html! : wpContent
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-3xl">
-      {/* Hero */}
-      <section className="text-center mb-16">
-        <h1 className="text-3xl font-bold mb-4 text-[#10305a]">關於誠真生活</h1>
-        <p className="text-lg text-[#687279]">純粹投入，誠真健康</p>
-      </section>
-
-      {/* Brand Story */}
-      <section className="mb-16">
-        <h2 className="text-xl font-semibold mb-4 text-[#10305a]">品牌故事</h2>
-        <div className="space-y-4 text-[#687279] leading-relaxed">
-          <p>
-            誠真生活 RealReal
-            是一個源自台灣的純素保健食品品牌。我們相信，真正的健康來自大自然最純粹的力量。從一顆種子到一份產品，我們以「誠」為本、以「真」為念，堅持提供最純淨的植物性營養。
-          </p>
-          <p>
-            在加工食品充斥的時代，我們選擇回歸本質。每一款產品都經過嚴謹的科學研發，確保營養成分的有效性與安全性。我們不只是做產品，更是在推動一種對自己、對地球都更友善的生活方式。
-          </p>
-        </div>
-      </section>
-
-      {/* Mission */}
-      <section className="mb-16">
-        <h2 className="text-xl font-semibold mb-4 text-[#10305a]">品牌使命</h2>
-        <div className="rounded-lg p-6 bg-[#10305a]">
-          <p className="text-white leading-relaxed">
-            我們致力於以植物的力量，為每個人帶來簡單、有效且永續的健康方案。透過科學驗證的純素配方，讓健康飲食不再是妥協，而是一種享受。
-          </p>
-        </div>
-      </section>
-
-      {/* Values */}
-      <section className="mb-16">
-        <h2 className="text-xl font-semibold mb-6 text-[#10305a]">核心價值</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {values.map((v) => (
-            <div key={v.title} className="bg-[#fffeee] border-none rounded-lg p-5">
-              <h3 className="font-semibold mb-2 text-[#10305a]">{v.title}</h3>
-              <p className="text-sm text-[#687279] leading-relaxed">
-                {v.description}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Team Placeholder */}
-      <section>
-        <h2 className="text-xl font-semibold mb-4 text-[#10305a]">團隊介紹</h2>
-        <div className="border rounded-lg p-8 text-center text-zinc-400">
-          <p>團隊資訊即將上線，敬請期待。</p>
-        </div>
-      </section>
+      <h1 className="text-3xl font-bold mb-8 text-[#10305a] text-center">品牌故事</h1>
+      <div
+        className="prose prose-zinc max-w-none
+          prose-headings:text-[#10305a] prose-headings:font-bold
+          prose-p:text-[#687279] prose-p:leading-relaxed
+          prose-a:text-[#10305a] prose-a:underline
+          prose-img:rounded-[10px]
+          prose-li:text-[#687279]
+          prose-blockquote:border-[#10305a]/30 prose-blockquote:text-[#687279]
+          prose-strong:text-[#10305a]
+          prose-b:text-[#10305a]
+          prose-i:text-[#687279]"
+        dangerouslySetInnerHTML={{ __html: htmlContent }}
+      />
     </div>
   )
 }

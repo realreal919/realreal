@@ -120,40 +120,25 @@ export default function ContactPage() {
                 <dt className="font-medium text-[#10305a]">電子信箱</dt>
                 <dd>
                   <a
-                    href="mailto:hello@realreal.cc"
+                    href="mailto:love@realreal.cc"
                     className="hover:underline"
                   >
-                    hello@realreal.cc
+                    love@realreal.cc
                   </a>
                 </dd>
               </div>
               <div>
-                <dt className="font-medium text-[#10305a]">客服電話</dt>
-                <dd>(02) 2345-6789</dd>
-              </div>
-              <div>
                 <dt className="font-medium text-[#10305a]">公司地址</dt>
-                <dd>106 台北市大安區忠孝東路四段 100 號 10 樓</dd>
+                <dd>100 台北市仁愛路二段 25 號</dd>
               </div>
             </dl>
           </div>
 
           <div>
             <h2 className="font-semibold mb-3 text-[#10305a]">營業時間</h2>
-            <dl className="space-y-1 text-sm text-[#687279]">
-              <div className="flex justify-between">
-                <dt>週一至週五</dt>
-                <dd>09:00 – 18:00</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt>週六</dt>
-                <dd>10:00 – 14:00</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt>週日及國定假日</dt>
-                <dd className="text-zinc-400">公休</dd>
-              </div>
-            </dl>
+            <p className="text-sm text-[#687279]">
+              週一至週五 09:00 – 18:00
+            </p>
           </div>
         </aside>
       </div>

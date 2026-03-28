@@ -8,40 +8,39 @@ export const metadata: Metadata = {
 const deliveryMethods = [
   {
     name: "宅配到府",
-    provider: "黑貓宅急便",
-    fee: "NT$100",
-    freeThreshold: "單筆訂單滿 NT$800 免運",
-    time: "付款後 1–3 個工作日出貨，約 1–2 天送達",
+    provider: "宅配通",
+    fee: "NT$150",
+    freeThreshold: "單筆訂單滿 NT$999 免運",
+    time: "付款後 2–5 個工作日出貨（不含例假日），到貨時間依物流公司為準",
     notes: [
-      "配送時段可選：13:00 前、14:00–18:00",
-      "支援貨到付款（需另加手續費 NT$30）",
-      "離島地區配送時間約 3–5 個工作日",
+      "離島地區配送時間可能較長",
+      "如貨物尺寸超過超商取貨限制，將通知您改採用宅配",
     ],
   },
   {
     name: "7-11 超商取貨",
     provider: "統一超商",
-    fee: "NT$60",
-    freeThreshold: "單筆訂單滿 NT$800 免運",
-    time: "付款後 1–3 個工作日出貨，約 2–3 天到店",
+    fee: "NT$65",
+    freeThreshold: "單筆訂單滿 NT$499 免運",
+    time: "付款後 2–5 個工作日出貨（不含例假日），到貨時間依物流公司為準",
     notes: [
       "包裹到店後將以簡訊通知取件",
       "請於到店通知後 7 天內前往取貨",
       "逾期未取將退回，運費不予退還",
-      "單件包裹限重 5 公斤、限長 45 公分",
+      "如貨物尺寸超過超商取貨限制，將通知您改採用宅配",
     ],
   },
   {
     name: "全家超商取貨",
     provider: "全家便利商店",
-    fee: "NT$60",
-    freeThreshold: "單筆訂單滿 NT$800 免運",
-    time: "付款後 1–3 個工作日出貨，約 2–3 天到店",
+    fee: "NT$65",
+    freeThreshold: "單筆訂單滿 NT$499 免運",
+    time: "付款後 2–5 個工作日出貨（不含例假日），到貨時間依物流公司為準",
     notes: [
       "包裹到店後將以簡訊通知取件",
       "請於到店通知後 7 天內前往取貨",
       "逾期未取將退回，運費不予退還",
-      "單件包裹限重 5 公斤、限長 45 公分",
+      "如貨物尺寸超過超商取貨限制，將通知您改採用宅配",
     ],
   },
 ]
@@ -106,7 +105,7 @@ export default function ShippingPage() {
               <li>
                 離島地區（金門、馬祖、澎湖等）僅支援宅配，配送時間約 3–5 個工作日
               </li>
-              <li>目前暫不提供海外配送服務</li>
+              <li>海外運送採運費到付</li>
             </ul>
           </div>
         </section>
@@ -128,18 +127,18 @@ export default function ShippingPage() {
               <tbody className="divide-y">
                 <tr>
                   <td className="px-4 py-3">宅配到府</td>
-                  <td className="px-4 py-3">NT$100</td>
-                  <td className="px-4 py-3">滿 NT$800</td>
+                  <td className="px-4 py-3">NT$150</td>
+                  <td className="px-4 py-3">滿 NT$999</td>
                 </tr>
                 <tr>
                   <td className="px-4 py-3">7-11 超商取貨</td>
-                  <td className="px-4 py-3">NT$60</td>
-                  <td className="px-4 py-3">滿 NT$800</td>
+                  <td className="px-4 py-3">NT$65</td>
+                  <td className="px-4 py-3">滿 NT$499</td>
                 </tr>
                 <tr>
                   <td className="px-4 py-3">全家超商取貨</td>
-                  <td className="px-4 py-3">NT$60</td>
-                  <td className="px-4 py-3">滿 NT$800</td>
+                  <td className="px-4 py-3">NT$65</td>
+                  <td className="px-4 py-3">滿 NT$499</td>
                 </tr>
               </tbody>
             </table>
@@ -173,12 +172,12 @@ export default function ShippingPage() {
           <p>
             如有配送相關問題，歡迎聯繫客服：
             <a
-              href="mailto:hello@realreal.cc"
+              href="mailto:love@realreal.cc"
               className="underline hover:text-[#10305a]"
             >
-              hello@realreal.cc
+              love@realreal.cc
             </a>
-            {" "}或致電 (02) 2345-6789
+            {" "}或致電 02-66093066
           </p>
         </div>
       </div>

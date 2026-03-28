@@ -1,186 +1,84 @@
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "退換貨政策 | 誠真生活 RealReal",
-  description: "誠真生活 RealReal 退換貨政策，依消費者保護法保障您的退貨權益。",
+  title: "購物須知 | 誠真生活 RealReal",
+  description: "誠真生活 RealReal 購物須知，包含商品說明、付款發票、包裝、運送、退換貨及聯絡資訊。",
 }
 
-const steps = [
-  {
-    step: "1",
-    title: "提出申請",
-    description:
-      "登入您的帳戶，前往「我的帳戶 > 訂單紀錄」，選擇需退換貨的訂單，點選「申請退換貨」並填寫原因。",
-  },
-  {
-    step: "2",
-    title: "客服審核",
-    description:
-      "客服人員將於 1 個工作日內審核您的申請，並以電子郵件或簡訊通知審核結果。",
-  },
-  {
-    step: "3",
-    title: "寄回商品",
-    description:
-      "審核通過後，請於 7 日內將商品以原包裝完整寄回。我們將提供退貨專用物流單，免付寄回運費。",
-  },
-  {
-    step: "4",
-    title: "退款處理",
-    description:
-      "收到退貨商品並確認商品狀態無誤後，將於 3–5 個工作日內完成退款至原付款方式。",
-  },
-]
+const contentHtml = `
+<h5>商品說明 Product</h5>
+<ul>
+  <li>無動物性製品，亦不經動物實驗。<br />100% animal-free and cruelty-free.<br /><br /></li>
+  <li>以天然成分、最少量添加物為本。<br />Made with natural ingredients and minimal additives.</li>
+  <li>凍乾水果因批次不同，外觀與口感略有差異，屬正常現象。<br />Freeze-dried fruits may vary slightly in appearance and texture.</li>
+</ul>
+
+<h5>付款與發票 Payment &amp; Invoice</h5>
+<ul>
+  <li><p>支援信用卡付款。<br />Credit card payment is available.<br /><br /></p></li>
+  <li><p>訂單成立後即開立發票。<br />An invoice will be issued once the order is confirmed.<br /><br /></p></li>
+  <li><p>發票可以開立統一編號。<br />Invoices can be issued with business tax ID number.<br /><br /></p></li>
+  <li><p>電子發票將寄送至您的電子信箱，請點選此連結確認<a href="https://invoice.amego.tw/info_detail?mid=11">完成發票歸戶</a>。<br />Electronic invoices will be sent to your email address.</p></li>
+</ul>
+
+<h5>包裝說明 Package</h5>
+<ul>
+  <li>以簡化包裝、減少一次性包材為原則。<br />Reduce single-use material by minimal packaging approach.<br /><br /></li>
+  <li>出貨紙箱為原色<strong>AB楞厚紙箱</strong>，樸實堅固，提供商品最好的保護。<br />Products are shipped in sturdy, unprinted AB flute corrugated boxes for reliable protection.<br /><br /></li>
+  <li>可能會<strong>使用乾淨之回收包材</strong>。<br />Clean &amp; recycled packaging materials will be used whenever possible.<br /><br /></li>
+  <li>食品夾鏈袋可<strong>重複使用</strong>，兼顧保存與永續。<br />Reusable zip bags are used for food products to ensure freshness while supporting sustainability.</li>
+</ul>
+
+<h5>永續獎勵 Green Reward</h5>
+<ul>
+  <li>夾鏈袋與紙箱歡迎重複利用，拍照分享至社群媒體即可獲得<strong>永續獎勵金</strong>，讓包裝延續價值。<br />Please <strong>reuse our zip bags and shipping boxes</strong>.<br />Share a photo of how you reuse them on your social media and receive a <strong>Green reward</strong>.</li>
+</ul>
+
+<h5>運送方式 Delivery</h5>
+<ul>
+  <li>宅配通 / 7-11 / 全家超商取貨。<br />Domestic home delivery / 7-Eleven / FamilyMart pickup.</li>
+  <li><p>海外運送採運費到付。<br />Shipping to overseas with shipping fee paid upon delivery.</p></li>
+  <li>如貨物尺寸超過超商取貨限制，將通知您改採用宅配通。<br />If the package size exceeds the 7-11 pickup limits, you will be notified to switch to home delivery.</li>
+  <li><p>宅配運費 NT$150，超商取貨運費 NT$65。<br />Shipping fee: NT$150 for home delivery, NT$65 for 7-Eleven pickup.</p></li>
+  <li><p>消費滿 NT$499超商取或免運，消費滿 NT$999宅配免運。</p></li>
+  <li><p>Free shipping by 7-11 or FamilyMart pickup for orders over NT$499, and by domestic home delivery for order over NT$999.</p></li>
+</ul>
+
+<h5>出貨說明 Shipping</h5>
+<ul>
+  <li>付款完成即成立訂單，2–5 個工作天出貨（不含例假日）。<br />Orders ship within 2–5 business days after payment.<br /><br /></li>
+  <li>到貨時間依物流公司為準。<br />Delivery time depends on the carrier.<br /><br /></li>
+  <li>預購商品以商品頁說明為準。<br />Pre-order items follow product page schedules.</li>
+</ul>
+
+<h5>退換貨 Returns</h5>
+<ul>
+  <li>7 日鑑賞期（非試用期）。<br />7-day inspection period.<br /><br /></li>
+  <li>食品一經拆封，恕不退換。<br />Opened food items are non-returnable.<br /><br /></li>
+  <li>破損或寄錯，請於 48 小時內聯繫客服。<br />Contact us within 48 hours for damaged or incorrect items.</li>
+</ul>
+
+<h5>免責聲明 Disclaimer</h5>
+<ul>
+  <li>產品為營養補充用途，非醫療產品。<br />For nutritional support only, not a medical product.<br /><br /></li>
+  <li>特殊體質、孕期或治療中者，請先諮詢專業人士。<br />Consult a professional if pregnant or under medical care.</li>
+</ul>
+
+<h5>聯絡我們 Contact</h5>
+<p><a href="https://line.me/R/ti/p/@900kevgi" target="_blank" rel="noopener">官方 LINE</a> | <a href="mailto:love@realreal.cc">客服信箱</a> | 02-66093066<br /><a href="https://line.me/R/ti/p/@900kevgi" target="_blank" rel="noopener">Official LINE</a> | <a href="mailto:love@realreal.cc">Customer Service Email</a> | Tel 02-66093066</p>
+<p>我們會用誠真回應你。<br />We respond with sincerity.</p>
+`
 
 export default function ReturnsPage() {
   return (
     <div className="container mx-auto px-4 py-12 max-w-3xl">
-      <h1 className="text-3xl font-bold mb-2 text-center text-[#10305a]">退換貨政策</h1>
-      <p className="text-[#687279] text-center mb-10">
-        依據消費者保護法，保障您的購物權益
-      </p>
-
-      <div className="space-y-10">
-        {/* 七天鑑賞期 */}
-        <section className="border-none rounded-lg p-6 bg-[#fffeee]">
-          <h2 className="text-xl font-semibold mb-3 text-[#10305a]">七天鑑賞期保障</h2>
-          <p className="text-[#687279] leading-relaxed">
-            依據消費者保護法第 19 條規定，透過網路購物之消費者，享有收到商品後七日內無條件退貨之權利（鑑賞期非試用期）。您無須說明理由及負擔任何費用，即可申請退貨。
-          </p>
-        </section>
-
-        {/* 退貨條件 */}
-        <section>
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2 text-[#10305a]">
-            退貨條件
-          </h2>
-          <div className="space-y-3 text-[#687279] leading-relaxed">
-            <p>符合以下條件之商品，方可辦理退貨：</p>
-            <ul className="list-disc pl-6 space-y-2">
-              <li>收到商品後七日內提出退貨申請</li>
-              <li>商品未經拆封、使用，且保持原始包裝完整</li>
-              <li>商品之外盒、配件、贈品、保證書等附件齊全</li>
-              <li>商品無人為損壞或非正常使用之痕跡</li>
-            </ul>
-          </div>
-        </section>
-
-        {/* 不適用退貨 */}
-        <section>
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2 text-[#10305a]">
-            不適用退貨之情形
-          </h2>
-          <div className="space-y-3 text-[#687279] leading-relaxed">
-            <p>以下情形依法不適用七天鑑賞期退貨規定：</p>
-            <ul className="list-disc pl-6 space-y-2">
-              <li>食品類商品已拆封（商品本身瑕疵者除外）</li>
-              <li>
-                經消費者要求所為之客製化商品
-              </li>
-              <li>已過保存期限之商品</li>
-              <li>因消費者個人因素導致商品損壞或污損</li>
-            </ul>
-            <p className="text-sm text-zinc-500">
-              如商品本身有瑕疵或與訂購內容不符，不受上述限制，請儘速聯繫客服為您處理。
-            </p>
-          </div>
-        </section>
-
-        {/* 退貨流程 */}
-        <section>
-          <h2 className="text-xl font-semibold mb-6 border-b pb-2 text-[#10305a]">
-            退貨流程
-          </h2>
-          <div className="space-y-4">
-            {steps.map((item) => (
-              <div key={item.step} className="flex gap-4">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#10305a] text-white flex items-center justify-center text-sm font-medium">
-                  {item.step}
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold mb-1">{item.title}</h3>
-                  <p className="text-sm text-zinc-600 leading-relaxed">
-                    {item.description}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* 換貨說明 */}
-        <section>
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2 text-[#10305a]">
-            換貨說明
-          </h2>
-          <div className="space-y-3 text-[#687279] leading-relaxed">
-            <ul className="list-disc pl-6 space-y-2">
-              <li>
-                如收到之商品有瑕疵或與訂購內容不符，請於收到商品後 7 天內申請換貨。
-              </li>
-              <li>
-                換貨商品將於收到退回商品並確認後 1–3 個工作日內重新出貨。
-              </li>
-              <li>
-                因商品瑕疵或錯誤出貨所產生之換貨運費，由本公司負擔。
-              </li>
-              <li>
-                如欲更換之商品已無庫存，將協助辦理退款或更換其他等值商品。
-              </li>
-            </ul>
-          </div>
-        </section>
-
-        {/* 退款時間 */}
-        <section>
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2 text-[#10305a]">
-            退款時間
-          </h2>
-          <div className="border rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-[#fffeee]">
-                  <th className="text-left px-4 py-3 font-medium">付款方式</th>
-                  <th className="text-left px-4 py-3 font-medium">退款時間</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                <tr>
-                  <td className="px-4 py-3">信用卡</td>
-                  <td className="px-4 py-3">
-                    退回信用卡帳戶，約 7–14 個工作日
-                  </td>
-                </tr>
-                <tr>
-                  <td className="px-4 py-3">LINE Pay</td>
-                  <td className="px-4 py-3">
-                    退回 LINE Pay 帳戶，約 3–5 個工作日
-                  </td>
-                </tr>
-                <tr>
-                  <td className="px-4 py-3">貨到付款</td>
-                  <td className="px-4 py-3">
-                    匯款至指定帳戶，約 5–7 個工作日
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <div className="border-t pt-6 text-sm text-zinc-500">
-          <p>
-            如有退換貨相關問題，歡迎聯繫客服：
-            <a
-              href="mailto:hello@realreal.cc"
-              className="underline hover:text-[#10305a]"
-            >
-              hello@realreal.cc
-            </a>
-            {" "}或致電 (02) 2345-6789（週一至週五 09:00–18:00）
-          </p>
-        </div>
-      </div>
+      <h1 className="text-3xl font-bold mb-8 text-center text-[#10305a]">
+        購物須知
+      </h1>
+      <div
+        className="prose prose-headings:text-[#10305a] prose-p:text-[#687279] prose-li:text-[#687279] prose-a:text-[#10305a] prose-a:underline hover:prose-a:opacity-80 prose-strong:text-[#10305a] max-w-none"
+        dangerouslySetInnerHTML={{ __html: contentHtml }}
+      />
     </div>
   )
 }

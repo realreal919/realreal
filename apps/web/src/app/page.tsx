@@ -42,6 +42,29 @@ async function findCategorySlug(needle: string): Promise<string | undefined> {
 
 /* ---------- sections ---------- */
 
+function AnnouncementBar() {
+  const messages = [
+    "加入會員立即享 95 折優惠",
+    "消費滿 499 超取免運",
+    "消費滿 999 宅配免運",
+  ]
+  // Duplicate messages so the marquee loops seamlessly
+  const items = [...messages, ...messages]
+
+  return (
+    <div className="overflow-hidden bg-[#10305a] text-white py-2 text-sm">
+      <div className="flex animate-marquee whitespace-nowrap">
+        {items.map((msg, i) => (
+          <span key={i} className="mx-8 inline-flex items-center gap-2">
+            <span className="text-yellow-300">★</span>
+            {msg}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 type HeroContent = {
   heading?: string
   subheading?: string
@@ -415,7 +438,7 @@ function ReviewsSection() {
     <section className="py-16 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <h2 className="text-center text-2xl font-bold tracking-tight text-[#10305a] sm:text-3xl">
-          顧客好評
+          使用者真實回饋
         </h2>
 
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -435,6 +458,50 @@ function ReviewsSection() {
               </p>
             </Card>
           ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function FooterCTA() {
+  return (
+    <section className="bg-[#10305a] py-16 sm:py-20 text-white text-center">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+          純淨補給，安心生活
+        </h2>
+        <p className="mt-2 text-base text-white/70">
+          Pure input, honest wellness
+        </p>
+        <p className="mt-6 text-sm leading-relaxed text-white/80 max-w-xl mx-auto">
+          追蹤我們的 LINE / IG / FB，獲取第一手品牌消息與專屬優惠。
+        </p>
+        <div className="mt-8 flex items-center justify-center gap-6">
+          <a
+            href="https://lin.ee/realreal"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-medium hover:bg-white/20 transition-colors"
+          >
+            Line@
+          </a>
+          <a
+            href="https://www.instagram.com/realreal"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-medium hover:bg-white/20 transition-colors"
+          >
+            Instagram
+          </a>
+          <a
+            href="https://www.facebook.com/realreal"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-medium hover:bg-white/20 transition-colors"
+          >
+            Facebook
+          </a>
         </div>
       </div>
     </section>
@@ -461,6 +528,9 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen">
+      {/* 0. Announcement bar (marquee) */}
+      <AnnouncementBar />
+
       {/* 1. Hero */}
       <HeroSection content={heroContent} />
 
@@ -485,11 +555,14 @@ export default async function HomePage() {
         />
       </div>
 
-      {/* 5. Blog section */}
+      {/* 5. Customer reviews (before blog, matching WordPress order) */}
+      <ReviewsSection />
+
+      {/* 6. Blog section */}
       <BlogSection posts={blogResult.data} />
 
-      {/* 6. Customer reviews */}
-      <ReviewsSection />
+      {/* 7. Footer CTA with social links */}
+      <FooterCTA />
     </main>
   )
 }
