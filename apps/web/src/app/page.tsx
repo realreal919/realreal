@@ -172,14 +172,15 @@ function MembershipSection() {
           消費額 2.3% 累積公益存款或購物金
         </h2>
 
-        {/* Option A: show the uploaded membership image */}
+        {/* Membership tier image from WordPress */}
         <div className="mt-10">
           <Image
-            src="/brand/membership-tiers.png"
+            src="https://realreal.cc/wp-content/uploads/2026/01/會員制度表0106-2.png"
             alt="會員等級：初心之友、知心之友、同心之友"
-            width={1200}
-            height={400}
-            className="mx-auto w-full max-w-4xl rounded-xl"
+            width={1800}
+            height={600}
+            className="mx-auto w-full max-w-5xl rounded-xl"
+            unoptimized
           />
         </div>
 
@@ -419,19 +420,16 @@ function BlogSection({ posts }: { posts: Post[] }) {
 }
 
 function ReviewsSection() {
-  const reviews = [
-    {
-      name: "小美",
-      text: "喝了一個月的植物蛋白粉，精神變得好多！味道也很好入口，推薦給怕奶味的人。",
-    },
-    {
-      name: "阿凱",
-      text: "凍乾水果真的超方便，帶去辦公室當零食，同事都問我在哪裡買的。",
-    },
-    {
-      name: "Jenny",
-      text: "很喜歡誠真的理念，買東西還能做公益，而且產品品質真的很好！",
-    },
+  // Real customer review screenshots from the WordPress site
+  const reviewImages = [
+    { src: "https://realreal.cc/wp-content/uploads/2026/02/S__73097241_0-576x1024.jpg", alt: "顧客回饋 1" },
+    { src: "https://realreal.cc/wp-content/uploads/2026/02/S__73097242_0-576x1024.jpg", alt: "顧客回饋 2" },
+    { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋5-576x1024.jpg", alt: "顧客回饋 3" },
+    { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋1-576x1024.jpg", alt: "顧客回饋 4" },
+    { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋2-576x1024.jpg", alt: "顧客回饋 5" },
+    { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋3-576x1024.jpg", alt: "顧客回饋 6" },
+    { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋4-653x1024.jpg", alt: "顧客回饋 7" },
+    { src: "https://realreal.cc/wp-content/uploads/2026/02/FCF1A2D1-116B-4048-A859-ECA627D3CFEB-576x1024.jpg", alt: "顧客回饋 8" },
   ]
 
   return (
@@ -441,22 +439,18 @@ function ReviewsSection() {
           使用者真實回饋
         </h2>
 
-        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {reviews.map((review) => (
-            <Card
-              key={review.name}
-              className="border-0 bg-[#f9f9f6] shadow-sm p-6"
-            >
-              <div className="flex items-center gap-1 text-yellow-400 text-lg mb-3">
-                {"★★★★★"}
-              </div>
-              <p className="text-sm leading-relaxed text-[#687279] italic">
-                &ldquo;{review.text}&rdquo;
-              </p>
-              <p className="mt-4 text-sm font-semibold text-[#10305a]">
-                — {review.name}
-              </p>
-            </Card>
+        <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          {reviewImages.map((img) => (
+            <div key={img.src} className="overflow-hidden rounded-[10px] shadow-sm">
+              <Image
+                src={img.src}
+                alt={img.alt}
+                width={576}
+                height={1024}
+                className="w-full h-auto object-cover"
+                unoptimized
+              />
+            </div>
           ))}
         </div>
       </div>
