@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { getSiteContent } from "@/lib/content"
 
 export const metadata: Metadata = {
   title: "購物須知 | 誠真生活 RealReal",
@@ -69,7 +70,28 @@ const contentHtml = `
 <p>我們會用誠真回應你。<br />We respond with sincerity.</p>
 `
 
-export default function ReturnsPage() {
+export default async function ReturnsPage() {
+  const content = await getSiteContent<{ content_html: string }>("returns_policy")
+  const hasCustomContent = content?.content_html && content.content_html.trim().length > 0
+
+  if (hasCustomContent) {
+    return (
+      <div className="container mx-auto px-4 py-12 max-w-3xl">
+        <div
+          className="prose prose-zinc max-w-none
+            prose-headings:text-[#10305a] prose-headings:font-bold
+            prose-p:text-[#687279] prose-p:leading-relaxed
+            prose-a:text-[#10305a] prose-a:underline
+            prose-img:rounded-[10px]
+            prose-li:text-[#687279]
+            prose-blockquote:border-[#10305a]/30 prose-blockquote:text-[#687279]
+            prose-strong:text-[#10305a]"
+          dangerouslySetInnerHTML={{ __html: content!.content_html! }}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="container mx-auto px-4 py-12 max-w-3xl">
       <h1 className="text-3xl font-bold mb-8 text-center text-[#10305a]">

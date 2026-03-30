@@ -1,11 +1,33 @@
 import type { Metadata } from "next"
+import { getSiteContent } from "@/lib/content"
 
 export const metadata: Metadata = {
   title: "服務條款 | 誠真生活 RealReal",
   description: "誠真生活 RealReal 服務條款，請於使用本網站前詳閱。",
 }
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  const dbContent = await getSiteContent<{ content_html: string; updated_at?: string }>(
+    "terms_of_service",
+  )
+
+  if (dbContent?.content_html) {
+    return (
+      <div className="container mx-auto px-4 py-12 max-w-3xl">
+        <h1 className="text-3xl font-bold mb-2 text-center text-[#10305a]">服務條款</h1>
+        {dbContent.updated_at && (
+          <p className="text-[#687279] text-center mb-10">
+            最後更新日期：{dbContent.updated_at}
+          </p>
+        )}
+        <div
+          className="space-y-10 text-[#687279] leading-relaxed [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:mb-4 [&_h2]:border-b [&_h2]:pb-2 [&_h2]:text-[#10305a] [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:space-y-2 [&_section]:space-y-3 [&_a]:underline hover:[&_a]:text-[#10305a]"
+          dangerouslySetInnerHTML={{ __html: dbContent.content_html }}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="container mx-auto px-4 py-12 max-w-3xl">
       <h1 className="text-3xl font-bold mb-2 text-center text-[#10305a]">服務條款</h1>

@@ -1,0 +1,30 @@
+[
+  {
+    "title": "Example Blog Post Title",
+    "slug": "example-blog-post-title",
+    "content_html": "<p>This is the full HTML content of the blog post.</p>\n<p>It can contain <strong>rich formatting</strong> and WordPress shortcodes like [gallery ids=\"1,2,3\"].</p>",
+    "excerpt": "A short summary of the blog post for listing pages.",
+    "cover_image": "https://old-wordpress-site.com/wp-content/uploads/2024/01/cover.jpg",
+    "status": "publish",
+    "author_email": "admin@example.com",
+    "published_at": "2025-03-10T08:00:00Z",
+    "seo_title": "Example Blog Post | My Site",
+    "seo_description": "A meta description for search engines.",
+    "categories": ["Health Tips", "Product News"],
+    "tags": ["wellness", "supplements", "new-arrivals"]
+  },
+  {
+    "title": "Draft Post Example",
+    "slug": "draft-post-example",
+    "content_html": "<p>This post is still in draft status.</p>",
+    "excerpt": "Draft post excerpt.",
+    "cover_image": null,
+    "status": "draft",
+    "author_email": "editor@example.com",
+    "published_at": null,
+    "seo_title": null,
+    "seo_description": null,
+    "categories": ["Company Updates"],
+    "tags": ["internal"]
+  }
+]

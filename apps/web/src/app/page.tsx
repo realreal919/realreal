@@ -419,18 +419,37 @@ function BlogSection({ posts }: { posts: Post[] }) {
   )
 }
 
-function ReviewsSection() {
-  // Real customer review screenshots from the WordPress site
-  const reviewImages = [
-    { src: "https://realreal.cc/wp-content/uploads/2026/02/S__73097241_0-576x1024.jpg", alt: "顧客回饋 1" },
-    { src: "https://realreal.cc/wp-content/uploads/2026/02/S__73097242_0-576x1024.jpg", alt: "顧客回饋 2" },
-    { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋5-576x1024.jpg", alt: "顧客回饋 3" },
-    { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋1-576x1024.jpg", alt: "顧客回饋 4" },
-    { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋2-576x1024.jpg", alt: "顧客回饋 5" },
-    { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋3-576x1024.jpg", alt: "顧客回饋 6" },
-    { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋4-653x1024.jpg", alt: "顧客回饋 7" },
-    { src: "https://realreal.cc/wp-content/uploads/2026/02/FCF1A2D1-116B-4048-A859-ECA627D3CFEB-576x1024.jpg", alt: "顧客回饋 8" },
-  ]
+type Testimonial = { name: string; text: string; rating?: number }
+
+const defaultReviews: Testimonial[] = [
+  {
+    name: "小美",
+    text: "喝了一個月的植物蛋白粉，精神變得好多！味道也很好入口，推薦給怕奶味的人。",
+  },
+  {
+    name: "阿凱",
+    text: "凍乾水果真的超方便，帶去辦公室當零食，同事都問我在哪裡買的。",
+  },
+  {
+    name: "Jenny",
+    text: "很喜歡誠真的理念，買東西還能做公益，而且產品品質真的很好！",
+  },
+]
+
+// Real customer review screenshots from the WordPress site
+const reviewImages = [
+  { src: "https://realreal.cc/wp-content/uploads/2026/02/S__73097241_0-576x1024.jpg", alt: "顧客回饋 1" },
+  { src: "https://realreal.cc/wp-content/uploads/2026/02/S__73097242_0-576x1024.jpg", alt: "顧客回饋 2" },
+  { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋5-576x1024.jpg", alt: "顧客回饋 3" },
+  { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋1-576x1024.jpg", alt: "顧客回饋 4" },
+  { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋2-576x1024.jpg", alt: "顧客回饋 5" },
+  { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋3-576x1024.jpg", alt: "顧客回饋 6" },
+  { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋4-653x1024.jpg", alt: "顧客回饋 7" },
+  { src: "https://realreal.cc/wp-content/uploads/2026/02/FCF1A2D1-116B-4048-A859-ECA627D3CFEB-576x1024.jpg", alt: "顧客回饋 8" },
+]
+
+function ReviewsSection({ testimonials }: { testimonials?: Testimonial[] | null }) {
+  const reviews = testimonials && testimonials.length > 0 ? testimonials : defaultReviews
 
   return (
     <section className="py-16 sm:py-20">
@@ -439,6 +458,27 @@ function ReviewsSection() {
           使用者真實回饋
         </h2>
 
+        {/* DB-driven text testimonials */}
+        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {reviews.map((review) => (
+            <Card
+              key={review.name}
+              className="border-0 bg-[#f9f9f6] shadow-sm p-6"
+            >
+              <div className="flex items-center gap-1 text-yellow-400 text-lg mb-3">
+                {"★".repeat(review.rating ?? 5)}
+              </div>
+              <p className="text-sm leading-relaxed text-[#687279] italic">
+                &ldquo;{review.text}&rdquo;
+              </p>
+              <p className="mt-4 text-sm font-semibold text-[#10305a]">
+                — {review.name}
+              </p>
+            </Card>
+          ))}
+        </div>
+
+        {/* Real customer review screenshots */}
         <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {reviewImages.map((img) => (
             <div key={img.src} className="overflow-hidden rounded-[10px] shadow-sm">
@@ -512,12 +552,13 @@ export default async function HomePage() {
   ])
 
   // Fetch products, content and blog posts in parallel
-  const [proteinProducts, fruitProducts, heroContent, blogResult] =
+  const [proteinProducts, fruitProducts, heroContent, blogResult, testimonials] =
     await Promise.all([
       getProductsByCategory(proteinSlug ?? "protein"),
       getProductsByCategory(fruitSlug ?? "freeze-dried"),
       getSiteContent<HeroContent>("homepage_hero"),
       getPosts({ limit: 3 }),
+      getSiteContent<Testimonial[]>("testimonials"),
     ])
 
   return (
@@ -550,7 +591,7 @@ export default async function HomePage() {
       </div>
 
       {/* 5. Customer reviews (before blog, matching WordPress order) */}
-      <ReviewsSection />
+      <ReviewsSection testimonials={testimonials} />
 
       {/* 6. Blog section */}
       <BlogSection posts={blogResult.data} />

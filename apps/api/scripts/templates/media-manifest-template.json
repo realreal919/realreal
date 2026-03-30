@@ -1,0 +1,17 @@
+{
+  "$schema": "This file describes the expected format for a WordPress media manifest used by migrate-media.ts",
+  "images": [
+    {
+      "wordpress_url": "https://example.com/wp-content/uploads/2024/01/hero-banner.jpg",
+      "local_path": "./wordpress/uploads/2024/01/hero-banner.jpg",
+      "alt_text": "Hero banner image",
+      "mime_type": "image/jpeg"
+    },
+    {
+      "wordpress_url": "https://example.com/wp-content/uploads/2024/02/product-photo.png",
+      "local_path": "./wordpress/uploads/2024/02/product-photo.png",
+      "alt_text": "Product photo",
+      "mime_type": "image/png"
+    }
+  ]
+}

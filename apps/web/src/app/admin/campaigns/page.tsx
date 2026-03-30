@@ -51,11 +51,40 @@ const STATUS_TABS: { key: StatusKey; label: string }[] = [
 
 const TYPE_LABEL: Record<string, string> = {
   discount: "折扣",
-  freebie: "贈品",
+  freebie: "滿額贈品",
   points_multiplier: "點數加倍",
   free_shipping: "免運",
   bundle: "組合優惠",
+  buy_x_get_y: "買X送Y",
+  second_half_price: "第二件優惠",
+  spend_threshold: "滿額折扣",
+  tier_upgrade_bonus: "升等加碼",
+  combo_discount: "任選N件折扣",
 }
+
+/* ---- Quick-import preset templates ---- */
+
+interface PresetTemplate {
+  name: string
+  description: string
+  type: string
+  config: Record<string, unknown>
+}
+
+const PRESET_TEMPLATES: PresetTemplate[] = [
+  { name: "買一送一 — 蛋白粉", description: "蛋白粉系列買一送一", type: "buy_x_get_y", config: { buy_quantity: 1, get_quantity: 1, scope: "specific_categories", category_slug: "protein", same_item_only: true, max_uses_per_order: 1 } },
+  { name: "買三送二 — 凍乾水果", description: "凍乾水果買三送兩包", type: "buy_x_get_y", config: { buy_quantity: 3, get_quantity: 2, scope: "specific_categories", category_slug: "freeze-dried", same_item_only: false, free_item_rule: "lowest_price", max_uses_per_order: 1 } },
+  { name: "第二件半價", description: "全館第二件半價", type: "second_half_price", config: { discount_percent: 50, scope: "all", applies_to: "cheapest", max_pairs: 1 } },
+  { name: "第二件6折", description: "蛋白粉第二件6折", type: "second_half_price", config: { discount_percent: 40, scope: "specific_categories", category_slug: "protein", applies_to: "cheapest", max_pairs: 1 } },
+  { name: "滿千折百", description: "訂單滿 $1,000 折 $100", type: "spend_threshold", config: { min_amount: 1000, discount_amount: 100, stackable: false } },
+  { name: "滿 $2,000 折 $300", description: "滿兩千折三百，可疊加", type: "spend_threshold", config: { min_amount: 2000, discount_amount: 300, stackable: true } },
+  { name: "全館95折", description: "全站商品95折", type: "discount", config: { discount_method: "percent", discount_value: 5, scope: "all" } },
+  { name: "任選3件88折", description: "全館任選3件88折", type: "combo_discount", config: { min_items: 3, discount_percent: 12, scope: "all", mix_match: true } },
+  { name: "任選5件8折", description: "凍乾水果任選5件8折", type: "combo_discount", config: { min_items: 5, discount_percent: 20, scope: "specific_categories", category_slug: "freeze-dried", mix_match: true } },
+  { name: "免運 — 滿$800", description: "滿800免運", type: "free_shipping", config: { min_order_amount: 800 } },
+  { name: "公益存款雙倍", description: "公益存款雙倍累積", type: "points_multiplier", config: { multiplier: 2, scope: "all" } },
+  { name: "滿額贈品 — 凍乾試吃包", description: "滿$1,500送試吃包", type: "freebie", config: { min_order_amount: 1500, gift_name: "凍乾水果試吃包", gift_sku: "RR-FD-SAMPLE", gift_qty: 1 } },
+]
 
 const TYPE_OPTIONS = Object.entries(TYPE_LABEL).map(([value, label]) => ({ value, label }))
 
@@ -120,16 +149,141 @@ function ConfigFields({ type, config, prefix }: { type: string; config: Record<s
     )
   }
 
-  if (type === "bundle") {
+  if (type === "bundle" || type === "buy_x_get_y") {
     return (
       <>
         <div className="space-y-1.5">
           <Label className="text-xs">購買數量</Label>
-          <Input name={`${prefix}_buy_quantity`} type="number" min={1} defaultValue={(config.buy_quantity as number) ?? ""} placeholder="2" />
+          <Input name={`${prefix}_buy_quantity`} type="number" min={1} defaultValue={(config.buy_quantity as number) ?? ""} placeholder="3" />
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">贈送數量</Label>
-          <Input name={`${prefix}_free_quantity`} type="number" min={1} defaultValue={(config.free_quantity as number) ?? ""} placeholder="1" />
+          <Input name={`${prefix}_get_quantity`} type="number" min={1} defaultValue={((config.get_quantity ?? config.free_quantity) as number) ?? ""} placeholder="1" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">適用範圍</Label>
+          <select name={`${prefix}_scope`} defaultValue={(config.scope as string) ?? "all"} className={selectClass}>
+            <option value="all">全部商品</option>
+            <option value="specific_categories">指定分類</option>
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">指定分類 (slug)</Label>
+          <Input name={`${prefix}_category_slug`} defaultValue={(config.category_slug as string) ?? ""} placeholder="protein" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">限同品項</Label>
+          <select name={`${prefix}_same_item_only`} defaultValue={config.same_item_only ? "true" : "false"} className={selectClass}>
+            <option value="true">是 — 同商品才送</option>
+            <option value="false">否 — 可跨商品</option>
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">贈品取價規則</Label>
+          <select name={`${prefix}_free_item_rule`} defaultValue={(config.free_item_rule as string) ?? "lowest_price"} className={selectClass}>
+            <option value="lowest_price">取最低價品</option>
+            <option value="highest_price">取最高價品</option>
+            <option value="same_item">同品項</option>
+          </select>
+        </div>
+      </>
+    )
+  }
+
+  if (type === "second_half_price") {
+    return (
+      <>
+        <div className="space-y-1.5">
+          <Label className="text-xs">第二件折扣 (%)</Label>
+          <Input name={`${prefix}_discount_percent`} type="number" min={1} max={100} defaultValue={(config.discount_percent as number) ?? 50} placeholder="50" />
+          <p className="text-[10px] text-zinc-400">50 = 半價，40 = 6折，0 = 免費</p>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">適用範圍</Label>
+          <select name={`${prefix}_scope`} defaultValue={(config.scope as string) ?? "all"} className={selectClass}>
+            <option value="all">全部商品</option>
+            <option value="specific_categories">指定分類</option>
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">指定分類 (slug)</Label>
+          <Input name={`${prefix}_category_slug`} defaultValue={(config.category_slug as string) ?? ""} placeholder="protein" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">最多幾組</Label>
+          <Input name={`${prefix}_max_pairs`} type="number" min={1} defaultValue={(config.max_pairs as number) ?? 1} placeholder="1" />
+        </div>
+      </>
+    )
+  }
+
+  if (type === "spend_threshold") {
+    return (
+      <>
+        <div className="space-y-1.5">
+          <Label className="text-xs">最低消費金額 (NT$)</Label>
+          <Input name={`${prefix}_min_amount`} type="number" min={0} defaultValue={(config.min_amount as number) ?? ""} placeholder="1000" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">折扣金額 (NT$)</Label>
+          <Input name={`${prefix}_discount_amount`} type="number" min={0} defaultValue={(config.discount_amount as number) ?? ""} placeholder="100" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">可與會員折扣疊加</Label>
+          <select name={`${prefix}_stackable`} defaultValue={config.stackable ? "true" : "false"} className={selectClass}>
+            <option value="false">否</option>
+            <option value="true">是</option>
+          </select>
+        </div>
+      </>
+    )
+  }
+
+  if (type === "combo_discount") {
+    return (
+      <>
+        <div className="space-y-1.5">
+          <Label className="text-xs">最少選購件數</Label>
+          <Input name={`${prefix}_min_items`} type="number" min={2} defaultValue={(config.min_items as number) ?? ""} placeholder="3" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">折扣 (%)</Label>
+          <Input name={`${prefix}_discount_percent`} type="number" min={1} max={99} defaultValue={(config.discount_percent as number) ?? ""} placeholder="12" />
+          <p className="text-[10px] text-zinc-400">12 = 88折，20 = 8折</p>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">適用範圍</Label>
+          <select name={`${prefix}_scope`} defaultValue={(config.scope as string) ?? "all"} className={selectClass}>
+            <option value="all">全部商品</option>
+            <option value="specific_categories">指定分類</option>
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">指定分類 (slug)</Label>
+          <Input name={`${prefix}_category_slug`} defaultValue={(config.category_slug as string) ?? ""} placeholder="" />
+        </div>
+      </>
+    )
+  }
+
+  if (type === "freebie") {
+    return (
+      <>
+        <div className="space-y-1.5">
+          <Label className="text-xs">最低訂單金額 (NT$)</Label>
+          <Input name={`${prefix}_min_order_amount`} type="number" min={0} defaultValue={(config.min_order_amount as number) ?? ""} placeholder="1500" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">贈品名稱</Label>
+          <Input name={`${prefix}_gift_name`} defaultValue={(config.gift_name as string) ?? ""} placeholder="凍乾水果試吃包" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">贈品 SKU</Label>
+          <Input name={`${prefix}_gift_sku`} defaultValue={(config.gift_sku as string) ?? ""} placeholder="RR-FD-SAMPLE" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">贈送數量</Label>
+          <Input name={`${prefix}_gift_qty`} type="number" min={1} defaultValue={(config.gift_qty as number) ?? 1} placeholder="1" />
         </div>
       </>
     )
@@ -138,9 +292,27 @@ function ConfigFields({ type, config, prefix }: { type: string; config: Record<s
   if (type === "free_shipping") {
     return (
       <div className="space-y-1.5">
-        <Label className="text-xs">最低訂單金額</Label>
+        <Label className="text-xs">最低訂單金額 (NT$)</Label>
         <Input name={`${prefix}_min_order_amount`} type="number" min={0} defaultValue={(config.min_order_amount as number) ?? ""} placeholder="500" />
       </div>
+    )
+  }
+
+  if (type === "points_multiplier") {
+    return (
+      <>
+        <div className="space-y-1.5">
+          <Label className="text-xs">倍率</Label>
+          <Input name={`${prefix}_multiplier`} type="number" min={1} step={0.5} defaultValue={(config.multiplier as number) ?? 2} placeholder="2" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">適用範圍</Label>
+          <select name={`${prefix}_scope`} defaultValue={(config.scope as string) ?? "all"} className={selectClass}>
+            <option value="all">全部商品</option>
+            <option value="specific_categories">指定分類</option>
+          </select>
+        </div>
+      </>
     )
   }
 
@@ -167,14 +339,55 @@ function extractConfig(fd: FormData, prefix: string, type: string): Record<strin
       scope: fd.get(`${prefix}_scope`) as string,
     }
   }
-  if (type === "bundle") {
+  if (type === "bundle" || type === "buy_x_get_y") {
     return {
       buy_quantity: Number(fd.get(`${prefix}_buy_quantity`)) || 1,
-      free_quantity: Number(fd.get(`${prefix}_free_quantity`)) || 1,
+      get_quantity: Number(fd.get(`${prefix}_get_quantity`)) || 1,
+      scope: fd.get(`${prefix}_scope`) as string,
+      category_slug: (fd.get(`${prefix}_category_slug`) as string) || undefined,
+      same_item_only: fd.get(`${prefix}_same_item_only`) === "true",
+      free_item_rule: fd.get(`${prefix}_free_item_rule`) as string,
+    }
+  }
+  if (type === "second_half_price") {
+    return {
+      discount_percent: Number(fd.get(`${prefix}_discount_percent`)) || 50,
+      scope: fd.get(`${prefix}_scope`) as string,
+      category_slug: (fd.get(`${prefix}_category_slug`) as string) || undefined,
+      max_pairs: Number(fd.get(`${prefix}_max_pairs`)) || 1,
+    }
+  }
+  if (type === "spend_threshold") {
+    return {
+      min_amount: Number(fd.get(`${prefix}_min_amount`)) || 0,
+      discount_amount: Number(fd.get(`${prefix}_discount_amount`)) || 0,
+      stackable: fd.get(`${prefix}_stackable`) === "true",
+    }
+  }
+  if (type === "combo_discount") {
+    return {
+      min_items: Number(fd.get(`${prefix}_min_items`)) || 3,
+      discount_percent: Number(fd.get(`${prefix}_discount_percent`)) || 0,
+      scope: fd.get(`${prefix}_scope`) as string,
+      category_slug: (fd.get(`${prefix}_category_slug`) as string) || undefined,
+    }
+  }
+  if (type === "freebie") {
+    return {
+      min_order_amount: Number(fd.get(`${prefix}_min_order_amount`)) || 0,
+      gift_name: (fd.get(`${prefix}_gift_name`) as string) || "",
+      gift_sku: (fd.get(`${prefix}_gift_sku`) as string) || "",
+      gift_qty: Number(fd.get(`${prefix}_gift_qty`)) || 1,
     }
   }
   if (type === "free_shipping") {
     return { min_order_amount: Number(fd.get(`${prefix}_min_order_amount`)) || 0 }
+  }
+  if (type === "points_multiplier") {
+    return {
+      multiplier: Number(fd.get(`${prefix}_multiplier`)) || 2,
+      scope: fd.get(`${prefix}_scope`) as string,
+    }
   }
   try {
     return JSON.parse((fd.get(`${prefix}_raw_config`) as string) || "{}")
@@ -196,6 +409,62 @@ export default function AdminCampaignsPage() {
   const [createType, setCreateType] = useState("discount")
   const [editType, setEditType] = useState("discount")
   const [isPending, startTransition] = useTransition()
+  const [showPresets, setShowPresets] = useState(false)
+
+  /* --- Quick Import Preset --- */
+
+  function handleImportPreset(preset: PresetTemplate) {
+    startTransition(async () => {
+      try {
+        const res = await fetch(`${API_URL}/admin/campaigns`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: preset.name,
+            description: preset.description,
+            type: preset.type,
+            config: preset.config,
+            is_active: false,
+            starts_at: new Date().toISOString(),
+            ends_at: null,
+          }),
+        })
+        if (!res.ok) throw new Error("匯入失敗")
+        toast.success(`已匯入「${preset.name}」`)
+        await fetchCampaigns()
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "匯入失敗")
+      }
+    })
+  }
+
+  function handleImportAll() {
+    if (!confirm(`確定要匯入全部 ${PRESET_TEMPLATES.length} 個常用模板嗎？匯入後預設為停用狀態，您可以再行啟用。`)) return
+    startTransition(async () => {
+      let ok = 0, fail = 0
+      for (const preset of PRESET_TEMPLATES) {
+        try {
+          const res = await fetch(`${API_URL}/admin/campaigns`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: preset.name,
+              description: preset.description,
+              type: preset.type,
+              config: preset.config,
+              is_active: false,
+              starts_at: new Date().toISOString(),
+              ends_at: null,
+            }),
+          })
+          if (res.ok) ok++; else fail++
+        } catch { fail++ }
+      }
+      toast.success(`已匯入 ${ok} 個模板${fail > 0 ? `，${fail} 個失敗` : ""}`)
+      await fetchCampaigns()
+      setShowPresets(false)
+    })
+  }
 
   /* --- Fetch --- */
 
@@ -391,6 +660,50 @@ export default function AdminCampaignsPage() {
             <Button type="button" size="sm" variant="ghost" onClick={() => setShowCreate(false)} disabled={isPending}>取消</Button>
           </div>
         </form>
+      )}
+
+      {/* Quick Import Presets */}
+      {!showPresets ? (
+        <Button size="sm" variant="outline" onClick={() => setShowPresets(true)}>
+          匯入常用行銷模板
+        </Button>
+      ) : (
+        <div className="border rounded-lg bg-white p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold">常用行銷規則模板</h3>
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={handleImportAll} disabled={isPending}>
+                {isPending ? "匯入中..." : "全部匯入"}
+              </Button>
+              <button type="button" onClick={() => setShowPresets(false)} className="text-zinc-400 hover:text-zinc-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {PRESET_TEMPLATES.map((preset) => (
+              <div key={preset.name} className="border rounded-lg p-3 hover:bg-zinc-50 transition-colors">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-medium">{preset.name}</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">{preset.description}</p>
+                    <Badge variant="outline" className="mt-1.5 text-[10px]">{TYPE_LABEL[preset.type] ?? preset.type}</Badge>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-xs shrink-0"
+                    onClick={() => handleImportPreset(preset)}
+                    disabled={isPending}
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    匯入
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Stats */}

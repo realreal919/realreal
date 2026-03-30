@@ -1,0 +1,32 @@
+[
+  {
+    "code": "SUMMER20",
+    "discount_type": "percent_discount",
+    "amount": "20",
+    "minimum_amount": "500",
+    "usage_limit": 100,
+    "usage_count": 12,
+    "date_expires": "2026-12-31T23:59:59Z",
+    "applicable_to": "order"
+  },
+  {
+    "code": "FLAT100",
+    "discount_type": "fixed_cart",
+    "amount": "100",
+    "minimum_amount": "1000",
+    "usage_limit": null,
+    "usage_count": 0,
+    "date_expires": null,
+    "applicable_to": "both"
+  },
+  {
+    "code": "WELCOME10",
+    "discount_type": "percent_discount",
+    "amount": "10",
+    "minimum_amount": "0",
+    "usage_limit": 1,
+    "usage_count": 0,
+    "date_expires": "2026-06-30T23:59:59Z",
+    "applicable_to": "order"
+  }
+]

@@ -1,11 +1,17 @@
 import type { Metadata } from "next"
+import { getSiteContent } from "@/lib/content"
 
 export const metadata: Metadata = {
   title: "隱私權政策 | 誠真生活 RealReal",
   description: "誠真生活 RealReal 隱私權政策，說明我們如何蒐集、使用及保護您的個人資料。",
 }
 
-const privacyHtml = `
+type PrivacyContent = {
+  content_html: string
+  updated_at?: string
+}
+
+const fallbackPrivacyHtml = `
 <h5 style="text-align:center;"><strong>適用範圍</strong> Scope of Policy</h5>
 
 <p>本隱私權保護政策適用於誠真生活網站、官網購物平台及官方 LINE、客服信箱所蒐集的個人資料。<br/>
@@ -40,16 +46,51 @@ You have the right to access, correct, or request cessation of the use of your p
 Any updates to this Privacy Policy will be posted on the website without individual notice.</p>
 `
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  const content = await getSiteContent<PrivacyContent>("privacy_policy")
+  const hasCustomContent =
+    content?.content_html && content.content_html.trim().length > 0
+
+  const updatedDate = content?.updated_at
+    ? new Date(content.updated_at).toLocaleDateString("zh-TW", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : "2025 年 1 月 1 日"
+
+  if (hasCustomContent) {
+    return (
+      <div className="container mx-auto px-4 py-12 max-w-3xl">
+        <h1 className="text-3xl font-bold mb-2 text-center text-[#10305a]">隱私權政策</h1>
+        <p className="text-[#687279] text-center mb-10">
+          最後更新日期：{updatedDate}
+        </p>
+        <div
+          className="prose prose-zinc max-w-none
+            prose-headings:text-[#10305a] prose-headings:font-bold
+            prose-p:text-[#687279] prose-p:leading-relaxed
+            prose-a:text-[#10305a] prose-a:underline
+            prose-img:rounded-[10px]
+            prose-li:text-[#687279]
+            prose-blockquote:border-[#10305a]/30 prose-blockquote:text-[#687279]
+            prose-strong:text-[#10305a]"
+          dangerouslySetInnerHTML={{ __html: content!.content_html! }}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="container mx-auto px-4 py-12 max-w-3xl">
-      <h1 className="text-3xl font-bold mb-10 text-center text-[#10305a]">
-        隱私權條款
-      </h1>
+      <h1 className="text-3xl font-bold mb-2 text-center text-[#10305a]">隱私權政策</h1>
+      <p className="text-[#687279] text-center mb-10">
+        最後更新日期：{updatedDate}
+      </p>
 
       <div
         className="prose prose-headings:text-[#10305a] prose-p:text-[#687279] prose-strong:text-[#10305a] prose-h5:text-xl prose-h5:font-semibold prose-h5:mt-10 prose-h5:mb-4 prose-p:leading-relaxed max-w-none"
-        dangerouslySetInnerHTML={{ __html: privacyHtml }}
+        dangerouslySetInnerHTML={{ __html: fallbackPrivacyHtml }}
       />
     </div>
   )
