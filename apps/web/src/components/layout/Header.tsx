@@ -23,7 +23,6 @@ const NAV_LINKS = [
   { href: "/my-account/membership", label: "會員制度" },
 ]
 
-const MARQUEE_TEXT = "★ 消費滿 999 宅配免運 ★ 消費滿 499 超取免運 ★ 加入會員立即享 95 折優惠"
 
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -223,39 +222,6 @@ export function Header() {
         )}
       </header>
 
-      {/* Marquee ticker */}
-      <div
-        className="w-full overflow-hidden border-b border-gray-100 bg-white py-2"
-        style={{ fontFamily: "'Gill Sans', 'Gill Sans MT', Calibri, sans-serif" }}
-      >
-        <div className="marquee-track">
-          <span className="marquee-content" style={{ color: "#10305a" }}>
-            {MARQUEE_TEXT}&nbsp;&nbsp;&nbsp;&nbsp;{MARQUEE_TEXT}&nbsp;&nbsp;&nbsp;&nbsp;{MARQUEE_TEXT}&nbsp;&nbsp;&nbsp;&nbsp;{MARQUEE_TEXT}&nbsp;&nbsp;&nbsp;&nbsp;
-          </span>
-        </div>
-
-        <style jsx>{`
-          .marquee-track {
-            display: flex;
-            white-space: nowrap;
-          }
-          .marquee-content {
-            display: inline-block;
-            animation: marquee-scroll 20s linear infinite;
-            font-size: 13px;
-            font-weight: 500;
-            letter-spacing: 0.02em;
-          }
-          @keyframes marquee-scroll {
-            0% {
-              transform: translateX(0);
-            }
-            100% {
-              transform: translateX(-50%);
-            }
-          }
-        `}</style>
-      </div>
     </>
   )
 }
