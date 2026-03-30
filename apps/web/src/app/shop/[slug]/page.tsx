@@ -124,8 +124,8 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               />
             </div>
 
-            {/* Description */}
-            {product.description && (
+            {/* Short description (if no 3-column content, show as fallback) */}
+            {product.description && !product.shop_left && !product.shop_middle && !product.shop_right && (
               <div className="mt-8 border-t border-gray-200 pt-6">
                 <h2 className="text-base font-semibold mb-3" style={{ color: "#10305a" }}>商品說明</h2>
                 {product.description.includes("<") ? (
@@ -143,6 +143,58 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             )}
           </div>
         </div>
+
+        {/* 商品三欄 — 3-column product detail section (from WordPress ACF) */}
+        {(product.shop_left || product.shop_middle || product.shop_right) && (
+          <div className="mt-12 border-t border-gray-200 pt-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
+              {/* 商品左欄 — Product features & usage */}
+              {product.shop_left && (
+                <div>
+                  <div
+                    className="prose prose-sm max-w-none leading-relaxed
+                      prose-headings:font-semibold prose-headings:text-[#10305a] prose-headings:mt-4 prose-headings:mb-2
+                      prose-h4:text-base prose-h5:text-sm
+                      prose-ul:pl-4 prose-li:my-0.5
+                      prose-blockquote:border-l-[#10305a] prose-blockquote:bg-gray-50 prose-blockquote:py-2 prose-blockquote:px-4 prose-blockquote:rounded-r-lg prose-blockquote:not-italic
+                      prose-strong:text-[#10305a]"
+                    style={{ color: "#687279" }}
+                    dangerouslySetInnerHTML={{ __html: product.shop_left }}
+                  />
+                </div>
+              )}
+              {/* 商品中欄 — Ingredients, specs, nutrition */}
+              {product.shop_middle && (
+                <div>
+                  <div
+                    className="prose prose-sm max-w-none leading-relaxed
+                      prose-headings:font-semibold prose-headings:text-[#10305a] prose-headings:mt-4 prose-headings:mb-2
+                      prose-h4:text-base prose-h5:text-sm
+                      prose-ul:pl-4 prose-li:my-0.5
+                      prose-strong:text-[#10305a]"
+                    style={{ color: "#687279" }}
+                    dangerouslySetInnerHTML={{ __html: product.shop_middle }}
+                  />
+                </div>
+              )}
+              {/* 商品右欄 — Brand values, charity, storage */}
+              {product.shop_right && (
+                <div>
+                  <div
+                    className="prose prose-sm max-w-none leading-relaxed
+                      prose-headings:font-semibold prose-headings:text-[#10305a] prose-headings:mt-4 prose-headings:mb-2
+                      prose-h4:text-base prose-h5:text-sm
+                      prose-ul:pl-4 prose-li:my-0.5
+                      prose-a:text-[#10305a] prose-a:underline
+                      prose-strong:text-[#10305a]"
+                    style={{ color: "#687279" }}
+                    dangerouslySetInnerHTML={{ __html: product.shop_right }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Reviews Section */}
         <div className="mt-12 border-t border-gray-200 pt-8">

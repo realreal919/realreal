@@ -24,7 +24,7 @@ const postSchema = z.object({
   content_html: z.string().optional(),
   excerpt: z.string().optional(),
   cover_image: z.string().url().optional().nullable(),
-  status: z.enum(["draft", "published", "archived"]).optional(),
+  status: z.enum(["draft", "published", "scheduled"]).optional(),
   category_id: z.string().uuid().optional().nullable(),
   tags: z.array(z.string().uuid()).optional(),
   seo_title: z.string().optional().nullable(),
@@ -43,8 +43,8 @@ postsPublicRouter.get("/", async (req, res) => {
 
   let query = supabase
     .from("posts")
-    .select("id, title, slug, excerpt, cover_image, status, category_id, created_at, scheduled_at", { count: "exact" })
-    .order("created_at", { ascending: false })
+    .select("id, title, slug, excerpt, cover_image, published_at, created_at, category_id, author_id, post_categories(name, slug)", { count: "exact" })
+    .order("published_at", { ascending: false, nullsFirst: false })
     .range(from, to)
 
   // Public only sees published by default
@@ -54,16 +54,28 @@ postsPublicRouter.get("/", async (req, res) => {
   }
 
   if (req.query.category) {
-    // Filter by category slug — need to look up category_id first
-    const { data: cat } = await supabase
+    // Filter by category name or slug
+    const catParam = req.query.category as string
+    let cat: { id: string } | null = null
+    // Try by name first, then by slug
+    const { data: catByName } = await supabase
       .from("post_categories")
       .select("id")
-      .eq("slug", req.query.category as string)
+      .eq("name", catParam)
       .single()
+    cat = catByName
+    if (!cat) {
+      const { data: catBySlug } = await supabase
+        .from("post_categories")
+        .select("id")
+        .eq("slug", catParam)
+        .single()
+      cat = catBySlug
+    }
     if (cat) {
       query = query.eq("category_id", cat.id)
     } else {
-      res.json({ data: [], pagination: { page, limit, total: 0, pages: 0 } }); return
+      res.json({ data: [], total: 0 }); return
     }
   }
 
@@ -81,21 +93,45 @@ postsPublicRouter.get("/", async (req, res) => {
         .eq("tag_id", tag.id)
       const postIds = (links ?? []).map(l => l.post_id)
       if (postIds.length === 0) {
-        res.json({ data: [], pagination: { page, limit, total: 0, pages: 0 } }); return
+        res.json({ data: [], total: 0 }); return
       }
       query = query.in("id", postIds)
     } else {
-      res.json({ data: [], pagination: { page, limit, total: 0, pages: 0 } }); return
+      res.json({ data: [], total: 0 }); return
     }
   }
 
   const { data, error, count } = await query
   if (error) { res.status(500).json({ error: error.message }); return }
 
-  res.json({
-    data: data ?? [],
-    pagination: { page, limit, total: count ?? 0, pages: Math.ceil((count ?? 0) / limit) },
-  })
+  // Resolve author display names in batch
+  const authorIds = [...new Set((data ?? []).map((r: any) => r.author_id).filter(Boolean))]
+  let authorMap: Record<string, string> = {}
+  if (authorIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("user_profiles")
+      .select("user_id, display_name")
+      .in("user_id", authorIds)
+    for (const p of profiles ?? []) {
+      if (p.display_name) authorMap[p.user_id] = p.display_name
+    }
+  }
+
+  // Flatten joined relations into the shape the frontend expects
+  const posts = (data ?? []).map((row: any) => ({
+    id: row.id,
+    title: row.title,
+    slug: row.slug,
+    excerpt: row.excerpt,
+    cover_image: row.cover_image,
+    published_at: row.published_at,
+    created_at: row.created_at,
+    category: row.post_categories?.name ?? null,
+    author: (row.author_id && authorMap[row.author_id]) || null,
+  }))
+
+  const total = count ?? 0
+  res.json({ data: posts, total })
 })
 
 // GET /posts/:slug — public, single post by slug, only published
@@ -104,7 +140,8 @@ postsPublicRouter.get("/:slug", async (req, res) => {
     .from("posts")
     .select(`
       id, title, slug, content_html, excerpt, cover_image, status, category_id,
-      seo_title, seo_description, scheduled_at, created_at, updated_at
+      published_at, seo_title, seo_description, scheduled_at, created_at, updated_at,
+      post_categories(name, slug)
     `)
     .eq("slug", req.params.slug)
     .eq("status", "published")
@@ -122,7 +159,35 @@ postsPublicRouter.get("/:slug", async (req, res) => {
     .select("tag_id, post_tags(id, name, slug)")
     .eq("post_id", data.id)
 
-  res.json({ data: { ...data, tags: (tagLinks ?? []).map(l => (l as any).post_tags) } })
+  // Resolve author display name
+  const row = data as any
+  let authorName: string | null = null
+  if (row.author_id) {
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("display_name")
+      .eq("user_id", row.author_id)
+      .single()
+    authorName = profile?.display_name ?? null
+  }
+
+  res.json({
+    data: {
+      id: row.id,
+      title: row.title,
+      slug: row.slug,
+      content_html: row.content_html,
+      excerpt: row.excerpt,
+      cover_image: row.cover_image,
+      published_at: row.published_at,
+      category: row.post_categories?.name ?? null,
+      author: authorName,
+      seo_title: row.seo_title,
+      seo_description: row.seo_description,
+      created_at: row.created_at,
+      tags: (tagLinks ?? []).map(l => (l as any).post_tags),
+    },
+  })
 })
 
 // POST /admin/posts — requireAuth + requireEditor

@@ -42,6 +42,29 @@ async function findCategorySlug(needle: string): Promise<string | undefined> {
 
 /* ---------- sections ---------- */
 
+function AnnouncementBar() {
+  const messages = [
+    "加入會員立即享 95 折優惠",
+    "消費滿 499 超取免運",
+    "消費滿 999 宅配免運",
+  ]
+  // Duplicate messages so the marquee loops seamlessly
+  const items = [...messages, ...messages]
+
+  return (
+    <div className="overflow-hidden bg-[#10305a] text-white py-2 text-sm">
+      <div className="flex animate-marquee whitespace-nowrap">
+        {items.map((msg, i) => (
+          <span key={i} className="mx-8 inline-flex items-center gap-2">
+            <span className="text-yellow-300">★</span>
+            {msg}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 type HeroContent = {
   heading?: string
   subheading?: string
@@ -149,14 +172,15 @@ function MembershipSection() {
           消費額 2.3% 累積公益存款或購物金
         </h2>
 
-        {/* Option A: show the uploaded membership image */}
+        {/* Membership tier image from WordPress */}
         <div className="mt-10">
           <Image
-            src="/brand/membership-tiers.png"
+            src="https://realreal.cc/wp-content/uploads/2026/01/會員制度表0106-2.png"
             alt="會員等級：初心之友、知心之友、同心之友"
-            width={1200}
-            height={400}
-            className="mx-auto w-full max-w-4xl rounded-xl"
+            width={1800}
+            height={600}
+            className="mx-auto w-full max-w-5xl rounded-xl"
+            unoptimized
           />
         </div>
 
@@ -412,6 +436,18 @@ const defaultReviews: Testimonial[] = [
   },
 ]
 
+// Real customer review screenshots from the WordPress site
+const reviewImages = [
+  { src: "https://realreal.cc/wp-content/uploads/2026/02/S__73097241_0-576x1024.jpg", alt: "顧客回饋 1" },
+  { src: "https://realreal.cc/wp-content/uploads/2026/02/S__73097242_0-576x1024.jpg", alt: "顧客回饋 2" },
+  { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋5-576x1024.jpg", alt: "顧客回饋 3" },
+  { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋1-576x1024.jpg", alt: "顧客回饋 4" },
+  { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋2-576x1024.jpg", alt: "顧客回饋 5" },
+  { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋3-576x1024.jpg", alt: "顧客回饋 6" },
+  { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋4-653x1024.jpg", alt: "顧客回饋 7" },
+  { src: "https://realreal.cc/wp-content/uploads/2026/02/FCF1A2D1-116B-4048-A859-ECA627D3CFEB-576x1024.jpg", alt: "顧客回饋 8" },
+]
+
 function ReviewsSection({ testimonials }: { testimonials?: Testimonial[] | null }) {
   const reviews = testimonials && testimonials.length > 0 ? testimonials : defaultReviews
 
@@ -419,9 +455,10 @@ function ReviewsSection({ testimonials }: { testimonials?: Testimonial[] | null 
     <section className="py-16 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <h2 className="text-center text-2xl font-bold tracking-tight text-[#10305a] sm:text-3xl">
-          顧客好評
+          使用者真實回饋
         </h2>
 
+        {/* DB-driven text testimonials */}
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {reviews.map((review) => (
             <Card
@@ -439,6 +476,66 @@ function ReviewsSection({ testimonials }: { testimonials?: Testimonial[] | null 
               </p>
             </Card>
           ))}
+        </div>
+
+        {/* Real customer review screenshots */}
+        <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          {reviewImages.map((img) => (
+            <div key={img.src} className="overflow-hidden rounded-[10px] shadow-sm">
+              <Image
+                src={img.src}
+                alt={img.alt}
+                width={576}
+                height={1024}
+                className="w-full h-auto object-cover"
+                unoptimized
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function FooterCTA() {
+  return (
+    <section className="bg-[#10305a] py-16 sm:py-20 text-white text-center">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+          純淨補給，安心生活
+        </h2>
+        <p className="mt-2 text-base text-white/70">
+          Pure input, honest wellness
+        </p>
+        <p className="mt-6 text-sm leading-relaxed text-white/80 max-w-xl mx-auto">
+          追蹤我們的 LINE / IG / FB，獲取第一手品牌消息與專屬優惠。
+        </p>
+        <div className="mt-8 flex items-center justify-center gap-6">
+          <a
+            href="https://lin.ee/realreal"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-medium hover:bg-white/20 transition-colors"
+          >
+            Line@
+          </a>
+          <a
+            href="https://www.instagram.com/realreal"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-medium hover:bg-white/20 transition-colors"
+          >
+            Instagram
+          </a>
+          <a
+            href="https://www.facebook.com/realreal"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-medium hover:bg-white/20 transition-colors"
+          >
+            Facebook
+          </a>
         </div>
       </div>
     </section>
@@ -466,6 +563,9 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen">
+      {/* 0. Announcement bar (marquee) */}
+      <AnnouncementBar />
+
       {/* 1. Hero */}
       <HeroSection content={heroContent} />
 
@@ -490,11 +590,14 @@ export default async function HomePage() {
         />
       </div>
 
-      {/* 5. Blog section */}
+      {/* 5. Customer reviews (before blog, matching WordPress order) */}
+      <ReviewsSection testimonials={testimonials} />
+
+      {/* 6. Blog section */}
       <BlogSection posts={blogResult.data} />
 
-      {/* 6. Customer reviews */}
-      <ReviewsSection testimonials={testimonials} />
+      {/* 7. Footer CTA with social links */}
+      <FooterCTA />
     </main>
   )
 }

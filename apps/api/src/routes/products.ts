@@ -132,7 +132,7 @@ productsRouter.get("/:slug", async (req, res) => {
   const { data, error } = await supabase
     .from("products")
     .select(`
-      id, name, slug, description, category_id, images, is_active, created_at,
+      id, name, slug, description, shop_left, shop_middle, shop_right, category_id, images, is_active, created_at,
       product_variants (id, sku, name, price, sale_price, stock_qty, weight, attributes)
     `)
     .eq("slug", req.params.slug)

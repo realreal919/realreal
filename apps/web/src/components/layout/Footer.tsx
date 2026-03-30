@@ -7,7 +7,6 @@ const FOOTER_LINKS = [
     links: [
       { href: "/shop?category=protein", label: "植物蛋白粉" },
       { href: "/shop?category=fruit", label: "凍乾水果" },
-      { href: "/shop?category=sustainable", label: "永續生活" },
       { href: "/shop", label: "全部商品" },
     ],
   },
@@ -15,14 +14,14 @@ const FOOTER_LINKS = [
     title: "關於",
     links: [
       { href: "/about", label: "品牌故事" },
-      { href: "/impact", label: "公益里程" },
-      { href: "/smart-living", label: "聰明生活" },
+      { href: "/idea", label: "公益里程" },
+      { href: "/blog", label: "聰明生活" },
     ],
   },
   {
     title: "會員",
     links: [
-      { href: "/my-account/membership", label: "會員制度" },
+      { href: "/membership", label: "會員制度" },
       { href: "/my-account", label: "我的帳戶" },
       { href: "/my-account/orders", label: "我的訂單" },
     ],
@@ -33,7 +32,7 @@ const FOOTER_LINKS = [
       { href: "/contact", label: "聯絡我們" },
       { href: "/faq", label: "常見問題" },
       { href: "/shipping", label: "配送說明" },
-      { href: "/returns", label: "退換貨政策" },
+      { href: "/returns", label: "購物須知" },
     ],
   },
 ]
@@ -148,11 +147,11 @@ export function Footer() {
         <div className="container mx-auto flex flex-col items-center justify-between gap-3 px-6 py-5 text-xs opacity-60 md:flex-row">
           <p>&copy; 2026 誠真生活 All Rights Reserved</p>
           <div className="flex gap-6">
-            <Link href="/privacy" className="transition-opacity hover:opacity-100">
-              隱私權政策
+            <Link href="/privacy-policy" className="transition-opacity hover:opacity-100">
+              隱私權條款
             </Link>
-            <Link href="/terms" className="transition-opacity hover:opacity-100">
-              服務條款
+            <Link href="/returns" className="transition-opacity hover:opacity-100">
+              購物須知
             </Link>
           </div>
         </div>

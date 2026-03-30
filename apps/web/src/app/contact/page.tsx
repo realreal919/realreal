@@ -12,9 +12,9 @@ type ContactInfo = {
 export default async function ContactPage() {
   const info = await getSiteContent<ContactInfo>("contact_info")
 
-  const email = info?.email ?? "hello@realreal.cc"
+  const email = info?.email ?? "love@realreal.cc"
   const phone = info?.phone ?? "(02) 2345-6789"
-  const address = info?.address ?? "106 台北市大安區忠孝東路四段 100 號 10 樓"
+  const address = info?.address ?? "100 台北市仁愛路二段 25 號"
   const hours = info?.hours ?? null
 
   return (
@@ -64,10 +64,6 @@ export default async function ContactPage() {
                 <div className="flex justify-between">
                   <dt>週一至週五</dt>
                   <dd>09:00 – 18:00</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt>週六</dt>
-                  <dd>10:00 – 14:00</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt>週日及國定假日</dt>

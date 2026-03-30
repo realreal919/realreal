@@ -15,12 +15,11 @@ const NAV_LINKS = [
     children: [
       { href: "/shop?category=protein", label: "植物蛋白粉" },
       { href: "/shop?category=fruit", label: "凍乾水果" },
-      { href: "/shop?category=sustainable", label: "永續生活" },
     ],
   },
-  { href: "/faq", label: "聰明生活" },
-  { href: "/about#charity", label: "公益里程" },
-  { href: "/my-account/membership", label: "會員制度" },
+  { href: "/blog", label: "聰明生活" },
+  { href: "/idea", label: "公益里程" },
+  { href: "/membership", label: "會員制度" },
 ]
 
 
