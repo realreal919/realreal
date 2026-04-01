@@ -1,5 +1,7 @@
-import { Worker, Queue } from "bullmq"
-import { Redis } from "ioredis"
+/**
+ * Email sender — direct send (no BullMQ/Redis required).
+ * Templates are rendered to HTML and sent via Gmail SMTP.
+ */
 import { sendEmail } from "../lib/email"
 import { renderOrderConfirmation } from "../emails/OrderConfirmation"
 import { renderPaymentConfirmed } from "../emails/PaymentConfirmed"
@@ -7,12 +9,6 @@ import { renderOrderShipped } from "../emails/OrderShipped"
 import { renderTierUpgrade } from "../emails/TierUpgrade"
 import { renderSubscriptionBilled } from "../emails/SubscriptionBilled"
 import { renderSubscriptionFailed } from "../emails/SubscriptionFailed"
-
-const connection = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379", {
-  maxRetriesPerRequest: null,
-})
-
-export const emailQueue = new Queue("email", { connection })
 
 export type EmailJobData =
   | { template: "order-confirmation"; to: string; data: { orderNumber: string; items: any[]; total: string; address: string } }
@@ -22,8 +18,12 @@ export type EmailJobData =
   | { template: "subscription-billed"; to: string; data: { planName: string; amount: string; nextBillingDate: string; orderNumber: string } }
   | { template: "subscription-failed"; to: string; data: { planName: string; retryDate: string; manageUrl: string } }
 
-export const emailWorker = new Worker<EmailJobData>("email", async (job) => {
-  const { template, to, data } = job.data
+/**
+ * Render an email template and send it directly via Gmail SMTP.
+ * This replaces the old BullMQ worker — no Redis needed.
+ */
+export async function renderAndSendEmail(jobData: EmailJobData): Promise<void> {
+  const { template, to, data } = jobData
 
   let subject: string
   let html: string
@@ -54,8 +54,9 @@ export const emailWorker = new Worker<EmailJobData>("email", async (job) => {
       html = renderSubscriptionFailed(data)
       break
     default:
-      throw new Error(`Unknown email template: ${(job.data as any).template}`)
+      console.error(`[email-sender] Unknown template: ${(jobData as any).template}`)
+      return
   }
 
   await sendEmail({ to, subject, html })
-}, { connection })
+}

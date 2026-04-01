@@ -2,7 +2,7 @@ import { Worker, Queue } from "bullmq"
 import { Redis } from "ioredis"
 import { supabase } from "../lib/supabase"
 import { decryptToken } from "../lib/token-encryption"
-import { emailQueue } from "./email-sender"
+import { renderAndSendEmail } from "./email-sender"
 
 const connection = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379", { maxRetriesPerRequest: null })
 
@@ -81,7 +81,7 @@ async function processSingleSubscription(subscriptionId: string) {
 
     if (user?.email) {
       const nextDateStr = nextBillingDate.toISOString().split("T")[0]
-      await emailQueue.add("email", {
+      await renderAndSendEmail({
         template: "subscription-billed",
         to: user.email,
         data: {
@@ -118,7 +118,7 @@ async function processSingleSubscription(subscriptionId: string) {
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://realreal-rho.vercel.app"
         const retryDate = new Date()
         retryDate.setDate(retryDate.getDate() + 3)
-        await emailQueue.add("email", {
+        await renderAndSendEmail({
           template: "subscription-failed",
           to: user.email,
           data: {
