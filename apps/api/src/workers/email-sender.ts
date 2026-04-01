@@ -1,8 +1,10 @@
 /**
  * Email sender — direct send (no BullMQ/Redis required).
  * Templates are rendered to HTML and sent via Gmail SMTP.
+ * Supports editable templates from site_contents (CMS) with fallback to hardcoded render functions.
  */
 import { sendEmail } from "../lib/email"
+import { supabase } from "../lib/supabase"
 import { renderOrderConfirmation } from "../emails/OrderConfirmation"
 import { renderPaymentConfirmed } from "../emails/PaymentConfirmed"
 import { renderOrderShipped } from "../emails/OrderShipped"
@@ -18,13 +20,93 @@ export type EmailJobData =
   | { template: "subscription-billed"; to: string; data: { planName: string; amount: string; nextBillingDate: string; orderNumber: string } }
   | { template: "subscription-failed"; to: string; data: { planName: string; retryDate: string; manageUrl: string } }
 
+/** Replace {{variable}} placeholders with actual data values */
+function replaceTemplateVars(html: string, data: Record<string, string>): string {
+  return html.replace(/\{\{(\w+)\}\}/g, (_, key) => data[key] ?? "")
+}
+
+/** Map template name to site_contents key */
+const TEMPLATE_KEY_MAP: Record<string, string> = {
+  "order-confirmation": "email_order_confirmation",
+  "payment-confirmed": "email_payment_confirmed",
+  "order-shipped": "email_order_shipped",
+  "tier-upgrade": "email_tier_upgrade",
+  "subscription-billed": "email_subscription_billed",
+  "subscription-failed": "email_subscription_failed",
+}
+
+/**
+ * Try to load an email template from site_contents (CMS).
+ * Returns null if not found so caller can fall back to hardcoded templates.
+ */
+async function loadTemplateFromDB(
+  templateName: string,
+  vars: Record<string, string>,
+): Promise<{ subject: string; html: string } | null> {
+  const key = TEMPLATE_KEY_MAP[templateName]
+  if (!key) return null
+
+  const { data, error } = await supabase
+    .from("site_contents")
+    .select("value")
+    .eq("key", key)
+    .single()
+
+  if (error || !data) return null
+
+  const tpl = data.value as { subject?: string; body_html?: string }
+  if (!tpl.subject || !tpl.body_html) return null
+
+  return {
+    subject: replaceTemplateVars(tpl.subject, vars),
+    html: replaceTemplateVars(tpl.body_html, vars),
+  }
+}
+
+/** Flatten job data into a simple string record for template variable replacement */
+function flattenData(template: string, data: Record<string, any>): Record<string, string> {
+  const vars: Record<string, string> = {}
+  for (const [k, v] of Object.entries(data)) {
+    if (typeof v === "string" || typeof v === "number") {
+      vars[k] = String(v)
+    }
+  }
+  // Special computed fields
+  if (template === "tier-upgrade" && typeof data.discountRate === "number") {
+    vars.discountPercent = String(Math.round(data.discountRate * 100))
+  }
+  if (template === "tier-upgrade" && Array.isArray(data.benefits)) {
+    const benefitItems = data.benefits.map((b: string) => `<li style="padding:4px 0">${b}</li>`).join("")
+    vars.benefitsSection = data.benefits.length > 0
+      ? `<h3>您的專屬權益：</h3><ul>${benefitItems}</ul>`
+      : ""
+  }
+  if (template === "order-confirmation" && Array.isArray(data.items)) {
+    vars.itemRows = data.items.map((item: any) =>
+      `<tr><td style="padding:8px;border-bottom:1px solid #eee">${item.name}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${item.qty}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">NT$${item.price}</td></tr>`
+    ).join("")
+  }
+  return vars
+}
+
 /**
  * Render an email template and send it directly via Gmail SMTP.
- * This replaces the old BullMQ worker — no Redis needed.
+ * First tries to load an editable template from site_contents (CMS).
+ * Falls back to hardcoded render functions if not found in DB.
  */
 export async function renderAndSendEmail(jobData: EmailJobData): Promise<void> {
   const { template, to, data } = jobData
 
+  // Try DB template first (CMS override)
+  const vars = flattenData(template, data)
+  const dbTemplate = await loadTemplateFromDB(template, vars)
+
+  if (dbTemplate) {
+    await sendEmail({ to, subject: dbTemplate.subject, html: dbTemplate.html })
+    return
+  }
+
+  // Fallback to hardcoded render functions
   let subject: string
   let html: string
 

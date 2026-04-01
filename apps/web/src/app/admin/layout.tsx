@@ -17,6 +17,7 @@ import {
   Home,
   Megaphone,
   MessageSquare,
+  Mail,
 } from "lucide-react"
 
 type Role = "admin" | "editor" | "viewer"
@@ -46,6 +47,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/admin/homepage", label: "首頁管理", icon: Home, roles: ["admin", "editor"] },
   { href: "/admin/users", label: "團隊成員", icon: Users, roles: ["admin"] },
   { href: "/admin/settings", label: "系統設定", icon: Settings, roles: ["admin", "editor"] },
+  { href: "/admin/email-templates", label: "Email 模板", icon: Mail, roles: ["admin"] },
 ]
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
