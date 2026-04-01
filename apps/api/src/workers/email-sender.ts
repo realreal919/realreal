@@ -5,6 +5,8 @@ import { renderOrderConfirmation } from "../emails/OrderConfirmation"
 import { renderPaymentConfirmed } from "../emails/PaymentConfirmed"
 import { renderOrderShipped } from "../emails/OrderShipped"
 import { renderTierUpgrade } from "../emails/TierUpgrade"
+import { renderSubscriptionBilled } from "../emails/SubscriptionBilled"
+import { renderSubscriptionFailed } from "../emails/SubscriptionFailed"
 
 const connection = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379", {
   maxRetriesPerRequest: null,
@@ -17,6 +19,8 @@ export type EmailJobData =
   | { template: "payment-confirmed"; to: string; data: { orderNumber: string; amount: string; method: string } }
   | { template: "order-shipped"; to: string; data: { orderNumber: string; trackingNumber: string; carrier: string } }
   | { template: "tier-upgrade"; to: string; data: { newTier: string; discountRate: number; benefits: string[] } }
+  | { template: "subscription-billed"; to: string; data: { planName: string; amount: string; nextBillingDate: string; orderNumber: string } }
+  | { template: "subscription-failed"; to: string; data: { planName: string; retryDate: string; manageUrl: string } }
 
 export const emailWorker = new Worker<EmailJobData>("email", async (job) => {
   const { template, to, data } = job.data
@@ -40,6 +44,14 @@ export const emailWorker = new Worker<EmailJobData>("email", async (job) => {
     case "tier-upgrade":
       subject = `恭喜升級為${data.newTier}！`
       html = renderTierUpgrade(data)
+      break
+    case "subscription-billed":
+      subject = `訂閱扣款成功 — ${data.planName}`
+      html = renderSubscriptionBilled(data)
+      break
+    case "subscription-failed":
+      subject = `訂閱扣款失敗 — ${data.planName}`
+      html = renderSubscriptionFailed(data)
       break
     default:
       throw new Error(`Unknown email template: ${(job.data as any).template}`)

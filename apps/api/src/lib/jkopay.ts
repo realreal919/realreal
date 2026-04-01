@@ -5,6 +5,7 @@ import { createHmac, timingSafeEqual } from "crypto"
 
 const STORE_ID = process.env.JKOPAY_STORE_ID ?? ""
 const API_KEY = process.env.JKOPAY_API_KEY ?? ""
+const SECRET_KEY = process.env.JKOPAY_SECRET_KEY ?? ""
 
 const BASE_URL = process.env.JKOPAY_SANDBOX === "true"
   ? "https://uat-api.jkopay.com"
@@ -27,29 +28,30 @@ export async function initiatePayment(
   const siteUrl = process.env.SITE_URL ?? "https://realreal.cc"
 
   const bodyObj = {
-    storeID: STORE_ID,
-    merchantTradeNo,
+    store_id: STORE_ID,
+    merchant_trade_no: merchantTradeNo,
     currency: "TWD",
-    totalPrice: amount,
-    orderDesc: `realreal.cc 訂單 ${orderId.slice(0, 8)}`,
-    returnURL: `${siteUrl}/webhooks/jkopay/result`,
-    notifyURL: `${siteUrl}/webhooks/jkopay`,
+    total_price: amount,
+    order_desc: `realreal.cc 訂單 ${orderId.slice(0, 8)}`,
+    result_url: `${siteUrl}/webhooks/jkopay/result`,
+    notify_url: `${siteUrl}/api/webhooks/jkopay`,
   }
   const payload = JSON.stringify(bodyObj)
-  const signature = createHmac("sha256", API_KEY).update(payload).digest("hex")
+  const signature = createHmac("sha256", SECRET_KEY).update(payload).digest("hex")
 
   const response = await fetch(`${BASE_URL}/order/create`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "X-Store-ID": STORE_ID,
+      "X-Api-Key": API_KEY,
       "X-Signature": signature,
     },
     body: payload,
   })
   const data = await response.json() as Record<string, any>
-  if (!data.paymentURL) {
+  if (!data.payment_url) {
     throw new Error(`JKOPay error: ${JSON.stringify(data)}`)
   }
-  return { paymentUrl: data.paymentURL as string, merchantTradeNo }
+  return { paymentUrl: data.payment_url as string, merchantTradeNo }
 }

@@ -1,8 +1,13 @@
 import axios from "axios"
 
+const AMEGO_API_URL = process.env.AMEGO_API_URL ?? "https://api.amego.tw"
+
 const client = axios.create({
-  baseURL: process.env.AMEGO_API_URL ?? "https://api.amego.com.tw",
-  headers: { "X-API-Key": process.env.AMEGO_API_KEY ?? "" },
+  baseURL: AMEGO_API_URL,
+  headers: {
+    "X-Tax-Id": process.env.AMEGO_TAX_ID ?? "",
+    "X-App-Key": process.env.AMEGO_APP_KEY ?? "",
+  },
   timeout: 10000,
 })
 
@@ -39,5 +44,5 @@ export async function queryInvoice(amegoId: string) {
 }
 
 export function invoicePdfUrl(amegoId: string) {
-  return `${process.env.AMEGO_API_URL}/invoices/${amegoId}/pdf`
+  return `${AMEGO_API_URL}/invoices/${amegoId}/pdf`
 }

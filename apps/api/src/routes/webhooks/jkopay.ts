@@ -4,21 +4,21 @@ import { verifySignature } from "../../lib/jkopay"
 
 export const jkopayWebhookRouter = Router()
 
-const API_KEY = process.env.JKOPAY_API_KEY ?? ""
+const SECRET_KEY = process.env.JKOPAY_SECRET_KEY ?? ""
 
 // POST /webhooks/jkopay — JKOPay server notification via X-Signature header
 jkopayWebhookRouter.post("/", async (req, res) => {
   const rawBody = JSON.stringify(req.body)
   const signature = req.headers["x-signature"] as string
 
-  if (!signature || !verifySignature(rawBody, signature, API_KEY)) {
+  if (!signature || !verifySignature(rawBody, signature, SECRET_KEY)) {
     res.status(400).json({ error: "Invalid signature" }); return
   }
 
-  const { merchantTradeNo, tradeNo, status } = req.body as Record<string, string>
+  const { merchant_trade_no, trade_no, status } = req.body as Record<string, string>
 
-  if (!merchantTradeNo) {
-    res.status(400).json({ error: "Missing merchantTradeNo" }); return
+  if (!merchant_trade_no) {
+    res.status(400).json({ error: "Missing merchant_trade_no" }); return
   }
 
   // Idempotency guard — insert into webhook_events, catch unique constraint "23505"
@@ -26,7 +26,7 @@ jkopayWebhookRouter.post("/", async (req, res) => {
     .from("webhook_events")
     .insert({
       gateway: "jkopay",
-      merchant_trade_no: merchantTradeNo,
+      merchant_trade_no: merchant_trade_no,
       payload: rawBody,
     })
 
@@ -44,7 +44,7 @@ jkopayWebhookRouter.post("/", async (req, res) => {
   const { data: tx } = await supabase
     .from("payment_transactions")
     .select("id, order_id")
-    .eq("merchant_trade_no", merchantTradeNo)
+    .eq("merchant_trade_no", merchant_trade_no)
     .single()
 
   if (tx) {
@@ -52,7 +52,7 @@ jkopayWebhookRouter.post("/", async (req, res) => {
       .from("payment_transactions")
       .update({
         status: success ? "captured" : "failed",
-        gateway_trade_no: tradeNo ?? null,
+        gateway_trade_no: trade_no ?? null,
         raw_response: rawBody,
         updated_at: new Date().toISOString(),
       })
@@ -60,8 +60,22 @@ jkopayWebhookRouter.post("/", async (req, res) => {
 
     await supabase
       .from("orders")
-      .update({ status: success ? "paid" : "payment_failed", updated_at: new Date().toISOString() })
+      .update({
+        status: success ? "processing" : "failed",
+        payment_status: success ? "paid" : "failed",
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", tx.order_id)
+
+    if (success) {
+      // Enqueue email + invoice jobs
+      try {
+        const { enqueuePostPaymentJobs } = await import("../../lib/enqueue-post-payment")
+        await enqueuePostPaymentJobs(tx.order_id)
+      } catch (err) {
+        console.warn("[webhooks/jkopay] enqueue jobs failed (non-fatal):", err)
+      }
+    }
   }
 
   res.json({ result: "OK" })

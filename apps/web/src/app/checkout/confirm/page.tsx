@@ -1,7 +1,10 @@
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
+"use client"
 
-export const metadata = { title: "訂單成立 | 誠真生活 RealReal" }
+import { useEffect, useRef } from "react"
+import { useSearchParams } from "next/navigation"
+import Link from "next/link"
+import { useCart } from "@/lib/cart"
+import { Button } from "@/components/ui/button"
 
 function getEstimatedDelivery(): string {
   const now = new Date()
@@ -66,15 +69,153 @@ function StepIndicator({ current }: { current: number }) {
   )
 }
 
-export default async function ConfirmPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ order?: string }>
-}) {
-  const { order } = await searchParams
-  const orderNumber = order ?? "---"
+type PaymentStatus = "success" | "pending" | "failed"
+
+function deriveStatus(searchParams: URLSearchParams): PaymentStatus {
+  // PChomePay redirects with ?order=RR...&status=success (or similar via OrderResultURL)
+  const status = searchParams.get("status")
+  if (status === "success" || status === "paid") return "success"
+  if (status === "failed" || status === "fail") return "failed"
+
+  // LINE Pay webhook redirects with ?success=true&order=...
+  const success = searchParams.get("success")
+  if (success === "true") return "success"
+  if (success === "false") return "failed"
+
+  // If we have an order param but no explicit status, payment is pending
+  // (e.g. gateway redirected back before webhook confirmed the payment)
+  if (searchParams.get("order")) return "pending"
+
+  return "pending"
+}
+
+export default function ConfirmPage() {
+  const searchParams = useSearchParams()
+  const clearCart = useCart((s) => s.clear)
+  const cleanedUp = useRef(false)
+
+  const orderNumber = searchParams.get("order") ?? "---"
+  const paymentStatus = deriveStatus(searchParams)
   const estimatedDelivery = getEstimatedDelivery()
 
+  // Clear cart and checkout data once on mount
+  useEffect(() => {
+    if (cleanedUp.current) return
+    cleanedUp.current = true
+
+    // Clear the zustand persisted cart
+    clearCart()
+    // Clear localStorage checkout data saved during the checkout flow
+    try {
+      localStorage.removeItem("realreal-checkout")
+    } catch {
+      // ignore — SSR or storage unavailable
+    }
+  }, [clearCart])
+
+  if (paymentStatus === "failed") {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-lg">
+        <StepIndicator current={3} />
+        <div className="text-center">
+          {/* Failed Icon */}
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-red-100">
+            <svg
+              className="h-10 w-10 text-red-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2.5}
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </div>
+
+          <h1 className="text-2xl font-bold mb-2">付款失敗</h1>
+          <p className="text-zinc-500 mb-8">
+            您的付款未能成功處理，請重新嘗試或選擇其他付款方式。
+          </p>
+
+          {orderNumber !== "---" && (
+            <div className="rounded-lg border bg-zinc-50/50 p-6 mb-6 text-left">
+              <p className="text-xs text-zinc-500 uppercase tracking-wide">訂單編號</p>
+              <p className="font-mono font-semibold text-lg">{orderNumber}</p>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <Link href="/checkout/payment" className="block">
+              <Button className="w-full rounded-[10px]" style={{ backgroundColor: "#10305a", color: "#fff" }}>重新付款</Button>
+            </Link>
+            <Link href="/shop" className="block">
+              <Button variant="outline" className="w-full rounded-[10px]" style={{ borderColor: "#10305a", color: "#10305a" }}>返回商店</Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (paymentStatus === "pending") {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-lg">
+        <StepIndicator current={3} />
+        <div className="text-center">
+          {/* Pending Icon */}
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-yellow-100">
+            <svg
+              className="h-10 w-10 text-yellow-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2.5}
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+              />
+            </svg>
+          </div>
+
+          <h1 className="text-2xl font-bold mb-2">付款確認中</h1>
+          <p className="text-zinc-500 mb-8">
+            您的訂單已建立，付款正在確認中。<br />
+            確認完成後，我們會透過 Email 通知您。
+          </p>
+
+          {orderNumber !== "---" && (
+            <div className="rounded-lg border bg-zinc-50/50 p-6 mb-6 text-left">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-zinc-500 uppercase tracking-wide">訂單編號</p>
+                  <p className="font-mono font-semibold text-lg">{orderNumber}</p>
+                </div>
+                <span className="inline-flex items-center rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800">
+                  付款確認中
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <Link href="/my-account/orders" className="block">
+              <Button className="w-full rounded-[10px]" style={{ backgroundColor: "#10305a", color: "#fff" }}>查看我的訂單</Button>
+            </Link>
+            <Link href="/shop" className="block">
+              <Button variant="outline" className="w-full rounded-[10px]" style={{ borderColor: "#10305a", color: "#10305a" }}>繼續購物</Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // paymentStatus === "success"
   return (
     <div className="container mx-auto px-4 py-8 max-w-lg">
       <StepIndicator current={3} />

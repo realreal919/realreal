@@ -14,6 +14,7 @@ import { pchomepayWebhookRouter } from "./routes/webhooks/pchomepay"
 import { linepayWebhookRouter } from "./routes/webhooks/linepay"
 import { jkopayWebhookRouter } from "./routes/webhooks/jkopay"
 import { ecpayLogisticsWebhookRouter } from "./routes/webhooks/ecpay-logistics"
+import { logisticsRouter } from "./routes/logistics"
 import { subscriptionPlansRouter, subscriptionsRouter } from "./routes/subscriptions"
 import { pchomepayTokenWebhookRouter } from "./routes/webhooks/pchomepay-token"
 import { postsPublicRouter, postsAdminRouter } from "./routes/posts"
@@ -34,6 +35,7 @@ export const app = express()
 // Must be registered BEFORE express.json() so these routes get the right parser
 app.use("/webhooks/pchomepay", express.urlencoded({ extended: false }))
 app.use("/webhooks/ecpay-logistics", express.urlencoded({ extended: false }))
+app.use("/logistics/map-result", express.urlencoded({ extended: false }))
 
 app.use(express.json())
 app.use("/health", healthRouter)
@@ -49,6 +51,7 @@ app.use("/webhooks/pchomepay", pchomepayWebhookRouter)
 app.use("/webhooks/linepay", linepayWebhookRouter)
 app.use("/webhooks/jkopay", jkopayWebhookRouter)
 app.use("/webhooks/ecpay-logistics", ecpayLogisticsWebhookRouter)
+app.use("/logistics", logisticsRouter)
 app.use("/subscription-plans", subscriptionPlansRouter)
 app.use("/subscriptions", requireAuth, subscriptionsRouter)
 app.use("/webhooks/pchomepay-token", pchomepayTokenWebhookRouter)

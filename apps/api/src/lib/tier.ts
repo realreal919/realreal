@@ -25,15 +25,68 @@ export async function upgradeTierIfNeeded(userId: string, newTotalSpend: number)
 }
 
 export async function incrementSpendAndUpgrade(userId: string, amount: number) {
+  // 1. Read current profile spend
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("total_spend")
+    .select("total_spend, charity_savings, membership_tier_id")
     .eq("user_id", userId)
     .single()
 
   const currentSpend = Number(profile?.total_spend ?? 0)
   const newSpend = currentSpend + amount
+
+  // 2. Upgrade tier (also persists new total_spend)
   await upgradeTierIfNeeded(userId, newSpend)
+
+  // 3. Calculate and accumulate charity_savings based on the *new* tier
+  const { data: updatedProfile } = await supabase
+    .from("user_profiles")
+    .select("membership_tier_id")
+    .eq("user_id", userId)
+    .single()
+
+  if (updatedProfile?.membership_tier_id) {
+    const { data: tier } = await supabase
+      .from("membership_tiers")
+      .select("benefits")
+      .eq("id", updatedProfile.membership_tier_id)
+      .single()
+
+    const benefits = tier?.benefits as Record<string, unknown> | null
+    const rebateRate = Number(benefits?.rebate_rate ?? 0) // e.g. 2.3 or 3.3
+    if (rebateRate > 0) {
+      const charitySavingsIncrement = Math.round(amount * (rebateRate / 100) * 100) / 100
+      const currentCharity = Number(profile?.charity_savings ?? 0)
+      await supabase
+        .from("user_profiles")
+        .update({ charity_savings: currentCharity + charitySavingsIncrement })
+        .eq("user_id", userId)
+    }
+  }
+}
+
+/**
+ * Look up the discount rate for a user based on their membership tier.
+ * Returns a value like 0.05 (5% off) or 0.10 (10% off), or 0 if no tier / guest.
+ */
+export async function getMemberDiscountRate(userId: string | undefined): Promise<number> {
+  if (!userId) return 0
+
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("membership_tier_id")
+    .eq("user_id", userId)
+    .single()
+
+  if (!profile?.membership_tier_id) return 0
+
+  const { data: tier } = await supabase
+    .from("membership_tiers")
+    .select("discount_rate")
+    .eq("id", profile.membership_tier_id)
+    .single()
+
+  return tier ? Number(tier.discount_rate) : 0
 }
 
 /** Pure helper — compute which tier name applies given a spend amount and a sorted tiers list */

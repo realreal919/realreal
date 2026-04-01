@@ -2,6 +2,10 @@ import { Router } from "express"
 import { z } from "zod"
 import { supabase } from "../lib/supabase"
 import { requireAuth } from "../middleware/auth"
+import { getMemberDiscountRate } from "../lib/tier"
+import { buildCheckMacValue } from "../lib/pchomepay"
+import { requestPayment as linePayRequestPayment } from "../lib/linepay"
+import { initiatePayment as jkoPayInitiatePayment } from "../lib/jkopay"
 
 export const ordersRouter = Router()
 
@@ -46,7 +50,11 @@ ordersRouter.post("/", async (req, res) => {
   const subtotalCents = items.reduce((sum, i) => sum + i.unitPrice * i.qty, 0)
   const shippingFees: Record<string, number> = { home_delivery: 100, cvs_711: 60, cvs_family: 60 }
   const shippingFeeCents = shippingFees[shippingMethod] ?? 100
-  const totalCents = subtotalCents + shippingFeeCents
+
+  // Apply member discount based on membership tier
+  const discountRate = await getMemberDiscountRate(userId)
+  const memberDiscountCents = Math.round(subtotalCents * discountRate)
+  const totalCents = subtotalCents - memberDiscountCents + shippingFeeCents
 
   // Insert order
   const { data: order, error: orderError } = await supabase
@@ -55,11 +63,13 @@ ordersRouter.post("/", async (req, res) => {
       order_number: orderNumber,
       user_id: userId ?? null,
       guest_email: userId ? null : (guestEmail ?? null),
-      status: "pending_payment",
+      status: "pending",
+      payment_status: "pending",
       shipping_method: shippingMethod,
       payment_method: paymentMethod,
       subtotal_cents: subtotalCents,
       shipping_fee_cents: shippingFeeCents,
+      discount_amount: memberDiscountCents,
       total_cents: totalCents,
       coupon_code: couponCode ?? null,
     })
@@ -90,6 +100,32 @@ ordersRouter.post("/", async (req, res) => {
     res.status(500).json({ error: "Failed to create order items" }); return
   }
 
+  // Deduct stock from product_variants (reserve stock before payment)
+  const deductedVariants: { variantId: string; qty: number }[] = []
+  for (const item of items) {
+    const { data: success, error: stockError } = await supabase.rpc("deduct_variant_stock", {
+      p_variant_id: item.variantId,
+      p_qty: item.qty,
+    })
+
+    if (stockError || success === false) {
+      console.error("[orders] insufficient stock for variant:", item.variantId, stockError)
+      // Restore stock for variants already deducted in this loop
+      for (const prev of deductedVariants) {
+        await supabase.rpc("restore_variant_stock", {
+          p_variant_id: prev.variantId,
+          p_qty: prev.qty,
+        })
+      }
+      // Rollback: delete items and order
+      await supabase.from("order_items").delete().eq("order_id", order.id)
+      await supabase.from("orders").delete().eq("id", order.id)
+      res.status(409).json({ error: "Insufficient stock", variantId: item.variantId }); return
+    }
+
+    deductedVariants.push({ variantId: item.variantId, qty: item.qty })
+  }
+
   // Insert order address
   const { error: addrError } = await supabase
     .from("order_addresses")
@@ -114,7 +150,108 @@ ordersRouter.post("/", async (req, res) => {
     res.status(500).json({ error: "Failed to create order address" }); return
   }
 
-  res.status(201).json({ data: { orderId: order.id, orderNumber: order.order_number } })
+  // --- Payment initiation ---
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://realreal-rho.vercel.app"
+  const confirmUrl = `${siteUrl}/checkout/confirm`
+  let paymentUrl: string
+  let gatewayTxId: string | null = null
+
+  try {
+    if (paymentMethod === "pchomepay") {
+      const appId = process.env.PCHOMEPAY_APP_ID ?? ""
+      const secret = process.env.PCHOMEPAY_SECRET ?? ""
+      const merchantTradeNo = order.order_number
+
+      const params: Record<string, string> = {
+        AppID: appId,
+        MerchantTradeNo: merchantTradeNo,
+        MerchantTradeDate: new Date().toISOString().replace("T", " ").slice(0, 19),
+        TotalAmount: String(totalCents),
+        TradeDesc: "realreal order",
+        ItemName: `realreal order #${order.order_number}`,
+        ReturnURL: `${siteUrl}/api/webhooks/pchomepay`,
+        OrderResultURL: confirmUrl,
+        PaymentType: "aio",
+        ChoosePayment: "ALL",
+        EncryptType: "1",
+      }
+      params.CheckMacValue = buildCheckMacValue(params, secret, secret)
+
+      const response = await fetch("https://api.pchomepay.com.tw/v1/payment/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          app_id: appId,
+          sign: params.CheckMacValue,
+          merchant_trade_no: merchantTradeNo,
+          amount: totalCents,
+          return_url: `${siteUrl}/api/webhooks/pchomepay`,
+          order_result_url: confirmUrl,
+          item_name: `realreal order #${order.order_number}`,
+        }),
+      })
+      const data = await response.json() as Record<string, any>
+      if (!data.payment_url) {
+        throw new Error(`PChomePay error: ${JSON.stringify(data)}`)
+      }
+      paymentUrl = data.payment_url as string
+      gatewayTxId = merchantTradeNo
+
+    } else if (paymentMethod === "linepay") {
+      const result = await linePayRequestPayment(
+        order.order_number,
+        totalCents,
+        `realreal order #${order.order_number}`
+      )
+      paymentUrl = result.paymentUrl
+      gatewayTxId = result.transactionId
+
+    } else {
+      // jkopay
+      const result = await jkoPayInitiatePayment(order.order_number, totalCents)
+      paymentUrl = result.paymentUrl
+      gatewayTxId = result.merchantTradeNo
+    }
+  } catch (err) {
+    console.error(`[orders] ${paymentMethod} payment initiation failed:`, err)
+    // Rollback: restore stock, delete address, items, and order
+    for (const prev of deductedVariants) {
+      await supabase.rpc("restore_variant_stock", {
+        p_variant_id: prev.variantId,
+        p_qty: prev.qty,
+      })
+    }
+    await supabase.from("order_addresses").delete().eq("order_id", order.id)
+    await supabase.from("order_items").delete().eq("order_id", order.id)
+    await supabase.from("orders").delete().eq("id", order.id)
+    res.status(502).json({ error: "Payment gateway error" }); return
+  }
+
+  // Insert payment record
+  const { error: paymentError } = await supabase
+    .from("payments")
+    .insert({
+      order_id: order.id,
+      gateway: paymentMethod,
+      gateway_tx_id: gatewayTxId,
+      amount: totalCents,
+      status: "pending",
+    })
+
+  if (paymentError) {
+    console.error("[orders] insert payment failed:", paymentError)
+  }
+
+  res.status(201).json({
+    data: {
+      orderId: order.id,
+      orderNumber: order.order_number,
+      paymentUrl,
+      paymentMethod,
+      memberDiscountAmount: memberDiscountCents,
+      discountRate,
+    },
+  })
 })
 
 // GET /orders/:id — get order with items, address, payment status (auth required, must own order)

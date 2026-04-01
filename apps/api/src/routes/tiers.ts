@@ -3,6 +3,7 @@ import { z } from "zod"
 import { supabase } from "../lib/supabase"
 import { requireAuth } from "../middleware/auth"
 import { requireAdmin } from "../middleware/admin"
+import { getMemberDiscountRate } from "../lib/tier"
 
 export const tiersRouter = Router()
 
@@ -96,4 +97,32 @@ tiersRouter.delete("/admin/membership-tiers/:id", requireAuth, requireAdmin, asy
 
   if (error) { res.status(500).json({ error: error.message }); return }
   res.status(204).send()
+})
+
+// ---------------------------------------------------------------------------
+// GET /my-member-discount — return current user's discount rate (auth required)
+// ---------------------------------------------------------------------------
+
+tiersRouter.get("/my-member-discount", requireAuth, async (_req, res) => {
+  const userId = res.locals.userId as string
+  const discountRate = await getMemberDiscountRate(userId)
+
+  // Also fetch tier name for display
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("membership_tier_id")
+    .eq("user_id", userId)
+    .single()
+
+  let tierName: string | null = null
+  if (profile?.membership_tier_id) {
+    const { data: tier } = await supabase
+      .from("membership_tiers")
+      .select("name")
+      .eq("id", profile.membership_tier_id)
+      .single()
+    tierName = tier?.name ?? null
+  }
+
+  res.json({ data: { discountRate, tierName } })
 })

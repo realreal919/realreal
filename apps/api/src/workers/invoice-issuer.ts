@@ -8,21 +8,50 @@ const connection = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379", 
 export const invoiceQueue = new Queue("invoice", { connection })
 
 export const invoiceWorker = new Worker("invoice", async (job) => {
-  const { invoiceId } = job.data as { invoiceId: string }
+  // Support both invoiceId (reissue) and orderId (new from payment webhook)
+  let invoiceId: string | undefined = job.data.invoiceId
+
+  if (!invoiceId && job.data.orderId) {
+    // Look up the invoice by orderId — the webhook handler creates the record before enqueuing
+    const { data: inv } = await supabase
+      .from("invoices")
+      .select("id")
+      .eq("order_id", job.data.orderId)
+      .neq("status", "issued")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single()
+
+    if (!inv) throw new Error(`No pending invoice found for order ${job.data.orderId}`)
+    invoiceId = inv.id
+  }
+
+  if (!invoiceId) throw new Error("Job data must include invoiceId or orderId")
 
   const { data: invoice } = await supabase
     .from("invoices")
-    .select("*, orders(order_number, total, user_id, order_items(*))")
+    .select("*, orders(order_number, total, user_id, order_items(name, quantity, unit_price))")
     .eq("id", invoiceId)
     .single()
 
   if (!invoice) throw new Error(`Invoice ${invoiceId} not found`)
   if (invoice.status === "issued") return { skipped: true }
 
+  const order = invoice.orders as any
+
+  // Build line items from the order
+  const items: IssueInvoiceParams["items"] = Array.isArray(order?.order_items)
+    ? order.order_items.map((item: any) => ({
+        name: item.name,
+        qty: Number(item.quantity),
+        unitPrice: Number(item.unit_price),
+      }))
+    : []
+
   try {
     const result = await issueInvoice({
       orderId: invoice.order_id,
-      orderNumber: (invoice.orders as any).order_number,
+      orderNumber: order?.order_number,
       amount: Number(invoice.amount),
       taxAmount: Number(invoice.tax_amount),
       type: invoice.type as any,
@@ -31,7 +60,7 @@ export const invoiceWorker = new Worker("invoice", async (job) => {
       loveCode: invoice.love_code ?? undefined,
       taxId: invoice.tax_id ?? undefined,
       companyTitle: invoice.company_title ?? undefined,
-      items: [],
+      items,
     })
 
     await supabase.from("invoices").update({

@@ -55,13 +55,14 @@ async function processSingleSubscription(subscriptionId: string) {
   if (insertError?.code === "23505") return { skipped: true, reason: "duplicate" }
   if (insertError) throw insertError
 
+  const plan = sub.subscription_plans as any
+
   try {
     // Decrypt token and charge (PChomePay Token API call would go here)
     const _token = await decryptToken(sub.payment_method_token ?? "")
     // TODO: Call PChomePay Token recurring charge API
     // For now, mark as success
 
-    const plan = sub.subscription_plans as any
     const nextBillingDate = computeNextBillingDate(plan.interval)
 
     await supabase.from("subscriptions").update({
@@ -71,12 +72,26 @@ async function processSingleSubscription(subscriptionId: string) {
 
     await supabase.from("subscription_orders").update({ status: "completed" }).eq("id", subOrder!.id)
 
-    // Enqueue success email
-    await emailQueue.add("email", {
-      template: "order-confirmation",
-      to: sub.user_id,
-      data: { orderNumber: idempotencyKey, items: [], total: plan.price, address: "" },
-    })
+    // Resolve user email for notification
+    const { data: user } = await supabase
+      .from("users")
+      .select("email")
+      .eq("id", sub.user_id)
+      .single()
+
+    if (user?.email) {
+      const nextDateStr = nextBillingDate.toISOString().split("T")[0]
+      await emailQueue.add("email", {
+        template: "subscription-billed",
+        to: user.email,
+        data: {
+          planName: plan.name,
+          amount: String(plan.price),
+          nextBillingDate: nextDateStr,
+          orderNumber: idempotencyKey,
+        },
+      })
+    }
 
     return { success: true }
 
@@ -90,6 +105,33 @@ async function processSingleSubscription(subscriptionId: string) {
     }).eq("id", subscriptionId)
 
     await supabase.from("subscription_orders").update({ status: "failed" }).eq("id", subOrder!.id)
+
+    // Send failure notification email
+    try {
+      const { data: user } = await supabase
+        .from("users")
+        .select("email")
+        .eq("id", sub.user_id)
+        .single()
+
+      if (user?.email) {
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://realreal-rho.vercel.app"
+        const retryDate = new Date()
+        retryDate.setDate(retryDate.getDate() + 3)
+        await emailQueue.add("email", {
+          template: "subscription-failed",
+          to: user.email,
+          data: {
+            planName: plan.name,
+            retryDate: retryDate.toISOString().split("T")[0],
+            manageUrl: `${siteUrl}/account/subscriptions`,
+          },
+        })
+      }
+    } catch (emailErr) {
+      console.warn("[subscription-billing] failed to enqueue failure email:", emailErr)
+    }
+
     throw err
   }
 }

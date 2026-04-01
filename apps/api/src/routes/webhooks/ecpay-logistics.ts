@@ -1,12 +1,27 @@
 import { Router } from "express"
 import { supabase } from "../../lib/supabase"
+import { buildCheckMacValue } from "../../lib/ecpay-logistics"
+
+const HASH_KEY = process.env.ECPAY_HASH_KEY ?? ""
+const HASH_IV = process.env.ECPAY_HASH_IV ?? ""
 
 export const ecpayLogisticsWebhookRouter = Router()
 
 // POST /webhooks/ecpay-logistics — ECPay logistics status push (form-encoded)
 ecpayLogisticsWebhookRouter.post("/", async (req, res) => {
   const params = req.body as Record<string, string>
-  const { AllPayLogisticsID, LogisticsStatus, BookingNote, CVSPaymentNo, CVSValidationNo } = params
+  const { AllPayLogisticsID, LogisticsStatus, BookingNote, CVSPaymentNo, CVSValidationNo, CheckMacValue } = params
+
+  // Verify CheckMacValue signature
+  if (CheckMacValue) {
+    const paramsWithoutMac = { ...params }
+    delete paramsWithoutMac.CheckMacValue
+    const expected = buildCheckMacValue(paramsWithoutMac, HASH_KEY, HASH_IV)
+    if (CheckMacValue !== expected) {
+      console.warn("[webhooks/ecpay-logistics] CheckMacValue mismatch")
+      res.status(400).send("0|SignatureError"); return
+    }
+  }
 
   if (!AllPayLogisticsID) {
     res.status(400).send("0|MissingLogisticsID"); return
@@ -51,7 +66,7 @@ ecpayLogisticsWebhookRouter.post("/", async (req, res) => {
     } else if (mappedStatus === "delivered") {
       await supabase
         .from("orders")
-        .update({ status: "delivered", updated_at: new Date().toISOString() })
+        .update({ status: "completed", updated_at: new Date().toISOString() })
         .eq("id", record.order_id)
     }
   }

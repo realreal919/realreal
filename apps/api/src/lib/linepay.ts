@@ -22,7 +22,7 @@ export async function requestPayment(
 ): Promise<{ paymentUrl: string; transactionId: string }> {
   const uri = "/v3/payments/request"
   const nonce = randomUUID()
-  const siteUrl = process.env.SITE_URL ?? "https://realreal.cc"
+  const apiUrl = process.env.API_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? "https://realreal-rho.vercel.app"
   const bodyObj = {
     amount,
     currency: "TWD",
@@ -36,8 +36,8 @@ export async function requestPayment(
       },
     ],
     redirectUrls: {
-      confirmUrl: `${siteUrl}/webhooks/linepay/confirm`,
-      cancelUrl: `${siteUrl}/webhooks/linepay/cancel`,
+      confirmUrl: `${apiUrl}/api/webhooks/linepay/confirm`,
+      cancelUrl: `${apiUrl}/api/webhooks/linepay/cancel`,
     },
   }
   const body = JSON.stringify(bodyObj)

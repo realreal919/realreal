@@ -7,9 +7,10 @@ export const linepayWebhookRouter = Router()
 // GET /webhooks/linepay/confirm?transactionId=&orderId= — LINE Pay redirects browser here after payment
 linepayWebhookRouter.get("/confirm", async (req, res) => {
   const { transactionId, orderId } = req.query as { transactionId: string; orderId: string }
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://realreal-rho.vercel.app"
 
   if (!transactionId || !orderId) {
-    res.status(400).json({ error: "Missing transactionId or orderId" }); return
+    res.redirect(`${siteUrl}/checkout/confirm?status=error`); return
   }
 
   // Idempotency guard
@@ -24,64 +25,86 @@ linepayWebhookRouter.get("/confirm", async (req, res) => {
   if (idempotencyError) {
     if (idempotencyError.code === "23505") {
       // Already confirmed — redirect as success
-      res.redirect(`/checkout/result?gateway=linepay&success=true&trade=${transactionId}`); return
+      res.redirect(`${siteUrl}/checkout/confirm?order=${orderId}&status=success`); return
     }
     console.error("[webhooks/linepay] idempotency insert failed:", idempotencyError)
-    res.redirect(`/checkout/result?gateway=linepay&success=false`); return
+    res.redirect(`${siteUrl}/checkout/confirm?order=${orderId}&status=error`); return
   }
 
-  // Look up the payment transaction by gateway_trade_no (transactionId)
-  const { data: tx } = await supabase
-    .from("payment_transactions")
-    .select("id, order_id, amount_cents")
-    .eq("gateway_trade_no", transactionId)
+  // Look up the payment by gateway_tx_id (the LINE Pay transactionId)
+  const { data: payment } = await supabase
+    .from("payments")
+    .select("id, order_id, amount")
+    .eq("gateway_tx_id", transactionId)
     .single()
 
-  if (!tx) {
-    res.redirect(`/checkout/result?gateway=linepay&success=false`); return
+  if (!payment) {
+    console.error("[webhooks/linepay] payment not found for transactionId:", transactionId)
+    res.redirect(`${siteUrl}/checkout/confirm?order=${orderId}&status=error`); return
   }
 
   try {
-    await confirmPayment(transactionId, tx.amount_cents)
+    await confirmPayment(transactionId, payment.amount)
 
     await supabase
-      .from("payment_transactions")
+      .from("payments")
       .update({ status: "captured", updated_at: new Date().toISOString() })
-      .eq("id", tx.id)
+      .eq("id", payment.id)
 
     await supabase
       .from("orders")
-      .update({ status: "paid", updated_at: new Date().toISOString() })
-      .eq("id", tx.order_id)
+      .update({
+        status: "processing",
+        payment_status: "paid",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", payment.order_id)
 
-    res.redirect(`/checkout/result?gateway=linepay&success=true&trade=${transactionId}`)
+    // Enqueue email + invoice jobs
+    try {
+      const { enqueuePostPaymentJobs } = await import("../../lib/enqueue-post-payment")
+      await enqueuePostPaymentJobs(payment.order_id)
+    } catch (err) {
+      console.warn("[webhooks/linepay] enqueue jobs failed (non-fatal):", err)
+    }
+
+    res.redirect(`${siteUrl}/checkout/confirm?order=${orderId}&status=success`)
   } catch (err) {
     console.error("[webhooks/linepay] confirm failed:", err)
 
     await supabase
-      .from("payment_transactions")
+      .from("payments")
       .update({ status: "failed", updated_at: new Date().toISOString() })
-      .eq("id", tx.id)
+      .eq("id", payment.id)
 
     await supabase
       .from("orders")
-      .update({ status: "payment_failed", updated_at: new Date().toISOString() })
-      .eq("id", tx.order_id)
+      .update({
+        status: "failed",
+        payment_status: "failed",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", payment.order_id)
 
-    res.redirect(`/checkout/result?gateway=linepay&success=false`)
+    res.redirect(`${siteUrl}/checkout/confirm?order=${orderId}&status=failed`)
   }
 })
 
 // GET /webhooks/linepay/cancel?orderId= — user cancelled payment
 linepayWebhookRouter.get("/cancel", async (req, res) => {
   const { orderId } = req.query as { orderId: string }
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://realreal-rho.vercel.app"
 
   if (orderId) {
     await supabase
       .from("orders")
-      .update({ status: "payment_failed", updated_at: new Date().toISOString() })
+      .update({
+        status: "cancelled",
+        payment_status: "pending",
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", orderId)
   }
 
-  res.redirect("/checkout/payment?error=cancelled")
+  res.redirect(`${siteUrl}/checkout/payment?error=cancelled`)
 })

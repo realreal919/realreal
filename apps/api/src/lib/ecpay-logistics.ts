@@ -1,8 +1,8 @@
 import { createHash } from "crypto"
 
 const MERCHANT_ID = process.env.ECPAY_MERCHANT_ID ?? ""
-const HASH_KEY = process.env.ECPAY_LOGISTICS_HASH_KEY ?? ""
-const HASH_IV = process.env.ECPAY_LOGISTICS_HASH_IV ?? ""
+const HASH_KEY = process.env.ECPAY_HASH_KEY ?? ""
+const HASH_IV = process.env.ECPAY_HASH_IV ?? ""
 
 const BASE_URL = process.env.ECPAY_SANDBOX === "true"
   ? "https://logistics-stage.ecpay.com.tw"
@@ -17,7 +17,7 @@ export function buildCheckMacValue(params: Record<string, string>, hashKey: stri
   const encoded = encodeURIComponent(raw).toLowerCase()
     .replace(/%20/g, "+").replace(/%21/g, "!").replace(/%28/g, "(").replace(/%29/g, ")")
     .replace(/%2a/g, "*").replace(/%2d/g, "-").replace(/%2e/g, ".").replace(/%5f/g, "_")
-  return createHash("sha256").update(encoded).digest("hex").toUpperCase()
+  return createHash("md5").update(encoded).digest("hex").toUpperCase()
 }
 
 export interface CvsLogisticsResult {

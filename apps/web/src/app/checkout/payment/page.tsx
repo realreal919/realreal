@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { useCart } from "@/lib/cart"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
+import type { InvoiceData } from "@/components/checkout/InvoiceSelector"
 
 type PaymentMethod = "pchomepay" | "linepay" | "jkopay"
 
@@ -29,7 +30,7 @@ type CheckoutData = {
   address: { name: string; phone: string; email?: string; addressType: string; city: string; district?: string; postalCode: string; addressLine?: string; cvsStoreName?: string; cvsStoreId?: string }
   shippingMethod: string
   shippingFee?: number
-  invoice?: unknown
+  invoice?: InvoiceData
 }
 
 const SHIPPING_LABELS: Record<string, string> = {
@@ -92,7 +93,6 @@ function StepIndicator({ current }: { current: number }) {
 
 export default function PaymentPage() {
   const router = useRouter()
-  const clearCart = useCart(s => s.clear)
   const [checkoutData, setCheckoutData] = useState<CheckoutData | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("pchomepay")
   const [couponCode, setCouponCode] = useState("")
@@ -101,6 +101,7 @@ export default function PaymentPage() {
   const [discount, setDiscount] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [memberDiscount, setMemberDiscount] = useState<{ discountRate: number; tierName: string | null }>({ discountRate: 0, tierName: null })
 
   useEffect(() => {
     const raw = localStorage.getItem("realreal-checkout")
@@ -115,26 +116,70 @@ export default function PaymentPage() {
     }
   }, [router])
 
+  // Fetch member discount rate for logged-in users
+  useEffect(() => {
+    async function fetchMemberDiscount() {
+      try {
+        const supabase = createClient()
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session?.access_token) return
+
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
+        const res = await fetch(`${apiUrl}/my-member-discount`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+        if (!res.ok) return
+        const body = await res.json() as { data?: { discountRate?: number; tierName?: string | null } }
+        if (body?.data?.discountRate && body.data.discountRate > 0) {
+          setMemberDiscount({ discountRate: body.data.discountRate, tierName: body.data.tierName ?? null })
+        }
+      } catch {
+        // Silently fail — member discount is optional
+      }
+    }
+    fetchMemberDiscount()
+  }, [])
+
   const subtotal = checkoutData
     ? checkoutData.items.reduce((sum, i) => sum + i.price * i.qty, 0)
     : 0
   const shippingFee = checkoutData?.shippingFee ?? 0
-  const grandTotal = subtotal + shippingFee - discount
+  const memberDiscountAmount = Math.round(subtotal * memberDiscount.discountRate)
+  const grandTotal = subtotal - memberDiscountAmount + shippingFee - discount
 
-  function handleApplyCoupon() {
+  const [couponLoading, setCouponLoading] = useState(false)
+
+  async function handleApplyCoupon() {
     setCouponError("")
     if (!couponCode.trim()) {
       setCouponError("請輸入優惠碼")
       return
     }
-    // Placeholder: in production this would call an API to validate
-    if (couponCode.toUpperCase() === "REALREAL100") {
-      setDiscount(100)
+    setCouponLoading(true)
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
+      const res = await fetch(`${apiUrl}/coupons/validate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: couponCode.trim(), order_amount: subtotal }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: "無效的優惠碼" }))
+        setCouponError((body as { error?: string }).error ?? "無效的優惠碼")
+        setCouponApplied(false)
+        setDiscount(0)
+        return
+      }
+      const body = await res.json() as { data?: { discount?: number } }
+      const discountAmount = body?.data?.discount ?? 0
+      setDiscount(discountAmount)
       setCouponApplied(true)
-    } else {
-      setCouponError("無效的優惠碼")
+    } catch {
+      setCouponError("驗證優惠碼時發生錯誤，請稍後再試")
       setCouponApplied(false)
       setDiscount(0)
+    } finally {
+      setCouponLoading(false)
     }
   }
 
@@ -152,6 +197,7 @@ export default function PaymentPage() {
           address: checkoutData.address,
           shippingMethod: checkoutData.shippingMethod,
           paymentMethod,
+          invoice: checkoutData.invoice,
           couponCode: couponApplied ? couponCode : undefined,
         }),
       })
@@ -161,13 +207,20 @@ export default function PaymentPage() {
         throw new Error((body as { message?: string }).message ?? "建立訂單失敗")
       }
 
-      const data = await res.json() as { data?: { id?: string; order_number?: string } }
-      const orderNumber = data?.data?.order_number ?? data?.data?.id ?? "unknown"
+      const data = await res.json() as {
+        data?: { orderId?: string; orderNumber?: string; paymentUrl?: string }
+      }
+      const paymentUrl = data?.data?.paymentUrl
 
-      localStorage.removeItem("realreal-checkout")
-      clearCart()
-      toast.success("訂單建立成功")
-      router.push(`/checkout/confirm?order=${orderNumber}`)
+      if (paymentUrl) {
+        // Redirect to payment gateway (PChomePay / LINE Pay / JKOPay).
+        // Cart clearing and confirm redirect happen after the payment webhook callback.
+        toast.success("正在前往付款頁面...")
+        window.location.href = paymentUrl
+      } else {
+        // paymentUrl should always be present; if missing, show an error
+        setError("無法取得付款連結，請稍後再試或聯繫客服")
+      }
     } catch (err) {
       toast.error("建立訂單失敗")
       setError(err instanceof Error ? err.message : "付款失敗，請稍後再試")
@@ -260,8 +313,8 @@ export default function PaymentPage() {
                   移除
                 </Button>
               ) : (
-                <Button variant="outline" onClick={handleApplyCoupon}>
-                  套用
+                <Button variant="outline" onClick={handleApplyCoupon} disabled={couponLoading}>
+                  {couponLoading ? "驗證中..." : "套用"}
                 </Button>
               )}
             </div>
@@ -284,6 +337,12 @@ export default function PaymentPage() {
                 <span>運費</span>
                 <span>NT$ {shippingFee.toLocaleString()}</span>
               </div>
+              {memberDiscountAmount > 0 && (
+                <div className="flex justify-between text-amber-600">
+                  <span>{memberDiscount.tierName ?? "會員"}折扣 ({Math.round(memberDiscount.discountRate * 100)}% off)</span>
+                  <span>-NT$ {memberDiscountAmount.toLocaleString()}</span>
+                </div>
+              )}
               {discount > 0 && (
                 <div className="flex justify-between text-green-600">
                   <span>優惠折抵</span>
@@ -346,6 +405,12 @@ export default function PaymentPage() {
                 <span>運費</span>
                 <span>NT$ {shippingFee.toLocaleString()}</span>
               </div>
+              {memberDiscountAmount > 0 && (
+                <div className="flex justify-between text-amber-600">
+                  <span>{memberDiscount.tierName ?? "會員"}折扣 ({Math.round(memberDiscount.discountRate * 100)}% off)</span>
+                  <span>-NT$ {memberDiscountAmount.toLocaleString()}</span>
+                </div>
+              )}
               {discount > 0 && (
                 <div className="flex justify-between text-green-600">
                   <span>優惠折抵</span>

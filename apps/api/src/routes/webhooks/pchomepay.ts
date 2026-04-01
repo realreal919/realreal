@@ -62,15 +62,18 @@ pchomepayWebhookRouter.post("/", async (req, res) => {
 
     await supabase
       .from("orders")
-      .update({ status: success ? "paid" : "payment_failed", updated_at: new Date().toISOString() })
+      .update({
+        status: success ? "processing" : "failed",
+        payment_status: success ? "paid" : "failed",
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", tx.order_id)
 
     if (success) {
       // Enqueue email + invoice jobs
       try {
-        const { inventoryQueue } = await import("../../lib/queue")
-        await inventoryQueue.add("order-paid-email", { orderId: tx.order_id })
-        await inventoryQueue.add("order-paid-invoice", { orderId: tx.order_id })
+        const { enqueuePostPaymentJobs } = await import("../../lib/enqueue-post-payment")
+        await enqueuePostPaymentJobs(tx.order_id)
       } catch (err) {
         console.warn("[webhooks/pchomepay] enqueue jobs failed (non-fatal):", err)
       }

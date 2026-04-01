@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useState, useCallback } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useCart } from "@/lib/cart"
 import { Button } from "@/components/ui/button"
@@ -19,9 +19,25 @@ const SHIPPING_LABELS: Record<ShippingMethod, string> = {
 }
 
 const SHIPPING_FEES: Record<ShippingMethod, number> = {
-  "711": 60,
-  "family": 60,
-  "home_delivery": 100,
+  "711": 65,
+  "family": 65,
+  "home_delivery": 150,
+}
+
+const FREE_SHIPPING_THRESHOLD: Record<ShippingMethod, number> = {
+  "711": 499,
+  "family": 499,
+  "home_delivery": 999,
+}
+
+function getShippingFee(method: ShippingMethod, subtotal: number): number {
+  return subtotal >= FREE_SHIPPING_THRESHOLD[method] ? 0 : SHIPPING_FEES[method]
+}
+
+function formatShippingFee(method: ShippingMethod, subtotal: number): string {
+  const fee = getShippingFee(method, subtotal)
+  if (fee === 0) return "免運"
+  return `NT$ ${fee}`
 }
 
 const STEPS = [
@@ -102,14 +118,47 @@ export default function CheckoutPage() {
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>("home_delivery")
   const [cvsStoreName, setCvsStoreName] = useState("")
   const [cvsStoreId, setCvsStoreId] = useState("")
+  const [cvsAddress, setCvsAddress] = useState("")
   const [invoice, setInvoice] = useState<InvoiceData>({ type: "B2C_2" })
   const [errors, setErrors] = useState<FieldErrors>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
+
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     useCart.persist.rehydrate()
     setHydrated(true)
   }, [])
+
+  // Read store selection result from URL query params (ECPay redirects back here)
+  useEffect(() => {
+    const storeId = searchParams.get("cvsStoreId")
+    const storeName = searchParams.get("cvsStoreName")
+    const storeAddress = searchParams.get("cvsAddress")
+    const subType = searchParams.get("logisticsSubType")
+
+    if (storeId && storeName) {
+      setCvsStoreId(storeId)
+      setCvsStoreName(storeName)
+      if (storeAddress) setCvsAddress(storeAddress)
+      if (subType === "FAMI") {
+        setShippingMethod("family")
+        setAddressType("cvs")
+      } else if (subType === "UNIMART") {
+        setShippingMethod("711")
+        setAddressType("cvs")
+      }
+      // Clean up URL params
+      window.history.replaceState({}, "", "/checkout")
+    }
+  }, [searchParams])
+
+  const openCvsMap = useCallback(() => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
+    const subType = shippingMethod === "family" ? "FAMI" : "UNIMART"
+    const url = `${apiUrl}/logistics/map?logisticsSubType=${subType}&isCollection=N`
+    window.open(url, "_blank", "width=800,height=600")
+  }, [shippingMethod])
 
   // When switching to CVS, auto-select a CVS shipping method
   useEffect(() => {
@@ -162,7 +211,7 @@ export default function CheckoutPage() {
         cvsStoreId,
       },
       shippingMethod,
-      shippingFee: SHIPPING_FEES[shippingMethod],
+      shippingFee: getShippingFee(shippingMethod, total()),
       invoice,
     }
     localStorage.setItem("realreal-checkout", JSON.stringify(checkoutData))
@@ -171,8 +220,8 @@ export default function CheckoutPage() {
 
   if (!hydrated) return null
 
-  const shippingFee = SHIPPING_FEES[shippingMethod]
   const subtotal = total()
+  const shippingFee = getShippingFee(shippingMethod, subtotal)
   const grandTotal = subtotal + shippingFee
 
   return (
@@ -296,7 +345,7 @@ export default function CheckoutPage() {
                               />
                               <span className="font-medium text-sm">🚚 {label}</span>
                             </div>
-                            <span className="text-sm text-zinc-500">NT$ {SHIPPING_FEES[value]}</span>
+                            <span className="text-sm text-zinc-500">{formatShippingFee(value, subtotal)}</span>
                           </label>
                         ))}
                     </div>
@@ -385,7 +434,7 @@ export default function CheckoutPage() {
                                 {value === "711" ? "🏪" : "🏬"} {label}
                               </span>
                             </div>
-                            <span className="text-sm text-zinc-500">NT$ {SHIPPING_FEES[value]}</span>
+                            <span className="text-sm text-zinc-500">{formatShippingFee(value, subtotal)}</span>
                           </label>
                         ))}
                     </div>
@@ -397,11 +446,14 @@ export default function CheckoutPage() {
                           <div>
                             <p className="font-medium text-sm">{cvsStoreName}</p>
                             <p className="text-xs text-zinc-500">門市編號：{cvsStoreId}</p>
+                            {cvsAddress && (
+                              <p className="text-xs text-zinc-500">{cvsAddress}</p>
+                            )}
                           </div>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => { setCvsStoreName(""); setCvsStoreId("") }}
+                            onClick={() => { setCvsStoreName(""); setCvsStoreId(""); setCvsAddress("") }}
                           >
                             重新選擇
                           </Button>
@@ -409,25 +461,13 @@ export default function CheckoutPage() {
                       ) : (
                         <div className="text-center space-y-2">
                           <p className="text-sm text-zinc-500">尚未選擇取貨門市</p>
-                          <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                            <Input
-                              placeholder="輸入門市名稱搜尋"
-                              value={cvsStoreName}
-                              onChange={e => setCvsStoreName(e.target.value)}
-                              className="max-w-xs"
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                // Placeholder: In production this would open the CVS map selector API
-                                setCvsStoreName(shippingMethod === "711" ? "7-ELEVEN 誠真門市" : "全家 誠真店")
-                                setCvsStoreId(shippingMethod === "711" ? "170622" : "006834")
-                              }}
-                            >
-                              選擇門市
-                            </Button>
-                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={openCvsMap}
+                          >
+                            選擇取貨門市
+                          </Button>
                           {touched.cvsStore && errors.cvsStore && (
                             <p className="text-xs text-red-500">{errors.cvsStore}</p>
                           )}
@@ -464,7 +504,7 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex justify-between text-zinc-500">
                       <span>運費</span>
-                      <span>NT$ {shippingFee.toLocaleString()}</span>
+                      <span>{shippingFee === 0 ? "免運" : `NT$ ${shippingFee.toLocaleString()}`}</span>
                     </div>
                     <div className="flex justify-between font-semibold text-base pt-1 border-t">
                       <span>合計</span>
@@ -517,7 +557,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex justify-between text-zinc-500">
                   <span>運費（{SHIPPING_LABELS[shippingMethod]}）</span>
-                  <span>NT$ {shippingFee.toLocaleString()}</span>
+                  <span>{shippingFee === 0 ? "免運" : `NT$ ${shippingFee.toLocaleString()}`}</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg pt-2 border-t">
                   <span>合計</span>
