@@ -1,0 +1,109 @@
+import { Router } from "express"
+import { z } from "zod"
+import { supabase } from "../lib/supabase"
+import { requireAuth } from "../middleware/auth"
+import { requireAdmin } from "../middleware/admin"
+
+export const adminOrdersRouter = Router()
+
+adminOrdersRouter.use(requireAuth, requireAdmin)
+
+const VALID_STATUSES = ["pending", "processing", "shipped", "completed", "cancelled", "failed"] as const
+
+const updateStatusSchema = z.object({
+  status: z.enum(VALID_STATUSES),
+})
+
+// PATCH /admin/orders/:id/status — update order status (admin only)
+adminOrdersRouter.patch("/:id/status", async (req, res) => {
+  const parsed = updateStatusSchema.safeParse(req.body)
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid status", details: parsed.error.flatten() }); return
+  }
+
+  const orderId = req.params.id
+  const newStatus = parsed.data.status
+
+  // Fetch current order to validate transition and handle payment_status
+  const { data: order, error: fetchError } = await supabase
+    .from("orders")
+    .select("id, status, payment_status")
+    .eq("id", orderId)
+    .single()
+
+  if (fetchError || !order) {
+    res.status(404).json({ error: "Order not found" }); return
+  }
+
+  // Build update payload
+  const update: Record<string, string> = {
+    status: newStatus,
+    updated_at: new Date().toISOString(),
+  }
+
+  // When admin confirms payment manually, also set payment_status to 'paid'
+  if (newStatus === "processing" && order.payment_status !== "paid") {
+    update.payment_status = "paid"
+  }
+
+  // When cancelling an order that was already paid, set payment_status to 'refunded'
+  if (newStatus === "cancelled" && order.payment_status === "paid") {
+    update.payment_status = "refunded"
+  }
+
+  const { data: updated, error: updateError } = await supabase
+    .from("orders")
+    .update(update)
+    .eq("id", orderId)
+    .select("id, status, payment_status, updated_at")
+    .single()
+
+  if (updateError) {
+    console.error("[admin/orders] status update failed:", updateError)
+    res.status(500).json({ error: "Failed to update order status" }); return
+  }
+
+  res.json({ data: updated })
+})
+
+// POST /admin/orders/bulk-status — bulk update order statuses (admin only)
+adminOrdersRouter.post("/bulk-status", async (req, res) => {
+  const schema = z.object({
+    ids: z.array(z.string().uuid()).min(1),
+    status: z.enum(VALID_STATUSES),
+  })
+  const parsed = schema.safeParse(req.body)
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request", details: parsed.error.flatten() }); return
+  }
+
+  const { ids, status: newStatus } = parsed.data
+
+  // For cancellation with refund, we need to check each order's payment_status
+  if (newStatus === "cancelled") {
+    // Update paid orders to refunded
+    await supabase
+      .from("orders")
+      .update({ status: newStatus, payment_status: "refunded", updated_at: new Date().toISOString() })
+      .in("id", ids)
+      .eq("payment_status", "paid")
+
+    // Update non-paid orders normally
+    await supabase
+      .from("orders")
+      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .in("id", ids)
+      .neq("payment_status", "paid")
+  } else {
+    const update: Record<string, string> = { status: newStatus, updated_at: new Date().toISOString() }
+    if (newStatus === "processing") {
+      update.payment_status = "paid"
+    }
+    await supabase
+      .from("orders")
+      .update(update)
+      .in("id", ids)
+  }
+
+  res.json({ data: { updated: ids.length } })
+})

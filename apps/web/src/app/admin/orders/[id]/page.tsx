@@ -26,17 +26,17 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 const PAYMENT_STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+  pending: "outline",
   paid: "default",
-  unpaid: "outline",
-  refunded: "destructive",
-  partial_refund: "secondary",
+  failed: "destructive",
+  refunded: "secondary",
 }
 
 const PAYMENT_STATUS_LABEL: Record<string, string> = {
+  pending: "待付款",
   paid: "已付款",
-  unpaid: "未付款",
+  failed: "付款失敗",
   refunded: "已退款",
-  partial_refund: "部分退款",
 }
 
 export default async function AdminOrderDetailPage({

@@ -27,6 +27,7 @@ import { usersRouter } from "./routes/users"
 import { tiersRouter } from "./routes/tiers"
 import { campaignsRouter } from "./routes/campaigns"
 import { reviewsPublicRouter, reviewsAdminRouter } from "./routes/reviews"
+import { adminOrdersRouter } from "./routes/admin-orders"
 
 export const app = express()
 
@@ -46,6 +47,7 @@ app.use("/", couponsRouter)
 app.use("/", analyticsRouter)
 app.use("/admin/invoices", requireAuth, requireAdmin, invoicesRouter)
 app.use("/webhooks/amego", amegoWebhookRouter)
+app.use("/admin/orders", adminOrdersRouter)
 app.use("/orders", ordersRouter)
 app.use("/webhooks/pchomepay", pchomepayWebhookRouter)
 app.use("/webhooks/linepay", linepayWebhookRouter)
