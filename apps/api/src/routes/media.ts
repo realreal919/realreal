@@ -12,7 +12,7 @@ export const mediaRouter = Router()
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } })
 
 const STORAGE_BUCKET = "media"
-const PROJECT_REF = "oqzloydhoekvgncfvddh"
+const PROJECT_REF = process.env.SUPABASE_PROJECT_REF ?? "rywrdbqllbbeptudqmom"
 
 const updateSchema = z.object({
   alt_text: z.string(),

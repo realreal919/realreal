@@ -16,7 +16,7 @@ const MANIFEST_PATH = manifestIndex !== -1 ? args[manifestIndex + 1] : null
 const UPLOADS_DIR = dirIndex !== -1 ? args[dirIndex + 1] : "./wordpress/uploads"
 
 const STORAGE_BUCKET = "media"
-const PROJECT_REF = "oqzloydhoekvgncfvddh"
+const PROJECT_REF = process.env.SUPABASE_PROJECT_REF ?? "rywrdbqllbbeptudqmom"
 
 // ---------------------------------------------------------------------------
 // Supabase client (same pattern as seed-admin.ts)

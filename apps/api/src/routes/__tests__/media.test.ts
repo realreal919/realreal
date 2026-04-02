@@ -19,7 +19,7 @@ import { supabase } from "../../lib/supabase"
 
 const mockMedia = {
   id: "media-1",
-  url: "https://oqzloydhoekvgncfvddh.supabase.co/storage/v1/object/public/media/uploads/123-abc.jpg",
+  url: "https://rywrdbqllbbeptudqmom.supabase.co/storage/v1/object/public/media/uploads/123-abc.jpg",
   filename: "photo.jpg",
   mime_type: "image/jpeg",
   size_bytes: 102400,
