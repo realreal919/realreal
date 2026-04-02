@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next"
 import { getProducts } from "@/lib/catalog"
 
-const BASE_URL = "https://realreal-rho.vercel.app"
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://realreal.cc"
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: MetadataRoute.Sitemap = [

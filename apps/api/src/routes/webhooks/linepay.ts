@@ -7,7 +7,7 @@ export const linepayWebhookRouter = Router()
 // GET /webhooks/linepay/confirm?transactionId=&orderId= — LINE Pay redirects browser here after payment
 linepayWebhookRouter.get("/confirm", async (req, res) => {
   const { transactionId, orderId } = req.query as { transactionId: string; orderId: string }
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://realreal-rho.vercel.app"
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://realreal.cc"
 
   if (!transactionId || !orderId) {
     res.redirect(`${siteUrl}/checkout/confirm?status=error`); return
@@ -93,7 +93,7 @@ linepayWebhookRouter.get("/confirm", async (req, res) => {
 // GET /webhooks/linepay/cancel?orderId= — user cancelled payment
 linepayWebhookRouter.get("/cancel", async (req, res) => {
   const { orderId } = req.query as { orderId: string }
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://realreal-rho.vercel.app"
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://realreal.cc"
 
   if (orderId) {
     await supabase

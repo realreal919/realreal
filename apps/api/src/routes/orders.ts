@@ -151,7 +151,7 @@ ordersRouter.post("/", async (req, res) => {
   }
 
   // --- Payment initiation ---
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://realreal-rho.vercel.app"
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://realreal.cc"
   const confirmUrl = `${siteUrl}/checkout/confirm`
   let paymentUrl: string
   let gatewayTxId: string | null = null

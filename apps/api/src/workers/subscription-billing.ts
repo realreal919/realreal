@@ -115,7 +115,7 @@ async function processSingleSubscription(subscriptionId: string) {
         .single()
 
       if (user?.email) {
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://realreal-rho.vercel.app"
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://realreal.cc"
         const retryDate = new Date()
         retryDate.setDate(retryDate.getDate() + 3)
         await renderAndSendEmail({

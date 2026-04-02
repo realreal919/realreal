@@ -3,6 +3,6 @@ import type { MetadataRoute } from "next"
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: { userAgent: "*", allow: "/" },
-    sitemap: "https://realreal-rho.vercel.app/sitemap.xml",
+    sitemap: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://realreal.cc"}/sitemap.xml`,
   }
 }

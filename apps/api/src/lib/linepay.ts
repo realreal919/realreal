@@ -22,7 +22,7 @@ export async function requestPayment(
 ): Promise<{ paymentUrl: string; transactionId: string }> {
   const uri = "/v3/payments/request"
   const nonce = randomUUID()
-  const apiUrl = process.env.API_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? "https://realreal-rho.vercel.app"
+  const apiUrl = process.env.API_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? "https://realreal.cc"
   const bodyObj = {
     amount,
     currency: "TWD",

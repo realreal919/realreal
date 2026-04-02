@@ -4,7 +4,7 @@ import { StorefrontShell } from "@/components/layout/StorefrontShell"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://realreal-rho.vercel.app"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://realreal.cc"),
   title: {
     default: "誠真生活 RealReal | 純淨植物力健康食品",
     template: "%s | 誠真生活 RealReal",
