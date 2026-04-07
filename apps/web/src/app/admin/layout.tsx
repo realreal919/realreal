@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import Link from "next/link"
+import { LogoutButton } from "./LogoutButton"
 import {
   ShoppingCart,
   Package,
@@ -90,7 +91,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </Link>
           ))}
         </nav>
-        <div className="p-4 border-t border-white/10 text-xs text-white/50 truncate">{user.email}</div>
+        <div className="border-t border-white/10">
+          <div className="px-4 pt-3 pb-1 text-xs text-white/50 truncate">{user.email}</div>
+          <div className="px-2 pb-3">
+            <LogoutButton />
+          </div>
+        </div>
       </aside>
 
       <main className="flex-1 min-w-0 p-6">{children}</main>
