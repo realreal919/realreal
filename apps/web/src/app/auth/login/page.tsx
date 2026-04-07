@@ -1,6 +1,7 @@
 "use client"
 
 import { useActionState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,6 +20,8 @@ import Image from "next/image"
 
 export default function LoginPage() {
   const [state, formAction, isPending] = useActionState(loginAction, null)
+  const searchParams = useSearchParams()
+  const redirectTo = searchParams.get("redirect") || "/"
 
   useEffect(() => {
     if (state?.error) {
@@ -40,6 +43,7 @@ export default function LoginPage() {
           </CardHeader>
           <CardContent>
             <form action={formAction} className="space-y-4">
+                <input type="hidden" name="redirectTo" value={redirectTo} />
               <div className="space-y-2">
                 <Label htmlFor="email">電子郵件</Label>
                 <Input

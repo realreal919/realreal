@@ -26,7 +26,8 @@ export async function loginAction(_prev: unknown, formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword(parsed.data)
   if (error) return { error: error.message }
 
-  redirect("/")
+  const redirectTo = (formData.get("redirectTo") as string) || "/"
+  redirect(redirectTo)
 }
 
 export async function registerAction(_prev: unknown, formData: FormData) {
