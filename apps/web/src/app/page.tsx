@@ -2,6 +2,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { ReviewImagesCarousel } from "@/components/ui/review-images-carousel"
 import { getProducts, getCategories } from "@/lib/catalog"
 import type { Product, Category } from "@/lib/catalog"
 import { getSiteContent, getPosts } from "@/lib/content"
@@ -436,17 +437,6 @@ const defaultReviews: Testimonial[] = [
   },
 ]
 
-// Real customer review screenshots from the WordPress site
-const reviewImages = [
-  { src: "https://realreal.cc/wp-content/uploads/2026/02/S__73097241_0-576x1024.jpg", alt: "顧客回饋 1" },
-  { src: "https://realreal.cc/wp-content/uploads/2026/02/S__73097242_0-576x1024.jpg", alt: "顧客回饋 2" },
-  { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋5-576x1024.jpg", alt: "顧客回饋 3" },
-  { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋1-576x1024.jpg", alt: "顧客回饋 4" },
-  { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋2-576x1024.jpg", alt: "顧客回饋 5" },
-  { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋3-576x1024.jpg", alt: "顧客回饋 6" },
-  { src: "https://realreal.cc/wp-content/uploads/2026/02/回饋4-653x1024.jpg", alt: "顧客回饋 7" },
-  { src: "https://realreal.cc/wp-content/uploads/2026/02/FCF1A2D1-116B-4048-A859-ECA627D3CFEB-576x1024.jpg", alt: "顧客回饋 8" },
-]
 
 function ReviewsSection({ testimonials }: { testimonials?: Testimonial[] | null }) {
   const reviews = testimonials && testimonials.length > 0 ? testimonials : defaultReviews
@@ -478,21 +468,8 @@ function ReviewsSection({ testimonials }: { testimonials?: Testimonial[] | null 
           ))}
         </div>
 
-        {/* Real customer review screenshots */}
-        <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {reviewImages.map((img) => (
-            <div key={img.src} className="overflow-hidden rounded-[10px] shadow-sm">
-              <Image
-                src={img.src}
-                alt={img.alt}
-                width={576}
-                height={1024}
-                className="w-full h-auto object-cover"
-                unoptimized
-              />
-            </div>
-          ))}
-        </div>
+        {/* Real customer review screenshots - carousel */}
+        <ReviewImagesCarousel />
       </div>
     </section>
   )
