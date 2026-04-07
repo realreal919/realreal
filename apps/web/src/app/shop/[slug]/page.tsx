@@ -152,11 +152,12 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               {product.shop_left && (
                 <div>
                   <div
-                    className="prose prose-sm max-w-none leading-relaxed
-                      prose-headings:font-semibold prose-headings:text-[#10305a] prose-headings:mt-4 prose-headings:mb-2
+                    className="prose prose-sm max-w-none
+                      prose-p:leading-relaxed prose-p:my-3
+                      prose-headings:font-semibold prose-headings:text-[#10305a] prose-headings:mt-6 prose-headings:mb-3
                       prose-h4:text-base prose-h5:text-sm
-                      prose-ul:pl-4 prose-li:my-0.5
-                      prose-blockquote:border-l-[#10305a] prose-blockquote:bg-gray-50 prose-blockquote:py-2 prose-blockquote:px-4 prose-blockquote:rounded-r-lg prose-blockquote:not-italic
+                      prose-ul:pl-5 prose-li:my-1.5 prose-ul:my-3
+                      prose-blockquote:border-l-[#10305a] prose-blockquote:bg-gray-50 prose-blockquote:py-3 prose-blockquote:px-4 prose-blockquote:rounded-r-lg prose-blockquote:not-italic prose-blockquote:my-4
                       prose-strong:text-[#10305a]"
                     style={{ color: "#687279" }}
                     dangerouslySetInnerHTML={{ __html: product.shop_left }}
@@ -167,10 +168,11 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               {product.shop_middle && (
                 <div>
                   <div
-                    className="prose prose-sm max-w-none leading-relaxed
-                      prose-headings:font-semibold prose-headings:text-[#10305a] prose-headings:mt-4 prose-headings:mb-2
+                    className="prose prose-sm max-w-none
+                      prose-p:leading-relaxed prose-p:my-3
+                      prose-headings:font-semibold prose-headings:text-[#10305a] prose-headings:mt-6 prose-headings:mb-3
                       prose-h4:text-base prose-h5:text-sm
-                      prose-ul:pl-4 prose-li:my-0.5
+                      prose-ul:pl-5 prose-li:my-1.5 prose-ul:my-3
                       prose-strong:text-[#10305a]"
                     style={{ color: "#687279" }}
                     dangerouslySetInnerHTML={{ __html: product.shop_middle }}
@@ -181,10 +183,11 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               {product.shop_right && (
                 <div>
                   <div
-                    className="prose prose-sm max-w-none leading-relaxed
-                      prose-headings:font-semibold prose-headings:text-[#10305a] prose-headings:mt-4 prose-headings:mb-2
+                    className="prose prose-sm max-w-none
+                      prose-p:leading-relaxed prose-p:my-3
+                      prose-headings:font-semibold prose-headings:text-[#10305a] prose-headings:mt-6 prose-headings:mb-3
                       prose-h4:text-base prose-h5:text-sm
-                      prose-ul:pl-4 prose-li:my-0.5
+                      prose-ul:pl-5 prose-li:my-1.5 prose-ul:my-3
                       prose-a:text-[#10305a] prose-a:underline
                       prose-strong:text-[#10305a]"
                     style={{ color: "#687279" }}
