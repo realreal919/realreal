@@ -5,7 +5,6 @@ import type { Product } from "@/lib/catalog"
 
 export function ProductCard({
   product,
-  categoryName,
 }: {
   product: Product
   categoryName?: string
@@ -15,25 +14,23 @@ export function ProductCard({
   const minPrice = product.min_price
   const maxPrice = product.max_price
   const hasRange = minPrice != null && maxPrice != null && minPrice !== maxPrice
-  // Show "特價" badge when there is a price range (variable product with different prices)
-  const showSaleBadge =
-    hasRange && minPrice != null && maxPrice != null && minPrice < maxPrice
-
-  // Determine if product is "variable" (has price range) or "simple"
   const isVariable = hasRange
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div
+      className="flex flex-col h-full bg-white overflow-hidden"
+      style={{ boxShadow: "2px 2px 6px 0 rgba(0,0,0,.15)" }}
+    >
       {/* Image */}
-      <Link href={`/shop/${product.slug}`} className="block">
-        <div className="aspect-square relative bg-zinc-50 overflow-hidden">
+      <Link href={`/shop/${product.slug}`} className="block overflow-hidden">
+        <div className="aspect-square relative bg-zinc-50 overflow-hidden group">
           {image ? (
             <Image
               src={image}
               alt={product.name}
               fill
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              className="object-cover"
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-zinc-400 text-sm">
@@ -42,10 +39,10 @@ export function ProductCard({
           )}
 
           {/* Sale badge */}
-          {showSaleBadge && (
+          {hasRange && minPrice != null && maxPrice != null && minPrice < maxPrice && (
             <div
-              className="absolute top-2 left-2 px-2 py-0.5 text-xs font-semibold text-white rounded-sm"
-              style={{ backgroundColor: "#10305a" }}
+              className="absolute top-2 left-2 px-2 py-0.5 text-xs font-bold text-white"
+              style={{ backgroundColor: "#b91c1c" }}
             >
               特價
             </div>
@@ -54,7 +51,7 @@ export function ProductCard({
           {/* Sold out overlay */}
           {isSoldOut && (
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-              <span className="text-white text-sm font-semibold px-3 py-1 bg-red-600 rounded">
+              <span className="text-white text-sm font-semibold px-3 py-1 bg-red-600">
                 已售完
               </span>
             </div>
@@ -63,62 +60,57 @@ export function ProductCard({
       </Link>
 
       {/* Content */}
-      <div className="flex flex-col flex-1 pt-3 pb-2 px-1 gap-1.5">
+      <div className="flex flex-col flex-1 pt-3 pb-3 px-3 gap-2">
         {/* Product name */}
         <Link href={`/shop/${product.slug}`}>
           <p
-            className="text-sm font-medium leading-snug line-clamp-2"
-            style={{ color: "#10305a", fontFamily: "'Gill Sans', 'Gill Sans MT', sans-serif" }}
+            className="text-sm font-medium leading-snug line-clamp-2 hover:underline"
+            style={{ color: "#10305a" }}
           >
             {product.name}
           </p>
         </Link>
 
-        {/* Price */}
-        {minPrice != null && minPrice > 0 && (
-          <p
-            className="text-sm font-semibold"
-            style={{ color: "#10305a", fontFamily: "'Gill Sans', 'Gill Sans MT', sans-serif" }}
-          >
-            {hasRange
-              ? `NT$${minPrice.toLocaleString()} – NT$${maxPrice!.toLocaleString()}`
-              : `NT$${minPrice.toLocaleString()}`}
-          </p>
-        )}
-
-        {/* Star rating */}
+        {/* Star rating - always 5 stars like WP site */}
         <div className="flex items-center gap-0.5" style={{ color: "#f59e0b" }}>
-          {"★★★★★".split("").map((star, i) => (
-            <span key={i} className="text-sm leading-none">
-              {star}
-            </span>
+          {[1,2,3,4,5].map(i => (
+            <span key={i} className="text-xs leading-none">★</span>
           ))}
         </div>
 
-        {/* Category tags */}
-        {categoryName && (
-          <p
-            className="text-xs text-zinc-400 leading-snug"
-            style={{ fontFamily: "'Gill Sans', 'Gill Sans MT', sans-serif" }}
-          >
-            ALL, {categoryName}
-          </p>
+        {/* Price */}
+        {minPrice != null && minPrice > 0 && (
+          <div className="flex items-baseline gap-1.5 flex-wrap">
+            {hasRange ? (
+              <>
+                <span className="text-sm font-bold" style={{ color: "#10305a" }}>
+                  NT${minPrice.toLocaleString()}
+                </span>
+                <span className="text-xs" style={{ color: "#687279" }}>
+                  – NT${maxPrice!.toLocaleString()}
+                </span>
+              </>
+            ) : (
+              <span className="text-sm font-bold" style={{ color: "#10305a" }}>
+                NT${minPrice.toLocaleString()}
+              </span>
+            )}
+          </div>
         )}
 
-        {/* Spacer to push button to bottom */}
+        {/* Spacer */}
         <div className="flex-1" />
 
         {/* Action button */}
-        {!isSoldOut && (
-          <div className="mt-2">
+        {!isSoldOut ? (
+          <div className="mt-1">
             {isVariable ? (
               <Link
                 href={`/shop/${product.slug}`}
-                className="block w-full text-center text-xs font-semibold py-2.5 border rounded-[10px] transition-colors hover:bg-zinc-50"
+                className="block w-full text-center text-xs font-semibold py-2.5 border transition-colors hover:bg-zinc-50"
                 style={{
                   color: "#10305a",
                   borderColor: "#10305a",
-                  fontFamily: "'Gill Sans', 'Gill Sans MT', sans-serif",
                 }}
               >
                 選擇規格
@@ -126,15 +118,21 @@ export function ProductCard({
             ) : (
               <Link
                 href={`/shop/${product.slug}`}
-                className="block w-full text-center text-xs font-semibold py-2.5 text-white rounded-[10px] transition-opacity hover:opacity-90"
-                style={{
-                  backgroundColor: "#10305a",
-                  fontFamily: "'Gill Sans', 'Gill Sans MT', sans-serif",
-                }}
+                className="block w-full text-center text-xs font-semibold py-2.5 text-white transition-opacity hover:opacity-90"
+                style={{ backgroundColor: "#10305a" }}
               >
                 加入購物車
               </Link>
             )}
+          </div>
+        ) : (
+          <div className="mt-1">
+            <div
+              className="block w-full text-center text-xs font-semibold py-2.5 text-white opacity-50 cursor-not-allowed"
+              style={{ backgroundColor: "#687279" }}
+            >
+              已售完
+            </div>
           </div>
         )}
       </div>
