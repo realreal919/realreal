@@ -47,6 +47,7 @@ export default function AdminProductEditClient({ product }: { product: any }) {
   const [shopRight, setShopRight] = useState(product.shop_right ?? "")
   const [variants, setVariants] = useState<Variant[]>([])
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [variantSaving, setVariantSaving] = useState<string | null>(null)
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
@@ -88,7 +89,12 @@ export default function AdminProductEditClient({ product }: { product: any }) {
       body: JSON.stringify(body),
     })
     setSaving(false)
-    if (res.ok) router.push("/admin/products")
+    if (res.ok) {
+      router.push("/admin/products")
+    } else {
+      const errData = await res.json().catch(() => ({}))
+      setSaveError(`儲存失敗 (${res.status})：${JSON.stringify(errData)}`)
+    }
   }
 
   async function handleVariantSave(variant: Variant) {
@@ -183,6 +189,11 @@ export default function AdminProductEditClient({ product }: { product: any }) {
           </div>
         </div>
 
+        {saveError && (
+          <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-700 break-all">
+            {saveError}
+          </div>
+        )}
         <div className="flex gap-2 pt-2">
           <Button type="submit" disabled={saving} style={{ backgroundColor: "#10305a", color: "#fff" }}>
             {saving ? "儲存中..." : "更新商品資訊"}

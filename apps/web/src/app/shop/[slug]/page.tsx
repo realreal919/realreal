@@ -34,15 +34,12 @@ function StarRating({ rating }: { rating: number }) {
   )
 }
 
-// Matches inline bullet markers — used to split a single-line string like "✔ A ✔ B ✔ C"
-const INLINE_BULLET_SPLIT = /(?<!\A)\s*(?=✔|▪️|▪|•|✅|✓|◆|■|◉)/u
+const BULLET_CHARS = "✔✅✓▪▸•◆■◉"
+const BULLET_START_RE = new RegExp(`^[${BULLET_CHARS}]`)
+// Split "✔ A ✔ B" → ["✔ A", "✔ B"] by splitting on space-before-bullet
+const INLINE_SPLIT_RE = new RegExp(` (?=[${BULLET_CHARS}])`)
 
-/** Split plain-text into paragraphs.
- *  Handles three cases:
- *  1. Blank-line separated paragraphs (\n\n)
- *  2. One bullet per line (✔ / ▪ etc. at line start)
- *  3. All bullets on a single line separated by spaces ("✔ A ✔ B ✔ C")
- */
+/** Split plain-text into paragraphs. Handles blank-line, per-line bullets, and inline bullets. */
 function PlainTextContent({ text }: { text: string }) {
   const normalized = text.replace(/\r\n/g, "\n").trim()
   const lines = normalized.split("\n").map(l => l.trim()).filter(Boolean)
@@ -50,31 +47,23 @@ function PlainTextContent({ text }: { text: string }) {
   let paragraphs: string[]
 
   if (lines.length === 1) {
-    // Single-line text — try to split on inline bullet markers
-    const parts = lines[0].split(INLINE_BULLET_SPLIT).map(s => s.trim()).filter(Boolean)
+    // Single line — split on space-before-bullet ("✔ A ✔ B ✔ C")
+    const parts = lines[0].split(INLINE_SPLIT_RE).map(s => s.trim()).filter(Boolean)
     paragraphs = parts.length > 1 ? parts : lines
   } else {
-    // Multi-line: check if most lines start with a bullet
-    const bulletCount = lines.filter(l => /^[✔▪️▪•✅✓◆■◉]/.test(l)).length
-    if (bulletCount >= lines.length * 0.5) {
-      paragraphs = lines
-    } else {
-      paragraphs = normalized.split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
-    }
+    const bulletCount = lines.filter(l => BULLET_START_RE.test(l)).length
+    paragraphs = bulletCount >= lines.length * 0.5
+      ? lines
+      : normalized.split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
   }
 
   return (
     <div>
       {paragraphs.map((para, i) => (
-        <p
-          key={i}
-          style={{
-            color: "#687279",
-            fontSize: "15px",
-            lineHeight: "1.85",
-            marginBottom: i < paragraphs.length - 1 ? "0.75rem" : 0,
-          }}
-        >
+        <p key={i} style={{
+          color: "#687279", fontSize: "15px", lineHeight: "1.85",
+          marginBottom: i < paragraphs.length - 1 ? "0.75rem" : 0,
+        }}>
           {para.split("\n").map((line, j, arr) => (
             <span key={j}>{line}{j < arr.length - 1 && <br />}</span>
           ))}
