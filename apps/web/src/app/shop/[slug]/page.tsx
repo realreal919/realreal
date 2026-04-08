@@ -124,8 +124,25 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               />
             </div>
 
-            {/* Short description (if no 3-column content, show as fallback) */}
-            {product.description && !product.shop_left && !product.shop_middle && !product.shop_right && (
+            {/* Excerpt / summary */}
+            {product.excerpt && (
+              <div className="mt-6">
+                {product.excerpt.includes("<") ? (
+                  <div
+                    className="prose prose-sm max-w-none text-sm leading-relaxed prose-a:text-[#10305a] prose-a:underline"
+                    style={{ color: "#687279" }}
+                    dangerouslySetInnerHTML={{ __html: product.excerpt }}
+                  />
+                ) : (
+                  <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "#687279" }}>
+                    {product.excerpt}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Short description (if no 3-column content and no excerpt, show as fallback) */}
+            {product.description && !product.excerpt && !product.shop_left && !product.shop_middle && !product.shop_right && (
               <div className="mt-8 border-t border-gray-200 pt-6">
                 <h2 className="text-base font-semibold mb-3" style={{ color: "#10305a" }}>商品說明</h2>
                 {product.description.includes("<") ? (

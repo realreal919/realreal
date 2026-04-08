@@ -21,6 +21,7 @@ export default function AdminProductEditClient({ product }: { product: any }) {
   const router = useRouter()
   const [images, setImages] = useState<string[]>(product.images ?? [])
   const [description, setDescription] = useState(product.description ?? "")
+  const [excerpt, setExcerpt] = useState(product.excerpt ?? "")
   const [variants, setVariants] = useState<Variant[]>([])
   const [saving, setSaving] = useState(false)
   const [variantSaving, setVariantSaving] = useState<string | null>(null)
@@ -47,11 +48,16 @@ export default function AdminProductEditClient({ product }: { product: any }) {
     setSaving(true)
     const fd = new FormData(e.currentTarget)
     const token = await getToken()
+
+    // Convert image URL strings to the object format the API expects
+    const imagesPayload = images.map((url, i) => ({ url, alt: "", sort_order: i }))
+
     const body = {
       name: fd.get("name") as string,
       slug: fd.get("slug") as string,
       description,
-      images,
+      excerpt,
+      images: imagesPayload,
     }
     const res = await fetch(`${API_URL}/products/${product.id}`, {
       method: "PUT",
@@ -106,13 +112,19 @@ export default function AdminProductEditClient({ product }: { product: any }) {
           <Input id="slug" name="slug" defaultValue={product.slug} pattern="[a-z0-9-]+" required className="mt-1" />
         </div>
         <div>
-          <Label>商品描述</Label>
+          <Label>商品摘要（簡短說明，支援超連結）</Label>
+          <div className="mt-1">
+            <TiptapEditor content={excerpt} onChange={setExcerpt} placeholder="輸入商品摘要..." />
+          </div>
+        </div>
+        <div>
+          <Label>商品描述（詳細內容，支援超連結）</Label>
           <div className="mt-1">
             <TiptapEditor content={description} onChange={setDescription} placeholder="輸入商品描述..." />
           </div>
         </div>
         <div>
-          <Label>商品圖片</Label>
+          <Label>商品圖片（可上傳多張，第一張為主圖）</Label>
           <div className="mt-1">
             <ProductImageUpload value={images} onChange={setImages} />
           </div>

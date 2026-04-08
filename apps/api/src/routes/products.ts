@@ -10,6 +10,7 @@ const productSchema = z.object({
   name: z.string().min(1),
   slug: z.string().min(1).regex(/^[a-z0-9-]+$/),
   description: z.string().optional(),
+  excerpt: z.string().optional(),
   category_id: z.string().uuid().optional(),
   images: z.array(z.object({
     url: z.string().url(),
@@ -132,7 +133,7 @@ productsRouter.get("/:slug", async (req, res) => {
   const { data, error } = await supabase
     .from("products")
     .select(`
-      id, name, slug, description, shop_left, shop_middle, shop_right, category_id, images, is_active, created_at,
+      id, name, slug, description, excerpt, shop_left, shop_middle, shop_right, category_id, images, is_active, created_at,
       product_variants (id, sku, name, price, sale_price, stock_qty, weight, attributes)
     `)
     .eq("slug", req.params.slug)
