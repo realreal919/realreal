@@ -38,7 +38,7 @@ app.use("/webhooks/pchomepay", express.urlencoded({ extended: false }))
 app.use("/webhooks/ecpay-logistics", express.urlencoded({ extended: false }))
 app.use("/logistics/map-result", express.urlencoded({ extended: false }))
 
-app.use(express.json())
+app.use(express.json({ limit: "5mb" }))
 app.use("/health", healthRouter)
 app.use("/categories", categoriesRouter)
 app.use("/products/:id/variants", variantsRouter)

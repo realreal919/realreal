@@ -83,17 +83,22 @@ export default function AdminProductEditClient({ product }: { product: any }) {
       shop_right: shopRight,
       images: imagesPayload,
     }
-    const res = await fetch(`${API_URL}/products/${product.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-      body: JSON.stringify(body),
-    })
-    setSaving(false)
-    if (res.ok) {
-      router.push("/admin/products")
-    } else {
-      const errData = await res.json().catch(() => ({}))
-      setSaveError(`儲存失敗 (${res.status})：${JSON.stringify(errData)}`)
+    try {
+      const res = await fetch(`${API_URL}/products/${product.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify(body),
+      })
+      if (res.ok) {
+        router.push("/admin/products")
+      } else {
+        const errData = await res.json().catch(() => ({}))
+        setSaveError(`儲存失敗 (${res.status})：${JSON.stringify(errData)}`)
+      }
+    } catch (err) {
+      setSaveError(`網路錯誤：${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setSaving(false)
     }
   }
 

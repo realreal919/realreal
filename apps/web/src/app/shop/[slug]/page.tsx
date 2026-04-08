@@ -133,6 +133,8 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         .rich-content ol { padding-left: 1.25rem; margin: 0.75rem 0; list-style-type: decimal; }
         .rich-content li { margin-bottom: 0.45rem; line-height: 1.75; }
         .rich-content strong, .rich-content b { font-weight: 600; color: #10305a; }
+        /* ✔ bullet items: <strong>✔ title</strong> as direct children become block-level */
+        .rich-content > strong, .rich-content > b { display: block; margin-top: 1.1rem; margin-bottom: 0.2rem; }
         .rich-content em, .rich-content i { font-style: italic; }
         .rich-content a { color: #10305a; text-decoration: underline; text-underline-offset: 2px; }
         .rich-content blockquote {
