@@ -34,8 +34,8 @@ function StarRating({ rating }: { rating: number }) {
   )
 }
 
-/** Split plain-text description into paragraphs by blank lines */
-function PlainTextContent({ text, className }: { text: string; className?: string }) {
+/** Split plain-text into paragraphs by blank lines */
+function PlainTextContent({ text }: { text: string }) {
   const paragraphs = text
     .replace(/\r\n/g, "\n")
     .split(/\n{2,}/)
@@ -43,14 +43,19 @@ function PlainTextContent({ text, className }: { text: string; className?: strin
     .filter(Boolean)
 
   return (
-    <div className={className}>
+    <div>
       {paragraphs.map((para, i) => (
-        <p key={i} className="mb-4 last:mb-0 leading-[1.85] text-[15px]" style={{ color: "#687279" }}>
+        <p
+          key={i}
+          style={{
+            color: "#687279",
+            fontSize: "15px",
+            lineHeight: "1.85",
+            marginBottom: i < paragraphs.length - 1 ? "1rem" : 0,
+          }}
+        >
           {para.split("\n").map((line, j, arr) => (
-            <span key={j}>
-              {line}
-              {j < arr.length - 1 && <br />}
-            </span>
+            <span key={j}>{line}{j < arr.length - 1 && <br />}</span>
           ))}
         </p>
       ))}
@@ -58,24 +63,16 @@ function PlainTextContent({ text, className }: { text: string; className?: strin
   )
 }
 
-/** Shared prose classes for all rich-text (shop) columns */
-const proseClasses = `
-  prose prose-base max-w-none
-  prose-p:leading-[1.85] prose-p:my-4 prose-p:text-[15px]
-  prose-headings:font-semibold prose-headings:text-[#10305a]
-  prose-h2:text-xl prose-h2:mt-8 prose-h2:mb-4
-  prose-h3:text-lg prose-h3:mt-7 prose-h3:mb-3
-  prose-h4:text-base prose-h4:mt-6 prose-h4:mb-3
-  prose-h5:text-[15px] prose-h5:mt-5 prose-h5:mb-2
-  prose-ul:pl-5 prose-ul:my-4
-  prose-ol:pl-5 prose-ol:my-4
-  prose-li:my-2 prose-li:leading-[1.75]
-  prose-strong:text-[#10305a] prose-strong:font-semibold
-  prose-blockquote:border-l-4 prose-blockquote:border-[#10305a]/30
-  prose-blockquote:bg-gray-50 prose-blockquote:py-4 prose-blockquote:px-5
-  prose-blockquote:rounded-r-xl prose-blockquote:not-italic prose-blockquote:my-5
-  prose-a:text-[#10305a] prose-a:underline prose-a:underline-offset-2
-`.replace(/\s+/g, " ").trim()
+/** Rich HTML from WordPress — styled via prose + custom CSS variables */
+function RichContent({ html }: { html: string }) {
+  return (
+    <div
+      className="rich-content"
+      style={{ color: "#687279" }}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  )
+}
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
@@ -92,7 +89,6 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const images = product.images ?? []
   const mainImage = images[0]
 
-  // Fetch reviews server-side
   let reviews: Review[] = []
   let averageRating = 0
   let totalCount = 0
@@ -104,36 +100,59 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
       averageRating = json.averageRating ?? 0
       totalCount = json.totalCount ?? 0
     }
-  } catch {
-    // API unavailable
-  }
+  } catch { /* API unavailable */ }
 
-  // Check if user is logged in for review form
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const { data: sessionData } = await supabase.auth.getSession()
   const token = sessionData?.session?.access_token ?? ""
 
   const hasShopColumns = product.shop_left || product.shop_middle || product.shop_right
-  const descIsHtml = (product.description ?? "").includes("<")
+  const isHtml = (s: string | null) => (s ?? "").includes("<")
 
   return (
     <div className="min-h-screen bg-white">
+      <style>{`
+        .rich-content { font-size: 15px; line-height: 1.85; color: #687279; }
+        .rich-content p { margin-bottom: 1rem; }
+        .rich-content h2 { font-size: 1.25rem; font-weight: 600; color: #10305a; margin-top: 2rem; margin-bottom: 0.75rem; }
+        .rich-content h3 { font-size: 1.1rem; font-weight: 600; color: #10305a; margin-top: 1.75rem; margin-bottom: 0.6rem; }
+        .rich-content h4 { font-size: 1rem; font-weight: 600; color: #10305a; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+        .rich-content h5 { font-size: 0.95rem; font-weight: 600; color: #10305a; margin-top: 1.25rem; margin-bottom: 0.4rem; }
+        .rich-content ul { padding-left: 1.25rem; margin: 0.75rem 0; list-style-type: disc; }
+        .rich-content ol { padding-left: 1.25rem; margin: 0.75rem 0; list-style-type: decimal; }
+        .rich-content li { margin-bottom: 0.45rem; line-height: 1.75; }
+        .rich-content strong, .rich-content b { font-weight: 600; color: #10305a; }
+        .rich-content em, .rich-content i { font-style: italic; }
+        .rich-content a { color: #10305a; text-decoration: underline; text-underline-offset: 2px; }
+        .rich-content blockquote {
+          border-left: 4px solid rgba(16,48,90,0.25);
+          background: #f9fafb;
+          padding: 1rem 1.25rem;
+          border-radius: 0 0.75rem 0.75rem 0;
+          margin: 1.25rem 0;
+          font-style: normal;
+        }
+        .rich-content blockquote h4,
+        .rich-content blockquote h5 { margin-top: 0.25rem; }
+        .rich-content table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 14px; }
+        .rich-content th, .rich-content td { border: 1px solid #e5e7eb; padding: 0.5rem 0.75rem; text-align: left; }
+        .rich-content th { background: #f3f4f6; font-weight: 600; color: #10305a; }
+      `}</style>
+
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Breadcrumb */}
         <nav className="mb-8 flex items-center gap-1 text-sm" style={{ color: "#687279" }}>
-          <Link href="/" className="transition-colors hover:opacity-70">首頁</Link>
+          <Link href="/" className="hover:opacity-70 transition-opacity">首頁</Link>
           <ChevronRight className="h-3.5 w-3.5" />
-          <Link href="/shop" className="transition-colors hover:opacity-70">商品</Link>
+          <Link href="/shop" className="hover:opacity-70 transition-opacity">商品</Link>
           <ChevronRight className="h-3.5 w-3.5" />
           <span className="font-medium" style={{ color: "#10305a" }}>{product.name}</span>
         </nav>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-16">
-          {/* Product image gallery */}
           <ImageGallery images={images} productName={product.name} />
 
-          {/* Product info */}
           <div className="flex flex-col">
             <h1
               className="text-2xl font-bold tracking-tight lg:text-3xl"
@@ -142,14 +161,11 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               {product.name}
             </h1>
 
-            {/* Star rating */}
+            {/* Stars */}
             <div className="mt-3 flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <span
-                  key={star}
-                  className="text-lg"
-                  style={{ color: star <= Math.round(averageRating) ? "#f59e0b" : "#d1d5db" }}
-                >
+              {[1, 2, 3, 4, 5].map(star => (
+                <span key={star} className="text-lg"
+                  style={{ color: star <= Math.round(averageRating) ? "#f59e0b" : "#d1d5db" }}>
                   &#9733;
                 </span>
               ))}
@@ -166,68 +182,38 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               />
             </div>
 
-            {/* Excerpt / summary */}
+            {/* Excerpt */}
             {product.excerpt && (
               <div className="mt-6 pt-6 border-t border-gray-100">
-                {descIsHtml ? (
-                  <div
-                    className={proseClasses}
-                    style={{ color: "#687279" }}
-                    dangerouslySetInnerHTML={{ __html: product.excerpt }}
-                  />
-                ) : (
-                  <PlainTextContent text={product.excerpt} />
-                )}
+                {isHtml(product.excerpt)
+                  ? <RichContent html={product.excerpt} />
+                  : <PlainTextContent text={product.excerpt} />}
               </div>
             )}
 
-            {/* Description shown in sidebar only when no 3-column content */}
+            {/* Description — only when no 3-column content */}
             {product.description && !hasShopColumns && (
               <div className="mt-6 pt-6 border-t border-gray-100">
-                {descIsHtml ? (
-                  <div
-                    className={proseClasses}
-                    style={{ color: "#687279" }}
-                    dangerouslySetInnerHTML={{ __html: product.description }}
-                  />
-                ) : (
-                  <PlainTextContent text={product.description} />
-                )}
+                {isHtml(product.description)
+                  ? <RichContent html={product.description} />
+                  : <PlainTextContent text={product.description} />}
               </div>
             )}
           </div>
         </div>
 
-        {/* 商品三欄 — full-width 3-column detail section */}
+        {/* 3-column shop detail */}
         {hasShopColumns && (
           <div className="mt-14 border-t border-gray-200 pt-10">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-10 lg:gap-14">
-              {product.shop_left && (
-                <div
-                  className={proseClasses}
-                  style={{ color: "#687279" }}
-                  dangerouslySetInnerHTML={{ __html: product.shop_left }}
-                />
-              )}
-              {product.shop_middle && (
-                <div
-                  className={proseClasses}
-                  style={{ color: "#687279" }}
-                  dangerouslySetInnerHTML={{ __html: product.shop_middle }}
-                />
-              )}
-              {product.shop_right && (
-                <div
-                  className={proseClasses}
-                  style={{ color: "#687279" }}
-                  dangerouslySetInnerHTML={{ __html: product.shop_right }}
-                />
-              )}
+              {product.shop_left && <RichContent html={product.shop_left} />}
+              {product.shop_middle && <RichContent html={product.shop_middle} />}
+              {product.shop_right && <RichContent html={product.shop_right} />}
             </div>
           </div>
         )}
 
-        {/* Reviews Section */}
+        {/* Reviews */}
         <div className="mt-14 border-t border-gray-200 pt-10">
           <h2 className="text-xl font-bold mb-2" style={{ color: "#10305a" }}>商品評價</h2>
           <div className="flex items-center gap-3 mb-6">
@@ -249,7 +235,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           )}
 
           <div className="space-y-4">
-            {reviews.map((review) => (
+            {reviews.map(review => (
               <div key={review.id} className="rounded-[10px] border border-gray-200 p-5">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -262,7 +248,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                     {new Date(review.created_at).toLocaleDateString("zh-TW")}
                   </span>
                 </div>
-                <p className="text-[15px] leading-[1.8] mt-2" style={{ color: "#687279" }}>
+                <p style={{ fontSize: "15px", lineHeight: "1.8", color: "#687279", marginTop: "0.5rem" }}>
                   {review.content}
                 </p>
               </div>
@@ -270,9 +256,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           </div>
 
           {reviews.length === 0 && !user && (
-            <p className="text-sm text-center py-8" style={{ color: "#687279" }}>
-              此商品尚無評價
-            </p>
+            <p className="text-sm text-center py-8" style={{ color: "#687279" }}>此商品尚無評價</p>
           )}
         </div>
       </div>
