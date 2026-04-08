@@ -11,6 +11,9 @@ const productSchema = z.object({
   slug: z.string().min(1).regex(/^[a-z0-9-]+$/),
   description: z.string().optional(),
   excerpt: z.string().optional(),
+  shop_left: z.string().optional(),
+  shop_middle: z.string().optional(),
+  shop_right: z.string().optional(),
   category_id: z.string().uuid().optional(),
   images: z.array(z.object({
     url: z.string().url(),

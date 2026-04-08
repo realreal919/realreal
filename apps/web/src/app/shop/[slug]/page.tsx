@@ -34,13 +34,19 @@ function StarRating({ rating }: { rating: number }) {
   )
 }
 
-/** Split plain-text into paragraphs by blank lines */
+const BULLET_RE = /^[\u2714\u25AA\u25CF\u2022\u25B8\u2713\u2756\u2661\u25C6▪▸•\-\*✔✅✓◆■◉]\s*/
+
+/** Split plain-text into paragraphs. Handles both blank-line separation and bullet-per-line. */
 function PlainTextContent({ text }: { text: string }) {
-  const paragraphs = text
-    .replace(/\r\n/g, "\n")
-    .split(/\n{2,}/)
-    .map(p => p.trim())
-    .filter(Boolean)
+  const normalized = text.replace(/\r\n/g, "\n").trim()
+
+  // If lines look like bullet points (start with ✔ ▪ • etc.), treat each line as own paragraph
+  const lines = normalized.split("\n").map(l => l.trim()).filter(Boolean)
+  const isBulletList = lines.length > 1 && lines.filter(l => BULLET_RE.test(l)).length >= lines.length * 0.5
+
+  const paragraphs: string[] = isBulletList
+    ? lines
+    : normalized.split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
 
   return (
     <div>
@@ -51,12 +57,14 @@ function PlainTextContent({ text }: { text: string }) {
             color: "#687279",
             fontSize: "15px",
             lineHeight: "1.85",
-            marginBottom: i < paragraphs.length - 1 ? "1rem" : 0,
+            marginBottom: i < paragraphs.length - 1 ? "0.75rem" : 0,
           }}
         >
-          {para.split("\n").map((line, j, arr) => (
-            <span key={j}>{line}{j < arr.length - 1 && <br />}</span>
-          ))}
+          {isBulletList
+            ? para
+            : para.split("\n").map((line, j, arr) => (
+                <span key={j}>{line}{j < arr.length - 1 && <br />}</span>
+              ))}
         </p>
       ))}
     </div>
