@@ -34,6 +34,49 @@ function StarRating({ rating }: { rating: number }) {
   )
 }
 
+/** Split plain-text description into paragraphs by blank lines */
+function PlainTextContent({ text, className }: { text: string; className?: string }) {
+  const paragraphs = text
+    .replace(/\r\n/g, "\n")
+    .split(/\n{2,}/)
+    .map(p => p.trim())
+    .filter(Boolean)
+
+  return (
+    <div className={className}>
+      {paragraphs.map((para, i) => (
+        <p key={i} className="mb-4 last:mb-0 leading-[1.85] text-[15px]" style={{ color: "#687279" }}>
+          {para.split("\n").map((line, j, arr) => (
+            <span key={j}>
+              {line}
+              {j < arr.length - 1 && <br />}
+            </span>
+          ))}
+        </p>
+      ))}
+    </div>
+  )
+}
+
+/** Shared prose classes for all rich-text (shop) columns */
+const proseClasses = `
+  prose prose-base max-w-none
+  prose-p:leading-[1.85] prose-p:my-4 prose-p:text-[15px]
+  prose-headings:font-semibold prose-headings:text-[#10305a]
+  prose-h2:text-xl prose-h2:mt-8 prose-h2:mb-4
+  prose-h3:text-lg prose-h3:mt-7 prose-h3:mb-3
+  prose-h4:text-base prose-h4:mt-6 prose-h4:mb-3
+  prose-h5:text-[15px] prose-h5:mt-5 prose-h5:mb-2
+  prose-ul:pl-5 prose-ul:my-4
+  prose-ol:pl-5 prose-ol:my-4
+  prose-li:my-2 prose-li:leading-[1.75]
+  prose-strong:text-[#10305a] prose-strong:font-semibold
+  prose-blockquote:border-l-4 prose-blockquote:border-[#10305a]/30
+  prose-blockquote:bg-gray-50 prose-blockquote:py-4 prose-blockquote:px-5
+  prose-blockquote:rounded-r-xl prose-blockquote:not-italic prose-blockquote:my-5
+  prose-a:text-[#10305a] prose-a:underline prose-a:underline-offset-2
+`.replace(/\s+/g, " ").trim()
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const product = await getProductBySlug(slug)
@@ -71,18 +114,17 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const { data: sessionData } = await supabase.auth.getSession()
   const token = sessionData?.session?.access_token ?? ""
 
+  const hasShopColumns = product.shop_left || product.shop_middle || product.shop_right
+  const descIsHtml = (product.description ?? "").includes("<")
+
   return (
     <div className="min-h-screen bg-white">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Breadcrumb */}
         <nav className="mb-8 flex items-center gap-1 text-sm" style={{ color: "#687279" }}>
-          <Link href="/" className="transition-colors hover:opacity-70">
-            首頁
-          </Link>
+          <Link href="/" className="transition-colors hover:opacity-70">首頁</Link>
           <ChevronRight className="h-3.5 w-3.5" />
-          <Link href="/shop" className="transition-colors hover:opacity-70">
-            商品
-          </Link>
+          <Link href="/shop" className="transition-colors hover:opacity-70">商品</Link>
           <ChevronRight className="h-3.5 w-3.5" />
           <span className="font-medium" style={{ color: "#10305a" }}>{product.name}</span>
         </nav>
@@ -126,98 +168,67 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
             {/* Excerpt / summary */}
             {product.excerpt && (
-              <div className="mt-6">
-                {product.excerpt.includes("<") ? (
+              <div className="mt-6 pt-6 border-t border-gray-100">
+                {descIsHtml ? (
                   <div
-                    className="prose prose-sm max-w-none text-sm leading-relaxed prose-a:text-[#10305a] prose-a:underline"
+                    className={proseClasses}
                     style={{ color: "#687279" }}
                     dangerouslySetInnerHTML={{ __html: product.excerpt }}
                   />
                 ) : (
-                  <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "#687279" }}>
-                    {product.excerpt}
-                  </p>
+                  <PlainTextContent text={product.excerpt} />
                 )}
               </div>
             )}
 
-            {/* Short description (if no 3-column content and no excerpt, show as fallback) */}
-            {product.description && !product.excerpt && !product.shop_left && !product.shop_middle && !product.shop_right && (
-              <div className="mt-8 border-t border-gray-200 pt-6">
-                <h2 className="text-base font-semibold mb-3" style={{ color: "#10305a" }}>商品說明</h2>
-                {product.description.includes("<") ? (
+            {/* Description shown in sidebar only when no 3-column content */}
+            {product.description && !hasShopColumns && (
+              <div className="mt-6 pt-6 border-t border-gray-100">
+                {descIsHtml ? (
                   <div
-                    className="prose prose-sm max-w-none text-sm leading-relaxed"
+                    className={proseClasses}
                     style={{ color: "#687279" }}
                     dangerouslySetInnerHTML={{ __html: product.description }}
                   />
                 ) : (
-                  <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "#687279" }}>
-                    {product.description}
-                  </p>
+                  <PlainTextContent text={product.description} />
                 )}
               </div>
             )}
           </div>
         </div>
 
-        {/* 商品三欄 — 3-column product detail section (from WordPress ACF) */}
-        {(product.shop_left || product.shop_middle || product.shop_right) && (
-          <div className="mt-12 border-t border-gray-200 pt-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
-              {/* 商品左欄 — Product features & usage */}
+        {/* 商品三欄 — full-width 3-column detail section */}
+        {hasShopColumns && (
+          <div className="mt-14 border-t border-gray-200 pt-10">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-10 lg:gap-14">
               {product.shop_left && (
-                <div>
-                  <div
-                    className="prose prose-sm max-w-none
-                      prose-p:leading-relaxed prose-p:my-3
-                      prose-headings:font-semibold prose-headings:text-[#10305a] prose-headings:mt-6 prose-headings:mb-3
-                      prose-h4:text-base prose-h5:text-sm
-                      prose-ul:pl-5 prose-li:my-1.5 prose-ul:my-3
-                      prose-blockquote:border-l-[#10305a] prose-blockquote:bg-gray-50 prose-blockquote:py-3 prose-blockquote:px-4 prose-blockquote:rounded-r-lg prose-blockquote:not-italic prose-blockquote:my-4
-                      prose-strong:text-[#10305a]"
-                    style={{ color: "#687279" }}
-                    dangerouslySetInnerHTML={{ __html: product.shop_left }}
-                  />
-                </div>
+                <div
+                  className={proseClasses}
+                  style={{ color: "#687279" }}
+                  dangerouslySetInnerHTML={{ __html: product.shop_left }}
+                />
               )}
-              {/* 商品中欄 — Ingredients, specs, nutrition */}
               {product.shop_middle && (
-                <div>
-                  <div
-                    className="prose prose-sm max-w-none
-                      prose-p:leading-relaxed prose-p:my-3
-                      prose-headings:font-semibold prose-headings:text-[#10305a] prose-headings:mt-6 prose-headings:mb-3
-                      prose-h4:text-base prose-h5:text-sm
-                      prose-ul:pl-5 prose-li:my-1.5 prose-ul:my-3
-                      prose-strong:text-[#10305a]"
-                    style={{ color: "#687279" }}
-                    dangerouslySetInnerHTML={{ __html: product.shop_middle }}
-                  />
-                </div>
+                <div
+                  className={proseClasses}
+                  style={{ color: "#687279" }}
+                  dangerouslySetInnerHTML={{ __html: product.shop_middle }}
+                />
               )}
-              {/* 商品右欄 — Brand values, charity, storage */}
               {product.shop_right && (
-                <div>
-                  <div
-                    className="prose prose-sm max-w-none
-                      prose-p:leading-relaxed prose-p:my-3
-                      prose-headings:font-semibold prose-headings:text-[#10305a] prose-headings:mt-6 prose-headings:mb-3
-                      prose-h4:text-base prose-h5:text-sm
-                      prose-ul:pl-5 prose-li:my-1.5 prose-ul:my-3
-                      prose-a:text-[#10305a] prose-a:underline
-                      prose-strong:text-[#10305a]"
-                    style={{ color: "#687279" }}
-                    dangerouslySetInnerHTML={{ __html: product.shop_right }}
-                  />
-                </div>
+                <div
+                  className={proseClasses}
+                  style={{ color: "#687279" }}
+                  dangerouslySetInnerHTML={{ __html: product.shop_right }}
+                />
               )}
             </div>
           </div>
         )}
 
         {/* Reviews Section */}
-        <div className="mt-12 border-t border-gray-200 pt-8">
+        <div className="mt-14 border-t border-gray-200 pt-10">
           <h2 className="text-xl font-bold mb-2" style={{ color: "#10305a" }}>商品評價</h2>
           <div className="flex items-center gap-3 mb-6">
             <span className="text-3xl font-bold" style={{ color: "#10305a" }}>
@@ -231,17 +242,15 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             </div>
           </div>
 
-          {/* Review Form (logged in users only) */}
           {user && token && (
             <div className="mb-8">
               <ReviewForm productId={product.id} token={token} />
             </div>
           )}
 
-          {/* Review Cards */}
           <div className="space-y-4">
             {reviews.map((review) => (
-              <div key={review.id} className="rounded-[10px] border border-gray-200 p-4">
+              <div key={review.id} className="rounded-[10px] border border-gray-200 p-5">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium" style={{ color: "#10305a" }}>
@@ -253,7 +262,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                     {new Date(review.created_at).toLocaleDateString("zh-TW")}
                   </span>
                 </div>
-                <p className="text-sm leading-relaxed" style={{ color: "#687279" }}>
+                <p className="text-[15px] leading-[1.8] mt-2" style={{ color: "#687279" }}>
                   {review.content}
                 </p>
               </div>
