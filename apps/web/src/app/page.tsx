@@ -75,54 +75,79 @@ type HeroContent = {
 
 function HeroSection({ content }: { content?: HeroContent | null }) {
   const heading = content?.heading ?? "自純淨中補給，在誠真中安心"
-  const ctaText = content?.cta_text ?? "探索商品"
+  const ctaText = content?.cta_text ?? "立即選購"
   const ctaLink = content?.cta_link ?? "/shop"
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-[#f5f0fa] via-[#f8f4f0] to-[#faf6f2]">
+    <section className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, #eef3f9 0%, #f8f4f0 50%, #f5f0fa 100%)" }}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid min-h-[520px] items-center gap-8 py-16 md:grid-cols-2 md:py-20 lg:py-24">
+        <div className="grid min-h-[560px] items-center gap-6 py-14 md:grid-cols-2 md:py-20 lg:min-h-[620px] lg:py-28">
           {/* Left: text */}
-          <div className="order-2 md:order-1">
-            <h1 className="text-3xl font-bold leading-tight tracking-tight text-[#10305a] sm:text-4xl lg:text-[2.75rem] lg:leading-[1.3]">
+          <div className="order-2 md:order-1 flex flex-col justify-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#10305a]/50 mb-4">
+              台灣在地純素健康食品
+            </p>
+            <h1
+              className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-[3.2rem] lg:leading-[1.2]"
+              style={{ color: "#10305a" }}
+            >
               {heading}
             </h1>
-            <div className="mt-6 space-y-3 text-base leading-relaxed text-[#687279] sm:text-[17px]">
+            <div className="mt-5 space-y-2 text-[15px] leading-[1.8] text-[#687279]">
               {content?.subheading ? (
                 <p>{content.subheading}</p>
               ) : (
                 <>
-                  <p>誠真堅持選用非動物來源</p>
-                  <p>每一份營養，都來自對生命與土地的尊重。</p>
-                  <p>
-                    每一口，補進的不只是純真的能量，更是一種安心與純粹的生活態度。
-                  </p>
-                  <p>回歸自然，也回到自己，致上對身體與生命最深的善意</p>
-                  <p className="italic">——愛正活在生活裡。</p>
+                  <p>純植物來源，無添加，無負擔</p>
+                  <p>每一份營養，都來自對生命與土地的尊重</p>
                 </>
               )}
             </div>
-            <div className="mt-8">
+            <div className="mt-8 flex flex-wrap gap-3">
               <Button
                 asChild
                 size="lg"
-                className="bg-[#10305a] text-white rounded-[10px] px-8 text-base h-12 hover:bg-[#10305a]/90"
+                className="rounded-full px-8 text-[15px] h-12 font-semibold shadow-sm"
+                style={{ backgroundColor: "#10305a", color: "#fff" }}
               >
                 <Link href={ctaLink}>{ctaText}</Link>
               </Button>
+              <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className="rounded-full px-8 text-[15px] h-12 border-[#10305a]/30 text-[#10305a] hover:bg-[#10305a]/5"
+              >
+                <Link href="/about">了解品牌</Link>
+              </Button>
+            </div>
+            {/* Trust badges */}
+            <div className="mt-10 flex flex-wrap gap-x-6 gap-y-2 text-xs text-[#687279]">
+              {["純植物來源", "無添加糖", "台灣製造", "vegan 友善"].map(badge => (
+                <span key={badge} className="flex items-center gap-1.5">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#10305a]/40" />
+                  {badge}
+                </span>
+              ))}
             </div>
           </div>
 
-          {/* Right: product / hero image */}
+          {/* Right: product image */}
           <div className="relative order-1 flex items-center justify-center md:order-2">
-            <Image
-              src="/brand/hero-bg.webp"
-              alt="誠真生活產品"
-              width={600}
-              height={500}
-              className="object-contain"
-              priority
-            />
+            <div className="relative">
+              <div
+                className="absolute inset-0 rounded-full blur-3xl opacity-20"
+                style={{ background: "radial-gradient(circle, #a886cd 0%, #10305a 100%)" }}
+              />
+              <Image
+                src="/brand/hero-bg.webp"
+                alt="誠真生活產品"
+                width={580}
+                height={520}
+                className="relative object-contain drop-shadow-xl"
+                priority
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -475,6 +500,106 @@ function ReviewsSection({ testimonials }: { testimonials?: Testimonial[] | null 
   )
 }
 
+function RetailSection() {
+  const stores = [
+    {
+      name: "新埔健保藥局",
+      type: "藥局",
+      address: "新北市板橋區自由路2號",
+      phone: "(02) 2255-8878",
+      mapUrl: "https://maps.app.goo.gl/Ug2Jy4SVUDupV4TN8?g_st=ic",
+      fbUrl: "https://www.facebook.com/share/1C9Wk8UDW8/?mibextid=wwXIfr",
+      icon: "💊",
+    },
+    {
+      name: "仙卉生機園地",
+      type: "生機店",
+      address: "彰化縣溪湖鎮郵政街27號",
+      phone: "(04) 882-1260",
+      mapUrl: "https://maps.app.goo.gl/Ug2Jy4SVUDupV4TN8?g_st=ic",
+      fbUrl: null,
+      icon: "🌿",
+    },
+  ]
+
+  return (
+    <section className="py-16 sm:py-20 bg-white border-t border-gray-100">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-10">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#10305a]/40 mb-2">線下也找得到我們</p>
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "#10305a" }}>
+            實體通路
+          </h2>
+          <p className="mt-2 text-sm" style={{ color: "#687279" }}>
+            在誠真的合作夥伴門市，也能選購我們的商品
+          </p>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
+          {stores.map(store => (
+            <div
+              key={store.name}
+              className="rounded-2xl border border-gray-100 bg-[#f9fafb] p-6 flex flex-col gap-4"
+              style={{ boxShadow: "2px 2px 12px 0 rgba(16,48,90,.06)" }}
+            >
+              <div className="flex items-start gap-3">
+                <span className="text-2xl mt-0.5">{store.icon}</span>
+                <div>
+                  <span
+                    className="inline-block text-xs font-semibold rounded-full px-2.5 py-0.5 mb-1.5"
+                    style={{ background: "#e8f0f7", color: "#10305a" }}
+                  >
+                    {store.type}
+                  </span>
+                  <h3 className="text-base font-bold" style={{ color: "#10305a" }}>{store.name}</h3>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 text-sm" style={{ color: "#687279" }}>
+                <p className="flex items-start gap-2">
+                  <span className="mt-0.5 shrink-0">📍</span>
+                  {store.address}
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="shrink-0">📞</span>
+                  <a href={`tel:${store.phone.replace(/[^0-9]/g, "")}`} className="hover:underline">
+                    {store.phone}
+                  </a>
+                </p>
+              </div>
+
+              <div className="flex gap-2 mt-1">
+                <a
+                  href={store.mapUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-colors"
+                  style={{ background: "#10305a", color: "#fff" }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  Google Maps
+                </a>
+                {store.fbUrl && (
+                  <a
+                    href={store.fbUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold border transition-colors hover:bg-gray-50"
+                    style={{ borderColor: "#10305a30", color: "#10305a" }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+                    Facebook
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function FooterCTA() {
   return (
     <section className="bg-[#10305a] py-16 sm:py-20 text-white text-center">
@@ -573,7 +698,10 @@ export default async function HomePage() {
       {/* 6. Blog section */}
       <BlogSection posts={blogResult.data} />
 
-      {/* 7. Footer CTA with social links */}
+      {/* 7. Retail stores */}
+      <RetailSection />
+
+      {/* 8. Footer CTA with social links */}
       <FooterCTA />
     </main>
   )
