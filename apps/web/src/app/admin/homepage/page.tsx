@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
+import { Trash2, MoveUp, MoveDown, ImageIcon, Video, Plus, Star } from "lucide-react"
+import type { CarouselItem } from "@/components/ui/review-images-carousel"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
 
@@ -25,6 +27,24 @@ interface BannerData {
   text: string
   enabled: boolean
 }
+
+interface Testimonial {
+  name: string
+  text: string
+  rating: number
+}
+
+const DEFAULT_CAROUSEL: CarouselItem[] = [
+  { type: "video", src: "/brand/review-video.mov", alt: "顧客回饋影片" },
+  { type: "image", src: "https://realreal.cc/wp-content/uploads/2026/02/S__73097241_0-576x1024.jpg", alt: "顧客回饋 1" },
+  { type: "image", src: "https://realreal.cc/wp-content/uploads/2026/02/S__73097242_0-576x1024.jpg", alt: "顧客回饋 2" },
+  { type: "image", src: "https://realreal.cc/wp-content/uploads/2026/02/回饋5-576x1024.jpg", alt: "顧客回饋 3" },
+  { type: "image", src: "https://realreal.cc/wp-content/uploads/2026/02/回饋1-576x1024.jpg", alt: "顧客回饋 4" },
+  { type: "image", src: "https://realreal.cc/wp-content/uploads/2026/02/回饋2-576x1024.jpg", alt: "顧客回饋 5" },
+  { type: "image", src: "https://realreal.cc/wp-content/uploads/2026/02/回饋3-576x1024.jpg", alt: "顧客回饋 6" },
+  { type: "image", src: "https://realreal.cc/wp-content/uploads/2026/02/回饋4-653x1024.jpg", alt: "顧客回饋 7" },
+  { type: "image", src: "https://realreal.cc/wp-content/uploads/2026/02/FCF1A2D1-116B-4048-A859-ECA627D3CFEB-576x1024.jpg", alt: "顧客回饋 8" },
+]
 
 /* ─── Auth token ──────────────────────────────────────────── */
 async function getToken(): Promise<string> {
@@ -203,9 +223,20 @@ export default function AdminHomepagePage() {
     image_position_y: 50,
   })
   const [banner, setBanner] = useState<BannerData>({ text: "", enabled: false })
+  const [carousel, setCarousel] = useState<CarouselItem[]>(DEFAULT_CAROUSEL)
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([])
   const [savingHero, setSavingHero] = useState(false)
   const [savingBanner, setSavingBanner] = useState(false)
+  const [savingCarousel, setSavingCarousel] = useState(false)
+  const [savingTestimonials, setSavingTestimonials] = useState(false)
   const [loading, setLoading] = useState(true)
+  // new-item inputs
+  const [newItemType, setNewItemType] = useState<"image" | "video">("image")
+  const [newItemUrl, setNewItemUrl] = useState("")
+  const [newItemAlt, setNewItemAlt] = useState("")
+  const [newTestimonial, setNewTestimonial] = useState<Testimonial>({ name: "", text: "", rating: 5 })
+  const carouselUploadRef = useRef<HTMLInputElement>(null)
+  const supabase = createClient()
 
   useEffect(() => {
     async function fetchData() {
@@ -233,6 +264,20 @@ export default function AdminHomepagePage() {
           const json = await bannerRes.json()
           const v = json.data ?? {}
           setBanner({ text: v.text ?? "", enabled: v.enabled ?? false })
+        }
+
+        // carousel
+        const carouselRes = await fetch(`${API_URL}/site-contents/review_carousel`, { cache: "no-store" })
+        if (carouselRes.ok) {
+          const json = await carouselRes.json()
+          if (Array.isArray(json.data) && json.data.length > 0) setCarousel(json.data)
+        }
+
+        // testimonials
+        const testimonialsRes = await fetch(`${API_URL}/site-contents/testimonials`, { cache: "no-store" })
+        if (testimonialsRes.ok) {
+          const json = await testimonialsRes.json()
+          if (Array.isArray(json.data) && json.data.length > 0) setTestimonials(json.data)
         }
       } catch {
         toast.error("載入資料失敗")
@@ -295,6 +340,86 @@ export default function AdminHomepagePage() {
     } finally {
       setSavingBanner(false)
     }
+  }
+
+  async function saveCarousel() {
+    setSavingCarousel(true)
+    try {
+      const token = await getToken()
+      const res = await fetch(`${API_URL}/admin/site-contents/review_carousel`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ value: carousel }),
+      })
+      if (res.ok) toast.success("輪播已儲存")
+      else { const e = await res.json().catch(() => ({})); toast.error(`儲存失敗：${JSON.stringify(e)}`) }
+    } catch (e) { toast.error(`網路錯誤：${e instanceof Error ? e.message : String(e)}`) }
+    finally { setSavingCarousel(false) }
+  }
+
+  async function saveTestimonials() {
+    setSavingTestimonials(true)
+    try {
+      const token = await getToken()
+      const res = await fetch(`${API_URL}/admin/site-contents/testimonials`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ value: testimonials }),
+      })
+      if (res.ok) toast.success("評論已儲存")
+      else { const e = await res.json().catch(() => ({})); toast.error(`儲存失敗：${JSON.stringify(e)}`) }
+    } catch (e) { toast.error(`網路錯誤：${e instanceof Error ? e.message : String(e)}`) }
+    finally { setSavingTestimonials(false) }
+  }
+
+  async function uploadCarouselMedia(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const isVideo = file.type.startsWith("video/")
+    const isImage = file.type.startsWith("image/")
+    if (!isVideo && !isImage) { toast.error("只接受圖片或影片"); return }
+    if (file.size > 50 * 1024 * 1024) { toast.error("檔案大小不能超過 50MB"); return }
+    const ext = file.name.split(".").pop()
+    const path = `reviews/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+    const { error } = await supabase.storage.from("product-images").upload(path, file)
+    if (error) { toast.error(error.message); return }
+    const { data: { publicUrl } } = supabase.storage.from("product-images").getPublicUrl(path)
+    setCarousel(prev => [...prev, { type: isVideo ? "video" : "image", src: publicUrl, alt: file.name }])
+    toast.success("已上傳，記得儲存")
+    if (carouselUploadRef.current) carouselUploadRef.current.value = ""
+  }
+
+  function addCarouselItem() {
+    if (!newItemUrl.trim()) return
+    setCarousel(prev => [...prev, { type: newItemType, src: newItemUrl.trim(), alt: newItemAlt.trim() || (newItemType === "video" ? "影片" : "圖片") }])
+    setNewItemUrl("")
+    setNewItemAlt("")
+  }
+
+  function moveCarouselItem(i: number, dir: -1 | 1) {
+    const arr = [...carousel]
+    const j = i + dir
+    if (j < 0 || j >= arr.length) return
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+    setCarousel(arr)
+  }
+
+  function removeCarouselItem(i: number) {
+    setCarousel(prev => prev.filter((_, idx) => idx !== i))
+  }
+
+  function addTestimonial() {
+    if (!newTestimonial.name || !newTestimonial.text) return
+    setTestimonials(prev => [...prev, { ...newTestimonial }])
+    setNewTestimonial({ name: "", text: "", rating: 5 })
+  }
+
+  function updateTestimonial(i: number, field: keyof Testimonial, val: string | number) {
+    setTestimonials(prev => prev.map((t, idx) => idx === i ? { ...t, [field]: val } : t))
+  }
+
+  function removeTestimonial(i: number) {
+    setTestimonials(prev => prev.filter((_, idx) => idx !== i))
   }
 
   if (loading) {
@@ -423,6 +548,148 @@ export default function AdminHomepagePage() {
           </div>
           <Button onClick={saveBanner} disabled={savingBanner} className="bg-[#10305a] hover:bg-[#10305a]/90">
             {savingBanner ? "儲存中..." : "儲存跑馬燈"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* ── 評論輪播 ─────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm text-[#10305a]">使用者回饋輪播（圖片 / 影片）</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Item list */}
+          <div className="space-y-2">
+            {carousel.map((item, i) => (
+              <div key={i} className="flex items-center gap-2 rounded-lg border border-gray-100 bg-gray-50 p-2">
+                <span className="shrink-0 w-6 h-6 flex items-center justify-center rounded bg-white border text-[#10305a]">
+                  {item.type === "video" ? <Video className="w-3.5 h-3.5" /> : <ImageIcon className="w-3.5 h-3.5" />}
+                </span>
+                <p className="flex-1 text-xs text-gray-500 truncate">{item.alt || item.src}</p>
+                <div className="flex gap-1 shrink-0">
+                  <button onClick={() => moveCarouselItem(i, -1)} disabled={i === 0} className="p-1 disabled:opacity-30 hover:text-[#10305a]"><MoveUp className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => moveCarouselItem(i, 1)} disabled={i === carousel.length - 1} className="p-1 disabled:opacity-30 hover:text-[#10305a]"><MoveDown className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => removeCarouselItem(i)} className="p-1 text-red-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Upload file directly */}
+          <div className="rounded-lg border border-dashed border-gray-300 p-3 space-y-2">
+            <p className="text-xs font-semibold text-[#10305a]">上傳媒體（圖片或影片，最大 50MB）</p>
+            <input ref={carouselUploadRef} type="file" accept="image/*,video/*" onChange={uploadCarouselMedia} className="hidden" />
+            <Button type="button" variant="outline" size="sm" onClick={() => carouselUploadRef.current?.click()}>
+              選擇檔案上傳
+            </Button>
+          </div>
+
+          {/* Add by URL */}
+          <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 space-y-2">
+            <p className="text-xs font-semibold text-[#10305a]">或輸入網址新增</p>
+            <div className="flex gap-2">
+              <select
+                value={newItemType}
+                onChange={e => setNewItemType(e.target.value as "image" | "video")}
+                className="text-xs rounded border border-input bg-background px-2 py-1.5"
+              >
+                <option value="image">圖片</option>
+                <option value="video">影片</option>
+              </select>
+              <Input
+                value={newItemUrl}
+                onChange={e => setNewItemUrl(e.target.value)}
+                placeholder="https://..."
+                className="text-xs flex-1"
+              />
+            </div>
+            <Input
+              value={newItemAlt}
+              onChange={e => setNewItemAlt(e.target.value)}
+              placeholder="說明文字（選填）"
+              className="text-xs"
+            />
+            <Button type="button" size="sm" variant="outline" onClick={addCarouselItem} className="gap-1">
+              <Plus className="w-3.5 h-3.5" /> 新增
+            </Button>
+          </div>
+
+          <Button onClick={saveCarousel} disabled={savingCarousel} className="bg-[#10305a] hover:bg-[#10305a]/90">
+            {savingCarousel ? "儲存中..." : "儲存輪播"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* ── 文字評論 ─────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm text-[#10305a]">首頁文字評論</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Existing testimonials */}
+          <div className="space-y-3">
+            {testimonials.map((t, i) => (
+              <div key={i} className="rounded-lg border border-gray-100 bg-gray-50 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={t.name}
+                    onChange={e => updateTestimonial(i, "name", e.target.value)}
+                    placeholder="名稱"
+                    className="text-xs w-28"
+                  />
+                  {/* Star rating */}
+                  <div className="flex gap-0.5">
+                    {[1,2,3,4,5].map(s => (
+                      <button key={s} type="button" onClick={() => updateTestimonial(i, "rating", s)}>
+                        <Star className={`w-4 h-4 ${s <= t.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} />
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={() => removeTestimonial(i)} className="ml-auto text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                </div>
+                <textarea
+                  value={t.text}
+                  onChange={e => updateTestimonial(i, "text", e.target.value)}
+                  placeholder="評論內容"
+                  rows={2}
+                  className="w-full rounded border border-input bg-background px-3 py-1.5 text-xs resize-y"
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Add new testimonial */}
+          <div className="rounded-lg border border-dashed border-gray-300 p-3 space-y-2">
+            <p className="text-xs font-semibold text-[#10305a]">新增評論</p>
+            <div className="flex items-center gap-2">
+              <Input
+                value={newTestimonial.name}
+                onChange={e => setNewTestimonial(p => ({ ...p, name: e.target.value }))}
+                placeholder="名稱"
+                className="text-xs w-28"
+              />
+              <div className="flex gap-0.5">
+                {[1,2,3,4,5].map(s => (
+                  <button key={s} type="button" onClick={() => setNewTestimonial(p => ({ ...p, rating: s }))}>
+                    <Star className={`w-4 h-4 ${s <= newTestimonial.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <textarea
+              value={newTestimonial.text}
+              onChange={e => setNewTestimonial(p => ({ ...p, text: e.target.value }))}
+              placeholder="評論內容"
+              rows={2}
+              className="w-full rounded border border-input bg-background px-3 py-1.5 text-xs resize-y"
+            />
+            <Button type="button" size="sm" variant="outline" onClick={addTestimonial} className="gap-1">
+              <Plus className="w-3.5 h-3.5" /> 新增
+            </Button>
+          </div>
+
+          <Button onClick={saveTestimonials} disabled={savingTestimonials} className="bg-[#10305a] hover:bg-[#10305a]/90">
+            {savingTestimonials ? "儲存中..." : "儲存評論"}
           </Button>
         </CardContent>
       </Card>
