@@ -1,4 +1,11 @@
 import express, { type Request, type Response, type NextFunction } from "express"
+
+const ALLOWED_ORIGINS = [
+  "http://localhost:3000",
+  "https://realreal-seven.vercel.app",
+  "https://realreal.cc",
+  "https://www.realreal.cc",
+]
 import healthRouter from "./routes/health"
 import { categoriesRouter } from "./routes/categories"
 import { productsRouter } from "./routes/products"
@@ -30,6 +37,19 @@ import { reviewsPublicRouter, reviewsAdminRouter } from "./routes/reviews"
 import { adminOrdersRouter } from "./routes/admin-orders"
 
 export const app = express()
+
+// CORS — must be first so preflight OPTIONS requests are handled before any auth checks
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const origin = req.headers.origin ?? ""
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin)
+  }
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization")
+  res.setHeader("Access-Control-Allow-Credentials", "true")
+  if (req.method === "OPTIONS") { res.sendStatus(204); return }
+  next()
+})
 
 // Raw body parser for webhook routes that need form-encoded bodies
 // (PChomePay and ECPay Logistics use application/x-www-form-urlencoded)
