@@ -71,12 +71,14 @@ type HeroContent = {
   subheading?: string
   cta_text?: string
   cta_link?: string
+  image?: string
 }
 
 function HeroSection({ content }: { content?: HeroContent | null }) {
   const heading = content?.heading ?? "自純淨中補給，在誠真中安心"
   const ctaText = content?.cta_text ?? "立即選購"
   const ctaLink = content?.cta_link ?? "/shop"
+  const bgImage = content?.image || "/brand/hero-banner.jpg"
 
   const bodyLines = [
     "補充體力、維持精神",
@@ -87,14 +89,15 @@ function HeroSection({ content }: { content?: HeroContent | null }) {
   ]
 
   return (
-    <section className="relative overflow-hidden min-h-[580px] lg:min-h-[660px] flex items-center">
+    <section className="relative overflow-hidden min-h-[75vh] lg:min-h-[82vh] flex items-center">
       {/* Background image */}
       <Image
-        src="/brand/hero-banner.jpg"
+        src={bgImage}
         alt=""
         fill
         className="object-cover object-center"
         priority
+        unoptimized={bgImage.startsWith("http")}
       />
       {/* Gradient overlay — left bright, right reveals image */}
       <div
