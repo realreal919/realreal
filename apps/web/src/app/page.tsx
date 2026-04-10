@@ -508,7 +508,7 @@ function RetailSection() {
       address: "新北市板橋區自由路2號",
       phone: "(02) 2255-8878",
       mapUrl: "https://maps.app.goo.gl/Ug2Jy4SVUDupV4TN8?g_st=ic",
-      fbUrl: "https://www.facebook.com/share/1C9Wk8UDW8/?mibextid=wwXIfr",
+      fbUrl: null,
       icon: "💊",
     },
     {
@@ -516,8 +516,8 @@ function RetailSection() {
       type: "生機店",
       address: "彰化縣溪湖鎮郵政街27號",
       phone: "(04) 882-1260",
-      mapUrl: "https://maps.app.goo.gl/Ug2Jy4SVUDupV4TN8?g_st=ic",
-      fbUrl: null,
+      mapUrl: null,
+      fbUrl: "https://www.facebook.com/share/1C9Wk8UDW8/?mibextid=wwXIfr",
       icon: "🌿",
     },
   ]
@@ -569,23 +569,25 @@ function RetailSection() {
               </div>
 
               <div className="flex gap-2 mt-1">
-                <a
-                  href={store.mapUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-colors"
-                  style={{ background: "#10305a", color: "#fff" }}
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                  Google Maps
-                </a>
+                {store.mapUrl && (
+                  <a
+                    href={store.mapUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-colors"
+                    style={{ background: "#10305a", color: "#fff" }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    Google Maps
+                  </a>
+                )}
                 {store.fbUrl && (
                   <a
                     href={store.fbUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold border transition-colors hover:bg-gray-50"
-                    style={{ borderColor: "#10305a30", color: "#10305a" }}
+                    className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-colors"
+                    style={{ background: "#10305a", color: "#fff" }}
                   >
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
                     Facebook
