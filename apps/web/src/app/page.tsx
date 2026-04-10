@@ -78,76 +78,82 @@ function HeroSection({ content }: { content?: HeroContent | null }) {
   const ctaText = content?.cta_text ?? "立即選購"
   const ctaLink = content?.cta_link ?? "/shop"
 
+  const bodyLines = [
+    "補充體力、維持精神",
+    "身體好吸收、不負擔的營養",
+    "每一天，都多一點力氣與穩定",
+    "身心安然",
+    "回到自在的生活節奏",
+  ]
+
   return (
-    <section className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, #eef3f9 0%, #f8f4f0 50%, #f5f0fa 100%)" }}>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid min-h-[560px] items-center gap-6 py-14 md:grid-cols-2 md:py-20 lg:min-h-[620px] lg:py-28">
-          {/* Left: text */}
-          <div className="order-2 md:order-1 flex flex-col justify-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#10305a]/50 mb-4">
-              台灣在地純素健康食品
-            </p>
-            <h1
-              className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-[3.2rem] lg:leading-[1.2]"
-              style={{ color: "#10305a" }}
-            >
-              {heading}
-            </h1>
-            <div className="mt-5 space-y-2 text-[15px] leading-[1.8] text-[#687279]">
-              {content?.subheading ? (
-                <p>{content.subheading}</p>
-              ) : (
-                <>
-                  <p>純植物來源，無添加，無負擔</p>
-                  <p>每一份營養，都來自對生命與土地的尊重</p>
-                </>
-              )}
-            </div>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Button
-                asChild
-                size="lg"
-                className="rounded-full px-8 text-[15px] h-12 font-semibold shadow-sm"
-                style={{ backgroundColor: "#10305a", color: "#fff" }}
-              >
-                <Link href={ctaLink}>{ctaText}</Link>
-              </Button>
-              <Button
-                asChild
-                variant="outline"
-                size="lg"
-                className="rounded-full px-8 text-[15px] h-12 border-[#10305a]/30 text-[#10305a] hover:bg-[#10305a]/5"
-              >
-                <Link href="/about">了解品牌</Link>
-              </Button>
-            </div>
-            {/* Trust badges */}
-            <div className="mt-10 flex flex-wrap gap-x-6 gap-y-2 text-xs text-[#687279]">
-              {["純植物來源", "無添加糖", "台灣製造", "vegan 友善"].map(badge => (
-                <span key={badge} className="flex items-center gap-1.5">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#10305a]/40" />
-                  {badge}
-                </span>
-              ))}
-            </div>
+    <section className="relative overflow-hidden min-h-[580px] lg:min-h-[660px] flex items-center">
+      {/* Background image */}
+      <Image
+        src="/brand/hero-banner.jpg"
+        alt=""
+        fill
+        className="object-cover object-center"
+        priority
+      />
+      {/* Gradient overlay — left bright, right reveals image */}
+      <div
+        className="absolute inset-0"
+        style={{ background: "linear-gradient(to right, rgba(238,243,249,0.97) 0%, rgba(238,243,249,0.92) 40%, rgba(238,243,249,0.55) 65%, rgba(238,243,249,0) 100%)" }}
+      />
+
+      <div className="relative z-10 mx-auto max-w-7xl w-full px-4 sm:px-6 lg:px-8 py-16 md:py-20 lg:py-28">
+        <div className="max-w-xl">
+          {/* Eyebrow */}
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] mb-4" style={{ color: "#10305a", opacity: 0.5 }}>
+            純淨植物力，為你的生活加分
+          </p>
+
+          {/* Heading — nowrap so it stays on one line */}
+          <h1
+            className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-[3.2rem] lg:leading-[1.2] whitespace-nowrap"
+            style={{ color: "#10305a" }}
+          >
+            {heading}
+          </h1>
+
+          {/* Body copy */}
+          <div className="mt-6 space-y-1 text-[15px] leading-[1.85]" style={{ color: "#687279" }}>
+            {content?.subheading
+              ? <p>{content.subheading}</p>
+              : bodyLines.map((line, i) => <p key={i}>{line}</p>)
+            }
           </div>
 
-          {/* Right: product image */}
-          <div className="relative order-1 flex items-center justify-center md:order-2">
-            <div className="relative">
-              <div
-                className="absolute inset-0 rounded-full blur-3xl opacity-20"
-                style={{ background: "radial-gradient(circle, #a886cd 0%, #10305a 100%)" }}
-              />
-              <Image
-                src="/brand/hero-bg.webp"
-                alt="誠真生活產品"
-                width={580}
-                height={520}
-                className="relative object-contain drop-shadow-xl"
-                priority
-              />
-            </div>
+          {/* CTA buttons */}
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Button
+              asChild
+              size="lg"
+              className="rounded-full px-8 text-[15px] h-12 font-semibold shadow-sm"
+              style={{ backgroundColor: "#10305a", color: "#fff" }}
+            >
+              <Link href={ctaLink}>{ctaText}</Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              className="rounded-full px-8 text-[15px] h-12 hover:bg-[#10305a]/5"
+              style={{ borderColor: "rgba(16,48,90,0.3)", color: "#10305a" }}
+            >
+              <Link href="/about">了解品牌</Link>
+            </Button>
+          </div>
+
+          {/* Trust badges */}
+          <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs" style={{ color: "#687279" }}>
+            {["純植物來源", "無添加糖", "台灣製造", "vegan 友善"].map(badge => (
+              <span key={badge} className="flex items-center gap-1.5">
+                <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: "rgba(16,48,90,0.4)" }} />
+                {badge}
+              </span>
+            ))}
           </div>
         </div>
       </div>
