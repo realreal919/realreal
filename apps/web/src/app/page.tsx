@@ -72,6 +72,9 @@ type HeroContent = {
   cta_text?: string
   cta_link?: string
   image?: string
+  image_scale?: number      // percent, e.g. 100 = fill width, 60 = 60% scaled
+  image_position_x?: number // 0–100, default 50
+  image_position_y?: number // 0–100, default 50
 }
 
 function HeroSection({ content }: { content?: HeroContent | null }) {
@@ -79,6 +82,9 @@ function HeroSection({ content }: { content?: HeroContent | null }) {
   const ctaText = content?.cta_text ?? "立即選購"
   const ctaLink = content?.cta_link ?? "/shop"
   const bgImage = content?.image || "/brand/hero-banner.jpg"
+  const bgScale = content?.image_scale ?? 100
+  const bgPosX = content?.image_position_x ?? 50
+  const bgPosY = content?.image_position_y ?? 50
 
   const bodyLines = [
     "補充體力、維持精神",
@@ -90,14 +96,16 @@ function HeroSection({ content }: { content?: HeroContent | null }) {
 
   return (
     <section className="relative overflow-hidden min-h-[75vh] lg:min-h-[82vh] flex items-center">
-      {/* Background image */}
-      <Image
-        src={bgImage}
-        alt=""
-        fill
-        className="object-cover object-center"
-        priority
-        unoptimized={bgImage.startsWith("http")}
+      {/* Background image — CSS-driven so scale & position are fully controllable */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage: `url('${bgImage}')`,
+          backgroundSize: `${bgScale}%`,
+          backgroundPosition: `${bgPosX}% ${bgPosY}%`,
+          backgroundRepeat: "no-repeat",
+          backgroundColor: "#eef3f9",
+        }}
       />
       {/* Gradient overlay — left bright, right reveals image */}
       <div
