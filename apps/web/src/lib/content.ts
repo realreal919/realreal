@@ -22,7 +22,7 @@ export type Post = {
 export async function getSiteContent<T = unknown>(key: string): Promise<T | null> {
   try {
     const res = await fetch(`${API_URL}/site-contents/${key}`, {
-      next: { revalidate: 300 },
+      cache: "no-store",
     })
     if (!res.ok) return null
     const json = await res.json()
