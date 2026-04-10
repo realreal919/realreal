@@ -12,7 +12,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
 
 interface HeroData {
   heading: string
-  subheading: string
+  subheading: string   // stored with \n for line breaks
   cta_text: string
   cta_link: string
   image: string
@@ -24,6 +24,13 @@ interface HeroData {
 interface BannerData {
   text: string
   enabled: boolean
+}
+
+/* ─── Auth token ──────────────────────────────────────────── */
+async function getToken(): Promise<string> {
+  const supabase = createClient()
+  const { data } = await supabase.auth.getSession()
+  return data.session?.access_token ?? ""
 }
 
 /* ─── Single-image upload ─────────────────────────────────── */
@@ -96,7 +103,10 @@ function SliderField({
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <Label className="text-xs">{label}{hint && <span className="ml-1.5 text-gray-400 font-normal">{hint}</span>}</Label>
+        <Label className="text-xs">
+          {label}
+          {hint && <span className="ml-1.5 text-gray-400 font-normal">{hint}</span>}
+        </Label>
         <span className="text-xs font-mono text-[#10305a] w-12 text-right">{value}{unit ?? ""}</span>
       </div>
       <input
@@ -117,8 +127,21 @@ function SliderField({
 }
 
 /* ─── Hero live preview ───────────────────────────────────── */
+const DEFAULT_BODY = [
+  "補充體力、維持精神",
+  "身體好吸收、不負擔的營養",
+  "每一天，都多一點力氣與穩定",
+  "身心安然",
+  "回到自在的生活節奏",
+]
+
 function HeroPreview({ hero }: { hero: HeroData }) {
   const bgImage = hero.image || "/brand/hero-banner.jpg"
+  const heading = hero.heading || "自純淨中補給，在誠真中安心"
+  const bodyLines = hero.subheading
+    ? hero.subheading.split("\n").filter(Boolean)
+    : DEFAULT_BODY
+
   return (
     <div className="space-y-1.5">
       <Label className="text-xs">即時預覽</Label>
@@ -142,12 +165,25 @@ function HeroPreview({ hero }: { hero: HeroData }) {
           className="absolute inset-0"
           style={{ background: "linear-gradient(to right, rgba(238,243,249,0.97) 0%, rgba(238,243,249,0.92) 40%, rgba(238,243,249,0.55) 65%, rgba(238,243,249,0) 100%)" }}
         />
-        {/* text placeholder */}
-        <div className="relative z-10 h-full flex flex-col justify-center px-6 gap-1.5">
-          <div className="w-28 h-1.5 rounded bg-[#10305a]/20" />
-          <div className="w-44 h-3.5 rounded bg-[#10305a]/50" />
-          <div className="w-32 h-2 rounded bg-[#687279]/30 mt-1" />
-          <div className="w-24 h-7 rounded-full bg-[#10305a]/70 mt-2" />
+        {/* text */}
+        <div className="relative z-10 h-full flex flex-col justify-center px-6 gap-0.5" style={{ maxWidth: "55%" }}>
+          <p className="text-[7px] font-semibold tracking-widest text-[#10305a]/40 uppercase mb-0.5">
+            純淨植物力，為你的生活加分
+          </p>
+          <p className="text-[11px] font-bold text-[#10305a] leading-tight mb-1">{heading}</p>
+          <div className="space-y-px">
+            {bodyLines.slice(0, 5).map((line, i) => (
+              <p key={i} className="text-[7px] text-[#687279] leading-relaxed">{line}</p>
+            ))}
+          </div>
+          <div className="mt-2 flex gap-1.5">
+            <span className="text-[7px] bg-[#10305a] text-white rounded-full px-2.5 py-0.5">
+              {hero.cta_text || "立即選購"}
+            </span>
+            <span className="text-[7px] border border-[#10305a]/30 text-[#10305a] rounded-full px-2.5 py-0.5">
+              了解品牌
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -179,24 +215,24 @@ export default function AdminHomepagePage() {
           fetch(`${API_URL}/site-contents/homepage_banner`, { credentials: "include" }),
         ])
         if (heroRes.ok) {
-          const data = await heroRes.json()
+          const json = await heroRes.json()
+          // public endpoint returns { data: <value object> }
+          const v = json.data ?? {}
           setHero({
-            heading: data.value?.heading ?? "",
-            subheading: data.value?.subheading ?? "",
-            cta_text: data.value?.cta_text ?? "",
-            cta_link: data.value?.cta_link ?? "",
-            image: data.value?.image ?? "",
-            image_scale: data.value?.image_scale ?? 100,
-            image_position_x: data.value?.image_position_x ?? 50,
-            image_position_y: data.value?.image_position_y ?? 50,
+            heading: v.heading ?? "",
+            subheading: v.subheading ?? "",
+            cta_text: v.cta_text ?? "",
+            cta_link: v.cta_link ?? "",
+            image: v.image ?? "",
+            image_scale: v.image_scale ?? 100,
+            image_position_x: v.image_position_x ?? 50,
+            image_position_y: v.image_position_y ?? 50,
           })
         }
         if (bannerRes.ok) {
-          const data = await bannerRes.json()
-          setBanner({
-            text: data.value?.text ?? "",
-            enabled: data.value?.enabled ?? false,
-          })
+          const json = await bannerRes.json()
+          const v = json.data ?? {}
+          setBanner({ text: v.text ?? "", enabled: v.enabled ?? false })
         }
       } catch {
         toast.error("載入資料失敗")
@@ -214,16 +250,23 @@ export default function AdminHomepagePage() {
   async function saveHero() {
     setSavingHero(true)
     try {
+      const token = await getToken()
       const res = await fetch(`${API_URL}/admin/site-contents/homepage_hero`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
         body: JSON.stringify({ value: hero }),
       })
-      if (res.ok) toast.success("Hero 已儲存")
-      else toast.error("儲存失敗")
-    } catch {
-      toast.error("儲存失敗")
+      if (res.ok) {
+        toast.success("Hero 已儲存")
+      } else {
+        const err = await res.json().catch(() => ({}))
+        toast.error(`儲存失敗 (${res.status})：${JSON.stringify(err)}`)
+      }
+    } catch (e) {
+      toast.error(`網路錯誤：${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setSavingHero(false)
     }
@@ -232,16 +275,23 @@ export default function AdminHomepagePage() {
   async function saveBanner() {
     setSavingBanner(true)
     try {
+      const token = await getToken()
       const res = await fetch(`${API_URL}/admin/site-contents/homepage_banner`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
         body: JSON.stringify({ value: banner }),
       })
-      if (res.ok) toast.success("跑馬燈已儲存")
-      else toast.error("儲存失敗")
-    } catch {
-      toast.error("儲存失敗")
+      if (res.ok) {
+        toast.success("跑馬燈已儲存")
+      } else {
+        const err = await res.json().catch(() => ({}))
+        toast.error(`儲存失敗 (${res.status})：${JSON.stringify(err)}`)
+      }
+    } catch (e) {
+      toast.error(`網路錯誤：${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setSavingBanner(false)
     }
@@ -273,9 +323,8 @@ export default function AdminHomepagePage() {
           {/* Scale & position sliders */}
           <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 space-y-4">
             <p className="text-xs font-semibold text-[#10305a]">圖片縮放與位置</p>
-
             <SliderField
-              label="縮放" hint="（數字越小圖越縮，數字越大圖越大）"
+              label="縮放" hint="（數字越小圖越縮）"
               value={hero.image_scale} min={30} max={200} step={5} unit="%"
               onChange={v => setHeroField("image_scale", v)}
             />
@@ -304,15 +353,23 @@ export default function AdminHomepagePage() {
               placeholder="自純淨中補給，在誠真中安心"
             />
           </div>
+
+          {/* Body text — textarea with line-break support */}
           <div className="space-y-1">
-            <Label htmlFor="hero-subheading">內文（留空則顯示預設五行文案）</Label>
-            <Input
+            <Label htmlFor="hero-subheading">
+              內文
+              <span className="ml-1.5 text-xs text-gray-400 font-normal">（每行一段，Enter 換行；留空顯示預設文案）</span>
+            </Label>
+            <textarea
               id="hero-subheading"
               value={hero.subheading}
               onChange={(e) => setHeroField("subheading", e.target.value)}
-              placeholder="留空使用預設文案"
+              placeholder={"補充體力、維持精神\n身體好吸收、不負擔的營養\n每一天，都多一點力氣與穩定\n身心安然\n回到自在的生活節奏"}
+              rows={5}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-y"
             />
           </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <Label htmlFor="hero-cta-text">按鈕文字</Label>

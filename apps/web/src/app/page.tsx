@@ -128,10 +128,10 @@ function HeroSection({ content }: { content?: HeroContent | null }) {
             {heading}
           </h1>
 
-          {/* Body copy */}
+          {/* Body copy — subheading stored as \n-separated lines */}
           <div className="mt-6 space-y-1 text-[15px] leading-[1.85]" style={{ color: "#687279" }}>
             {content?.subheading
-              ? <p>{content.subheading}</p>
+              ? content.subheading.split("\n").filter(Boolean).map((line, i) => <p key={i}>{line}</p>)
               : bodyLines.map((line, i) => <p key={i}>{line}</p>)
             }
           </div>

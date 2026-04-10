@@ -51,29 +51,20 @@ siteContentsRouter.put("/admin/site-contents/:key", requireAuth, requireEditor, 
   const parsed = updateValueSchema.safeParse(req.body)
   if (!parsed.success) { res.status(400).json({ error: parsed.error.flatten() }); return }
 
-  // Verify the key exists first
-  const { data: existing, error: lookupError } = await supabase
-    .from("site_contents")
-    .select("id")
-    .eq("key", req.params.key)
-    .single()
-
-  const lookupErr = lookupError as { code?: string; message?: string } | null
-  if (!existing || (lookupErr && lookupErr.code === "PGRST116")) {
-    res.status(400).json({ error: "Key does not exist" }); return
-  }
-  if (lookupErr) { res.status(500).json({ error: lookupErr.message }); return }
-
   const userId = res.locals.userId as string
 
+  // Upsert: create the key if it doesn't exist yet, otherwise update
   const { data, error } = await supabase
     .from("site_contents")
-    .update({
-      value: parsed.data.value,
-      updated_by: userId,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("key", req.params.key)
+    .upsert(
+      {
+        key: req.params.key,
+        value: parsed.data.value,
+        updated_by: userId,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "key" }
+    )
     .select()
     .single()
 
