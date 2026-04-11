@@ -87,13 +87,24 @@ function PlainTextContent({ text }: { text: string }) {
   )
 }
 
+/**
+ * Auto-link bare URLs inside an HTML string.
+ * Negative lookbehind (?<!['"=]) skips URLs already inside href/src attributes.
+ */
+function autoLinkHtml(html: string): string {
+  return html.replace(
+    /(?<!['">=])(https?:\/\/[^\s<>"&]+)/g,
+    '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#10305a;text-decoration:underline;text-underline-offset:2px;word-break:break-all">$1</a>'
+  )
+}
+
 /** Rich HTML from WordPress — styled via prose + custom CSS variables */
 function RichContent({ html }: { html: string }) {
   return (
     <div
       className="rich-content"
       style={{ color: "#687279" }}
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={{ __html: autoLinkHtml(html) }}
     />
   )
 }
