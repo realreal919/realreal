@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button"
 export const metadata = { title: "靜態頁面管理 | Admin" }
 
 const EDITABLE_PAGES = [
-  { key: "about_page", label: "關於我們", description: "關於我們頁面內容（HTML 編輯器）" },
+  { key: "about_page", label: "品牌故事", description: "品牌故事頁面全文內容（富文本編輯器）" },
+  { key: "idea_page", label: "公益里程", description: "公益里程頁面全文內容（富文本編輯器）" },
   { key: "faq_items", label: "常見問題", description: "FAQ 問答項目管理" },
   { key: "footer_social", label: "社群連結", description: "頁尾社群媒體連結設定" },
   { key: "seo_defaults", label: "SEO 預設", description: "全站 SEO 預設 title / description" },

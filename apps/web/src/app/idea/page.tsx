@@ -1,10 +1,15 @@
 import type { Metadata } from "next"
+import { getSiteContent } from "@/lib/content"
+
+export const dynamic = "force-dynamic"
 
 export const metadata: Metadata = {
   title: "公益里程 | 誠真生活 RealReal",
   description:
     "誠真生活公益里程計畫，每一次消費都為社會注入善意。了解我們如何支持腦麻兒家庭，建立充滿信任與善意的生活方式。",
 }
+
+type IdeaContent = { content_html?: string }
 
 const contentHtml = `
 <img width="576" height="1024" src="https://realreal.cc/wp-content/uploads/2025/09/IMG_0885-576x1024.jpg" alt="" srcset="https://realreal.cc/wp-content/uploads/2025/09/IMG_0885-576x1024.jpg 576w, https://realreal.cc/wp-content/uploads/2025/09/IMG_0885-169x300.jpg 169w, https://realreal.cc/wp-content/uploads/2025/09/IMG_0885-768x1366.jpg 768w, https://realreal.cc/wp-content/uploads/2025/09/IMG_0885-750x1334.jpg 750w, https://realreal.cc/wp-content/uploads/2025/09/IMG_0885-600x1068.jpg 600w, https://realreal.cc/wp-content/uploads/2025/09/IMG_0885.jpg 788w" sizes="(max-width: 576px) 100vw, 576px" />
@@ -86,7 +91,10 @@ const contentHtml = `
 </div>
 `
 
-export default function IdeaPage() {
+export default async function IdeaPage() {
+  const content = await getSiteContent<IdeaContent>("idea_page")
+  const htmlContent = content?.content_html?.trim() ? content.content_html : contentHtml
+
   return (
     <div className="container mx-auto px-4 py-12 max-w-4xl">
       <h1 className="text-3xl font-bold mb-8 text-center text-[#10305a]">
@@ -102,7 +110,7 @@ export default function IdeaPage() {
           prose-blockquote:border-[#10305a]/30 prose-blockquote:text-[#687279]
           prose-strong:text-[#10305a]"
         style={{ textAlign: "center" }}
-        dangerouslySetInnerHTML={{ __html: contentHtml }}
+        dangerouslySetInnerHTML={{ __html: htmlContent }}
       />
     </div>
   )

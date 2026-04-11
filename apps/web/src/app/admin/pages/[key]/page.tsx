@@ -8,11 +8,19 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { TiptapEditor } from "@/components/editor"
 import { toast } from "sonner"
+import { createClient } from "@/lib/supabase/client"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
 
+async function getToken(): Promise<string> {
+  const supabase = createClient()
+  const { data } = await supabase.auth.getSession()
+  return data.session?.access_token ?? ""
+}
+
 const PAGE_LABELS: Record<string, string> = {
-  about_page: "關於我們",
+  about_page: "品牌故事",
+  idea_page: "公益里程",
   faq_items: "常見問題",
   footer_social: "社群連結",
   seo_defaults: "SEO 預設",
@@ -36,10 +44,11 @@ export default function AdminPageEditorPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const res = await fetch(`${API_URL}/site-contents/${key}`, { credentials: "include" })
+        const res = await fetch(`${API_URL}/site-contents/${key}`, { cache: "no-store" })
         if (res.ok) {
-          const data = await res.json()
-          setValue(data.value ?? getDefaultValue(key))
+          const json = await res.json()
+          // public endpoint returns { data: <value> }
+          setValue(json.data ?? getDefaultValue(key))
         } else {
           setValue(getDefaultValue(key))
         }
@@ -56,16 +65,16 @@ export default function AdminPageEditorPage() {
   async function handleSave() {
     setSaving(true)
     try {
+      const token = await getToken()
       const res = await fetch(`${API_URL}/admin/site-contents/${key}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ value }),
       })
       if (res.ok) toast.success("已儲存")
-      else toast.error("儲存失敗")
-    } catch {
-      toast.error("儲存失敗")
+      else { const e = await res.json().catch(() => ({})); toast.error(`儲存失敗 (${res.status})`) }
+    } catch (e) {
+      toast.error(`網路錯誤：${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setSaving(false)
     }
@@ -92,6 +101,9 @@ export default function AdminPageEditorPage() {
           {key === "about_page" && (
             <AboutPageEditor value={value} onChange={setValue} />
           )}
+          {key === "idea_page" && (
+            <AboutPageEditor value={value} onChange={setValue} />
+          )}
           {key === "faq_items" && (
             <FaqItemsEditor value={value} onChange={setValue} />
           )}
@@ -113,6 +125,7 @@ export default function AdminPageEditorPage() {
 function getDefaultValue(key: string) {
   switch (key) {
     case "about_page":
+    case "idea_page":
       return { content_html: "" }
     case "faq_items":
       return { items: [] }
