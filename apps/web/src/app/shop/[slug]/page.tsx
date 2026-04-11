@@ -17,9 +17,8 @@ type Review = {
   created_at: string
 }
 
-function maskName(name: string) {
-  if (!name) return "匿名"
-  return name.charAt(0) + "***"
+function displayName(name: string) {
+  return name || "匿名"
 }
 
 function StarRating({ rating }: { rating: number }) {
@@ -252,7 +251,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium" style={{ color: "#10305a" }}>
-                      {maskName(review.author_name)}
+                      {displayName(review.author_name)}
                     </span>
                     <StarRating rating={review.rating} />
                   </div>
