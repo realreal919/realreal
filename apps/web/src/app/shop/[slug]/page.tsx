@@ -39,6 +39,21 @@ const BULLET_START_RE = new RegExp(`^[${BULLET_CHARS}]`)
 const INLINE_SPLIT_RE = new RegExp(` (?=[${BULLET_CHARS}])`)
 
 /** Split plain-text into paragraphs. Handles blank-line, per-line bullets, and inline bullets. */
+/** Render a text segment with bare URLs converted to clickable <a> tags */
+const URL_SPLIT_RE = /(https?:\/\/[^\s]+)/g
+const URL_TEST_RE = /^https?:\/\//
+function renderWithLinks(text: string) {
+  const parts = text.split(URL_SPLIT_RE)
+  return parts.map((part, i) =>
+    URL_TEST_RE.test(part)
+      ? <a key={i} href={part} target="_blank" rel="noopener noreferrer"
+           style={{ color: "#10305a", textDecoration: "underline", textUnderlineOffset: "2px", wordBreak: "break-all" }}>
+          {part}
+        </a>
+      : part
+  )
+}
+
 function PlainTextContent({ text }: { text: string }) {
   const normalized = text.replace(/\r\n/g, "\n").trim()
   const lines = normalized.split("\n").map(l => l.trim()).filter(Boolean)
@@ -64,7 +79,7 @@ function PlainTextContent({ text }: { text: string }) {
           marginBottom: i < paragraphs.length - 1 ? "0.75rem" : 0,
         }}>
           {para.split("\n").map((line, j, arr) => (
-            <span key={j}>{line}{j < arr.length - 1 && <br />}</span>
+            <span key={j}>{renderWithLinks(line)}{j < arr.length - 1 && <br />}</span>
           ))}
         </p>
       ))}
