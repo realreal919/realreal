@@ -97,10 +97,11 @@ export default function IdeaPage() {
           prose-headings:text-[#10305a] prose-headings:font-bold
           prose-p:text-[#687279] prose-p:leading-relaxed
           prose-a:text-[#10305a] prose-a:underline
-          prose-img:rounded-[10px]
+          prose-img:rounded-[10px] prose-img:mx-auto
           prose-li:text-[#687279]
           prose-blockquote:border-[#10305a]/30 prose-blockquote:text-[#687279]
           prose-strong:text-[#10305a]"
+        style={{ textAlign: "center" }}
         dangerouslySetInnerHTML={{ __html: contentHtml }}
       />
     </div>

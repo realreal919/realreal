@@ -82,7 +82,7 @@ export default async function AboutPage() {
     <div className="container mx-auto px-4 py-12 max-w-3xl">
       <h1 className="text-3xl font-bold mb-8 text-[#10305a] text-center">品牌故事</h1>
       <div
-        className="prose prose-zinc max-w-none text-center
+        className="prose prose-zinc max-w-none
           prose-headings:text-[#10305a] prose-headings:font-bold
           prose-p:text-[#687279] prose-p:leading-relaxed
           prose-a:text-[#10305a] prose-a:underline
@@ -92,6 +92,7 @@ export default async function AboutPage() {
           prose-strong:text-[#10305a]
           prose-b:text-[#10305a]
           prose-i:text-[#687279]"
+        style={{ textAlign: "center" }}
         dangerouslySetInnerHTML={{ __html: htmlContent }}
       />
     </div>
