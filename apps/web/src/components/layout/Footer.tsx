@@ -61,7 +61,7 @@ export function Footer() {
               </div>
             </div>
             <p className="mt-4 max-w-xs text-sm leading-relaxed opacity-70">
-              純淨植物力，為你的健康加分。台灣在地純素健康食品品牌。
+              純淨植物力，為你的生活加分。台灣在地品牌。
             </p>
 
             {/* Newsletter placeholder */}
