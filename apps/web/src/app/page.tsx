@@ -634,7 +634,7 @@ function FooterCTA() {
         </p>
         <div className="mt-8 flex items-center justify-center gap-6">
           <a
-            href="https://lin.ee/realreal"
+            href="https://lin.ee/qo1oqct"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-medium hover:bg-white/20 transition-colors"
@@ -642,7 +642,7 @@ function FooterCTA() {
             Line@
           </a>
           <a
-            href="https://www.instagram.com/realreal"
+            href="https://www.instagram.com/realreal.yinsin/"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-medium hover:bg-white/20 transition-colors"
@@ -650,7 +650,7 @@ function FooterCTA() {
             Instagram
           </a>
           <a
-            href="https://www.facebook.com/realreal"
+            href="https://www.facebook.com/realreal.cc"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-medium hover:bg-white/20 transition-colors"
