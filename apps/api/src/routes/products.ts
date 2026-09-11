@@ -4,10 +4,24 @@ import { requireAuth } from "../middleware/auth"
 import { requireAdmin } from "../middleware/admin"
 import { requireEditor } from "../middleware/editor"
 import { enrichProducts } from "../lib/enrich-products"
+import { visibleSortedVariants } from "../lib/variant-order"
 import { z } from "zod"
 
 export const productsRouter = Router()
 export const productsAdminRouter = Router()
+
+/**
+ * 前台商品列表的規格：去掉停售的，並依規則排序（lib/variant-order.ts）。
+ * 列表卡片的「NT$ 起」價格也從這裡算，停售的規格不該影響它。
+ */
+function withVisibleVariants<T extends { product_variants?: unknown }>(rows: T[] | null | undefined): T[] {
+  return (rows ?? []).map((row) => ({
+    ...row,
+    product_variants: visibleSortedVariants(
+      (row.product_variants ?? []) as Array<{ name: string; attributes?: Record<string, unknown> | null }>,
+    ),
+  }))
+}
 
 const productSchema = z.object({
   name: z.string().min(1),
@@ -93,7 +107,7 @@ productsRouter.get("/", async (req, res) => {
 
   let query = supabase
     .from("products")
-    .select("id, name, slug, description, category_id, images, is_active, is_featured, is_addon, is_recommended, display_priority, created_at, min_tier_id, badge_text, membership_tiers!min_tier_id(id, name, min_spend), product_variants(id, sku, name, price, sale_price, addon_price, addon_limit, stock_qty)", { count: "exact" })
+    .select("id, name, slug, description, category_id, images, is_active, is_featured, is_addon, is_recommended, display_priority, created_at, min_tier_id, badge_text, membership_tiers!min_tier_id(id, name, min_spend), product_variants(id, sku, name, price, sale_price, addon_price, addon_limit, stock_qty, attributes)", { count: "exact" })
     .eq("is_active", true)
     .is("deleted_at", null)
     .order("is_featured", { ascending: false })
@@ -120,7 +134,7 @@ productsRouter.get("/", async (req, res) => {
     const { data: allData, error: allError, count: allCount } = await query
     if (allError) { res.status(500).json({ error: allError.message }); return }
 
-    const enriched = await enrichProducts(allData ?? [])
+    const enriched = await enrichProducts(withVisibleVariants(allData))
     enriched.sort((a, b) => {
       const pa = a.min_price ?? 0
       const pb = b.min_price ?? 0
@@ -136,7 +150,7 @@ productsRouter.get("/", async (req, res) => {
   const { data, error, count } = await query
   if (error) { res.status(500).json({ error: error.message }); return }
 
-  const enriched = await enrichProducts(data ?? [])
+  const enriched = await enrichProducts(withVisibleVariants(data))
   res.json({ data: enriched, total: count ?? 0 })
 })
 
@@ -173,7 +187,10 @@ productsRouter.get("/:slug", async (req, res) => {
     }
   }
 
-  res.json({ data: { ...rest, images, variants: product_variants ?? [], min_tier: minTierRaw ?? null } })
+  const variants = visibleSortedVariants(
+    (product_variants ?? []) as Array<{ name: string; attributes?: Record<string, unknown> | null }>,
+  )
+  res.json({ data: { ...rest, images, variants, min_tier: minTierRaw ?? null } })
 })
 
 // POST /products — admin only

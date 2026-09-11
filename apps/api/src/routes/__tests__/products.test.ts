@@ -101,7 +101,7 @@ describe("GET /products", () => {
     expect(res.body).toHaveProperty("data")
     expect(res.body).toHaveProperty("total")
     expect(select).toHaveBeenCalledWith(
-      expect.stringContaining("product_variants(id, sku, name, price, sale_price, addon_price, addon_limit, stock_qty)"),
+      expect.stringContaining("product_variants(id, sku, name, price, sale_price, addon_price, addon_limit, stock_qty, attributes)"),
       { count: "exact" },
     )
     expect(res.body.data[0].variants[0]).toMatchObject({

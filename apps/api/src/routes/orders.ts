@@ -34,6 +34,7 @@ import {
   mergeItemsByVariant,
   type VariantPricingRow,
 } from "../lib/addon-pricing"
+import { isHiddenVariant } from "../lib/variant-order"
 
 export const ordersRouter = Router()
 
@@ -233,10 +234,13 @@ ordersRouter.post("/preview", optionalAuth, async (req, res) => {
   const variantIds = items.map((i) => i.variantId)
   const { data: variantRows } = await supabase
     .from("product_variants")
-    .select("id, sku, name, price, sale_price, addon_price, addon_limit, product_id, products(category_id, name, is_addon)")
+    .select("id, sku, name, price, sale_price, addon_price, addon_limit, product_id, attributes, products(category_id, name, is_addon)")
     .in("id", variantIds)
   const variantMap = new Map<string, VariantPricingRow>()
-  for (const row of (variantRows ?? []) as unknown as VariantPricingRow[]) variantMap.set(row.id, row)
+  // 停售的規格當作不存在：前台已經不顯示它，但購物車可能還留著舊的品項。
+  for (const row of (variantRows ?? []) as unknown as VariantPricingRow[]) {
+    if (!isHiddenVariant(row)) variantMap.set(row.id, row)
+  }
 
   // 加購價 (add-on price) is cart-aware + per-variant qty-capped, so coalesce
   // duplicate lines first, then run the shared helper over the variants we know.
@@ -569,14 +573,17 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
   const variantIds = items.map((i) => i.variantId)
   const { data: variantRows, error: variantErr } = await supabase
     .from("product_variants")
-    .select("id, sku, name, price, sale_price, addon_price, addon_limit, product_id, products(category_id, name, is_addon)")
+    .select("id, sku, name, price, sale_price, addon_price, addon_limit, product_id, attributes, products(category_id, name, is_addon)")
     .in("id", variantIds)
   if (variantErr) {
     console.error("[orders] variant price fetch failed:", variantErr)
     res.status(500).json({ error: "讀取商品資料失敗" }); return
   }
   const variantMap = new Map<string, VariantPricingRow>()
-  for (const row of (variantRows ?? []) as unknown as VariantPricingRow[]) variantMap.set(row.id, row)
+  // 停售的規格當作不存在：前台已經不顯示它，但購物車可能還留著舊的品項。
+  for (const row of (variantRows ?? []) as unknown as VariantPricingRow[]) {
+    if (!isHiddenVariant(row)) variantMap.set(row.id, row)
+  }
   const missingVariants = variantIds.filter((id) => !variantMap.has(id))
   if (missingVariants.length > 0) {
     res.status(400).json({ error: "商品不存在或已下架", variantIds: missingVariants }); return
