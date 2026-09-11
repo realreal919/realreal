@@ -11,7 +11,8 @@
  *   3. 含「其他口味」的組合排在該組最後（例：銀杏水蜜桃．其他口味 各30入）
  *   4. 完全由客人自選的「其他口味」選項排在整份清單最後
  *   5. 認不出口味的名稱（例：「預設」）維持原本順序，放最後
- * 括號裡的字是說明（例：「銀杏水蜜桃口味限5入」），不算口味。
+ * 括號裡的字是說明（例：「銀杏水蜜桃口味限5入」），不算口味 —— 除非括號外
+ * 完全沒提到口味（例：「全口味任選 各2包（原味/可可/…）」，括號裡才是配方）。
  *
  * 隱藏：規格表沒有「上架／下架」欄位，而已經被訂單用過的規格刪不掉
  * （order_items.variant_id 有外鍵，沒有 cascade）。所以停售的規格在
@@ -39,13 +40,8 @@ export function isHiddenVariant(v: WithAttributes): boolean {
   return v.attributes?.[HIDDEN_ATTR_KEY] === HIDDEN_ATTR_VALUE
 }
 
-/** [組別, 是否含其他口味, 口味順序] —— 比較時逐項比。 */
-export function variantSortKey(name: string | null | undefined): [number, number, number[]] {
-  const body = (name ?? "")
-    .replace(/^選擇風味[:：]\s*/, "")
-    .replace(/（[^）]*）|\([^)]*\)/g, "")
-
-  let rest = body
+function flavoursIn(text: string): Set<number> {
+  let rest = text
   const found = new Set<number>()
   for (const [alias, idx] of ALIASES) {
     if (rest.includes(alias)) {
@@ -53,7 +49,21 @@ export function variantSortKey(name: string | null | undefined): [number, number
       rest = rest.split(alias).join("")
     }
   }
+  return found
+}
+
+/** [組別, 是否含其他口味, 口味順序] —— 比較時逐項比。 */
+export function variantSortKey(name: string | null | undefined): [number, number, number[]] {
+  const full = (name ?? "").replace(/^選擇風味[:：]\s*/, "")
+  const body = full.replace(/（[^）]*）|\([^)]*\)/g, "")
   const hasOther = body.includes("其他")
+
+  // 括號通常是說明（「銀杏水蜜桃口味限5入」），不算口味。例外：括號外完全沒提到
+  // 口味、也不是「其他」時，括號裡寫的就是配方本身 ——
+  // 「全口味任選 各2包（原味/可可/草莓/杏仁火龍果/芝麻藍莓）」是五種口味，
+  // 不是認不出來的名稱。
+  let found = flavoursIn(body)
+  if (found.size === 0 && !hasOther) found = flavoursIn(full)
   const flavours = [...found].sort((a, b) => a - b)
 
   if (flavours.length === 0 && !hasOther) return [1000, 0, []] // 認不出口味
