@@ -20,6 +20,7 @@ export function AddToCartSection({
   imageUrl,
   minTierName,
   userQualifies = true,
+  memberOnly = false,
   variantNote,
 }: {
   productName: string
@@ -27,6 +28,8 @@ export function AddToCartSection({
   imageUrl?: string
   minTierName?: string
   userQualifies?: boolean
+  /** 門檻 0 的等級：任何註冊會員都能買，提示改說「登入會員」而不是等級名稱。 */
+  memberOnly?: boolean
   variantNote?: string
 }) {
   const [selectedVariantId, setSelectedVariantId] = useState<string>(
@@ -76,7 +79,11 @@ export function AddToCartSection({
       {/* Tier restriction notice */}
       {tierLocked && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm" style={{ color: "#92400e" }}>
-          此商品限 <strong>{minTierName}</strong> 以上會員購買
+          {memberOnly ? (
+            <>此商品限會員購買，<strong>登入會員</strong>即可購買</>
+          ) : (
+            <>此商品限 <strong>{minTierName}</strong> 以上會員購買</>
+          )}
         </div>
       )}
 

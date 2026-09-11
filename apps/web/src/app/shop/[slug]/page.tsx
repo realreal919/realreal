@@ -105,8 +105,12 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   // Membership tier gate — compute server-side so the locked state is in the HTML
   let minTierName: string | undefined
   let userQualifies = true
+  // 門檻 0 的等級（初心之友）＝任何註冊會員。客人不知道「初心之友」就是
+  // 一般會員，照等級名稱寫會讓人以為要升等才能買，所以改說「會員限定」。
+  let memberOnly = false
   if (product.min_tier) {
     minTierName = product.min_tier.name
+    memberOnly = Number(product.min_tier.min_spend) === 0
     userQualifies = false
     try {
       const supabase = await createClient()
@@ -209,7 +213,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             )}
             {minTierName && (
               <Badge className="mb-2 w-fit" style={{ backgroundColor: "#10305a" }}>
-                {minTierName}限定
+                {memberOnly ? "會員" : minTierName}限定
               </Badge>
             )}
             <h1
@@ -226,6 +230,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                 imageUrl={mainImage ?? undefined}
                 minTierName={minTierName}
                 userQualifies={userQualifies}
+                memberOnly={memberOnly}
                 variantNote={variantNote}
               />
             </div>

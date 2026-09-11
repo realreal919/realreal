@@ -65,7 +65,8 @@ export function ProductCard({
               className="absolute top-2 right-2 px-2 py-0.5 text-xs font-bold text-white"
               style={{ backgroundColor: "#10305a" }}
             >
-              {product.min_tier.name}限定
+              {/* 門檻 0 的等級（初心之友）就是任何註冊會員，寫「會員限定」客人才看得懂 */}
+              {Number(product.min_tier.min_spend) === 0 ? "會員" : product.min_tier.name}限定
             </div>
           )}
 
