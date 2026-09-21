@@ -1,8 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Minus, Plus, PencilLine, ShoppingCart } from "lucide-react"
+import { Minus, Plus, PencilLine, ShoppingCart, Tag } from "lucide-react"
 import { useCart } from "@/lib/cart"
+import { API_URL } from "@/lib/api-url"
+import { marqueeSpendMessage, type SpendThreshold } from "@/lib/spend-threshold"
 import { Badge } from "@/components/ui/badge"
 import { AddonStrip } from "./AddonStrip"
 
@@ -36,6 +38,21 @@ export function AddToCartSection({
     variants[0]?.id ?? ""
   )
   const [qty, setQty] = useState(1)
+  // 滿額折扣檔次（GET /config，與跑馬燈、購物車同一份資料）。拿不到就不顯示。
+  const [spendTiers, setSpendTiers] = useState<SpendThreshold[]>([])
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API_URL}/config`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json: { spendThresholds?: SpendThreshold[] } | null) => {
+        if (!cancelled && Array.isArray(json?.spendThresholds)) setSpendTiers(json.spendThresholds)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+  const spendMessage = marqueeSpendMessage(spendTiers)
   const addItem = useCart((s) => s.addItem)
   const updatePrice = useCart((s) => s.updatePrice)
   const cartItems = useCart((s) => s.items)
@@ -141,6 +158,20 @@ export function AddToCartSection({
           </span>
         )}
       </div>
+
+      {/* 滿額優惠提醒 */}
+      {spendMessage && (
+        <div
+          className="-mt-2 inline-flex items-start gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs"
+          style={{ color: "#92400e" }}
+        >
+          <Tag className="h-3.5 w-3.5 shrink-0 mt-px" />
+          <span>
+            <span className="font-semibold">全站滿額優惠</span>　{spendMessage}
+            <span className="opacity-80">（結帳自動折抵）</span>
+          </span>
+        </div>
+      )}
 
       {/* Quantity selector + Add to cart */}
       <div className="flex items-center gap-3">
