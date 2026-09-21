@@ -82,9 +82,35 @@ configRouter.get("/", async (_req, res) => {
     console.warn("[config] free-shipping campaign lookup failed (non-fatal):", err)
   }
 
+  // 生效中的滿額折扣（spend_threshold），給跑馬燈與購物車「再買 NT$X 折 Y」用。
+  // 跟免運活動同一個理由：文案由條件組出來，不寫死，後台改金額就自己跟著變。
+  // 限定等級的活動不放進來 —— 這裡是對所有訪客說的話，不能承諾他拿不到的折扣。
+  let spendThresholds: Array<{ minAmount: number; discount: number }> = []
+  try {
+    const now = new Date().toISOString()
+    const { data } = await supabase
+      .from("campaigns")
+      .select("config, starts_at, ends_at, tier_id")
+      .eq("type", "spend_threshold")
+      .eq("is_active", true)
+      .is("tier_id", null)
+      .lte("starts_at", now)
+    spendThresholds = (data ?? [])
+      .filter((c) => !c.ends_at || (c.ends_at as string) > now)
+      .map((c) => {
+        const cfg = (c.config ?? {}) as Record<string, unknown>
+        return { minAmount: Number(cfg.min_amount ?? 0), discount: Number(cfg.discount_amount ?? 0) }
+      })
+      .filter((t) => t.minAmount > 0 && t.discount > 0)
+      .sort((a, b) => a.minAmount - b.minAmount)
+  } catch (err) {
+    console.warn("[config] spend-threshold campaign lookup failed (non-fatal):", err)
+  }
+
   res.json({
     allowTestPaid: process.env.ALLOW_NON_ADMIN_TEST_PAID === "true",
     shipping,
     shippingCampaigns,
+    spendThresholds,
   })
 })
