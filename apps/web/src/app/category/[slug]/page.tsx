@@ -72,6 +72,8 @@ type ProteinSeries = "pure" | "fruit" | "steady" | "trial"
 
 function classifyProteinProduct(name: string): ProteinSeries {
   if (name.startsWith("穩定補給")) return "steady"
+  // 同口味 2 入組沒有名稱前綴，而且「同口味」不含「原味」，不加這行會被歸到果實系列。
+  if (name.includes("隨身包體驗組")) return "steady"
   if (name.startsWith("入門推薦")) return "trial"
   if (name.includes("原味") || name.includes("可可")) return "pure"
   return "fruit"
@@ -80,7 +82,7 @@ function classifyProteinProduct(name: string): ProteinSeries {
 const PROTEIN_SERIES_META: Record<ProteinSeries, { title: string; subtitle: string }> = {
   pure: { title: "純粹系列", subtitle: "原味、可可——簡單純粹的日常之選" },
   fruit: { title: "果實系列", subtitle: "草莓、杏仁火龍果、芝麻藍莓——真實水果的自然風味" },
-  steady: { title: "穩定補給", subtitle: "日常持續補充的完整組合" },
+  steady: { title: "自由搭配", subtitle: "依喜好選口味、配份量的組合" },
   trial: { title: "多日體驗", subtitle: "初次嘗試的天數體驗組合" },
 }
 const PROTEIN_SERIES_ORDER: ProteinSeries[] = ["pure", "fruit", "steady", "trial"]
