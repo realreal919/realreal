@@ -88,6 +88,11 @@ describe("名稱解析", () => {
     expect(names(sorted)).toEqual(["選擇風味: 可可 3入", "預設", "隨身包 × 10入"])
   })
 
+  it("★ 單包頁：「單包」排在「3入組」前面，不管資料庫回傳順序", () => {
+    expect(names(sortVariants([v("3入組"), v("單包")]))).toEqual(["單包", "3入組"])
+    expect(names(sortVariants([v("單包"), v("3入組")]))).toEqual(["單包", "3入組"])
+  })
+
   it("不修改傳入的陣列", () => {
     const input = [v("選擇風味: 草莓 60入"), v("選擇風味: 原味 60入")]
     sortVariants(input)

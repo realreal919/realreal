@@ -83,11 +83,28 @@ function compareKeys(a: [number, number, number[]], b: [number, number, number[]
   return 0
 }
 
+/**
+ * 認不出口味的選項之間，依包數由少到多：單包頁的「單包」一定排在「3入組」前面。
+ * 兩者都不含口味，以前只能照資料庫回傳的順序 —— 那個順序會因為改過某一列而
+ * 變動，銀杏水蜜桃頁就變成「3入組」在前。第一個選項同時是商品頁的預設選項和
+ * 加購區用的規格（AddonStrip 取 variants[0]），排錯會讓加購區拿到沒有加購價
+ * 的 3入組。沒寫包數的（「預設」、「單包」）視為 1 包。
+ */
+function packCount(name: string | null | undefined): number {
+  const m = (name ?? "").match(/(\d+)\s*入/)
+  return m ? Number(m[1]) : 1
+}
+
 /** 穩定排序：規則比不出先後的，維持原本順序。不修改傳入的陣列。 */
 export function sortVariants<T extends WithName>(variants: T[]): T[] {
   return variants
     .map((v, i) => ({ v, i, k: variantSortKey(v.name) }))
-    .sort((a, b) => compareKeys(a.k, b.k) || a.i - b.i)
+    .sort(
+      (a, b) =>
+        compareKeys(a.k, b.k) ||
+        (a.k[0] === 1000 ? packCount(a.v.name) - packCount(b.v.name) : 0) ||
+        a.i - b.i,
+    )
     .map(({ v }) => v)
 }
 
