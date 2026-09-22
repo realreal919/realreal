@@ -73,7 +73,7 @@ type ProteinSeries = "pure" | "fruit" | "steady" | "trial"
 function classifyProteinProduct(name: string): ProteinSeries {
   if (name.startsWith("穩定補給") || name.startsWith("任選口味")) return "steady"
   // 同口味 2 入組沒有名稱前綴，而且「同口味」不含「原味」，不加這行會被歸到果實系列。
-  if (name.includes("隨身包體驗組")) return "steady"
+  if (name.startsWith("同口味")) return "steady"
   if (name.startsWith("入門推薦")) return "trial"
   if (name.includes("原味") || name.includes("可可")) return "pure"
   return "fruit"
