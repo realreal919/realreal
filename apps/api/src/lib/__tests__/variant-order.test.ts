@@ -93,6 +93,16 @@ describe("名稱解析", () => {
     expect(names(sortVariants([v("單包"), v("3入組")]))).toEqual(["單包", "3入組"])
   })
 
+  it("★ attributes 標「置頂：是」的選項排第一個（商品頁預設選項）", () => {
+    const sorted = sortVariants([
+      { name: "選擇風味: 原味 10入" },
+      { name: "選擇風味: 全口味任選 各2包（原味/可可/草莓/杏仁火龍果/芝麻藍莓）", attributes: { 置頂: "是" } },
+      { name: "選擇風味: 可可+草莓 各5入" },
+    ])
+    expect(names(sorted)[0]).toBe("選擇風味: 全口味任選 各2包（原味/可可/草莓/杏仁火龍果/芝麻藍莓）")
+    expect(names(sorted).slice(1)).toEqual(["選擇風味: 原味 10入", "選擇風味: 可可+草莓 各5入"])
+  })
+
   it("不修改傳入的陣列", () => {
     const input = [v("選擇風味: 草莓 60入"), v("選擇風味: 原味 60入")]
     sortVariants(input)

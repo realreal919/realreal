@@ -95,12 +95,25 @@ function packCount(name: string | null | undefined): number {
   return m ? Number(m[1]) : 1
 }
 
+/**
+ * 置頂：attributes 標 { "置頂": "是" } 的選項排在最前面 —— 第一個選項就是商品頁
+ * 的預設選項。規則排序照口味數由少到多，但店主有時要把某個組合（例：10 天組的
+ * 「全口味 各2包」）當預設，這個標記讓她在後台規格編輯器自己改，刪掉就恢復規則排序。
+ */
+export const PINNED_ATTR_KEY = "置頂"
+
+function isPinned(v: unknown): boolean {
+  const attrs = (v as WithAttributes).attributes
+  return attrs?.[PINNED_ATTR_KEY] === HIDDEN_ATTR_VALUE
+}
+
 /** 穩定排序：規則比不出先後的，維持原本順序。不修改傳入的陣列。 */
 export function sortVariants<T extends WithName>(variants: T[]): T[] {
   return variants
     .map((v, i) => ({ v, i, k: variantSortKey(v.name) }))
     .sort(
       (a, b) =>
+        Number(isPinned(b.v)) - Number(isPinned(a.v)) ||
         compareKeys(a.k, b.k) ||
         (a.k[0] === 1000 ? packCount(a.v.name) - packCount(b.v.name) : 0) ||
         a.i - b.i,
