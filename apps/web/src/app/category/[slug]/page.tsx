@@ -72,6 +72,8 @@ type ProteinSeries = "pure" | "fruit" | "steady" | "trial"
 
 function classifyProteinProduct(name: string): ProteinSeries {
   if (name.startsWith("穩定補給") || name.startsWith("任選口味")) return "steady"
+  // 10 天組 2026-09 由「任選口味」改名「多種搭配」，名稱沒有口味字，不加這行會被歸到果實系列。
+  if (name.startsWith("多種搭配")) return "steady"
   // 同口味 2 入組沒有名稱前綴，而且「同口味」不含「原味」，不加這行會被歸到果實系列。
   if (name.startsWith("同口味")) return "steady"
   if (name.startsWith("入門推薦")) return "trial"
