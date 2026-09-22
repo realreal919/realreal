@@ -289,34 +289,19 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           </div>
         )}
 
-        {/* 沖泡說明影片 — protein only。銀杏水蜜桃（50克、300克）改放自己的 IG Reel，
-            其他口味維持共用的 YouTube 影片。 */}
+        {/* 沖泡說明影片 — protein only */}
         {isProtein && (
           <div className="mt-14 flex flex-col items-center gap-4">
             <h2 className="text-lg font-semibold" style={{ color: "#10305a" }}>沖泡說明</h2>
-            {product.slug.includes("ginkgo-peach") ? (
-              <div className="w-full max-w-[400px] overflow-hidden rounded-2xl shadow-md bg-white">
-                <iframe
-                  src="https://www.instagram.com/reel/DcxdC3WxXQa/embed"
-                  title="銀杏水蜜桃影片"
-                  allow="autoplay; clipboard-write; encrypted-media; picture-in-picture"
-                  allowFullScreen
-                  scrolling="no"
-                  className="w-full border-0"
-                  style={{ height: "720px" }}
-                />
-              </div>
-            ) : (
-              <div className="w-full max-w-[360px] overflow-hidden rounded-2xl shadow-md" style={{ aspectRatio: "9/16" }}>
-                <iframe
-                  src="https://www.youtube.com/embed/gkru2H1QJA0"
-                  title="沖泡說明影片"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  className="w-full h-full border-0"
-                />
-              </div>
-            )}
+            <div className="w-full max-w-[360px] overflow-hidden rounded-2xl shadow-md" style={{ aspectRatio: "9/16" }}>
+              <iframe
+                src="https://www.youtube.com/embed/gkru2H1QJA0"
+                title="沖泡說明影片"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full h-full border-0"
+              />
+            </div>
           </div>
         )}
 
