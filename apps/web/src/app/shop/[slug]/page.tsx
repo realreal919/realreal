@@ -293,14 +293,12 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             其他口味維持共用的 YouTube 影片。 */}
         {isProtein && (
           <div className="mt-14 flex flex-col items-center gap-4">
-            <h2 className="text-lg font-semibold" style={{ color: "#10305a" }}>
-              {product.slug.includes("ginkgo-peach") ? "用戶回饋" : "沖泡說明"}
-            </h2>
+            <h2 className="text-lg font-semibold" style={{ color: "#10305a" }}>沖泡說明</h2>
             {product.slug.includes("ginkgo-peach") ? (
               <div className="w-full max-w-[400px] overflow-hidden rounded-2xl shadow-md bg-white">
                 <iframe
                   src="https://www.instagram.com/reel/DcxdC3WxXQa/embed"
-                  title="用戶回饋影片"
+                  title="銀杏水蜜桃影片"
                   allow="autoplay; clipboard-write; encrypted-media; picture-in-picture"
                   allowFullScreen
                   scrolling="no"
