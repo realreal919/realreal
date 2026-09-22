@@ -15,7 +15,7 @@ export function ProductCard({
   const maxPrice = product.max_price
   const minSalePrice = product.min_sale_price
   const hasDiscount = minSalePrice != null && minPrice != null && minSalePrice < minPrice
-  // 隨身包單一口味：「單包價 – 最低每包價」（API 的 per_pack_min_price），不顯示組合總價。
+  // 隨身包單一口味：「最低每包價 – 單包價」（由低到高）（API 的 per_pack_min_price），不顯示組合總價。
   const perPackMin = product.per_pack_min_price ?? null
   const singlePrice = minSalePrice ?? minPrice
   const showPerPack = perPackMin != null && singlePrice != null && perPackMin < singlePrice
@@ -110,10 +110,10 @@ export function ProductCard({
             {showPerPack ? (
               <>
                 <span className="text-sm font-bold" style={{ color: "#10305a" }}>
-                  NT${singlePrice!.toLocaleString()}
+                  NT${perPackMin!.toLocaleString()}
                 </span>
                 <span className="text-xs" style={{ color: "#687279" }}>
-                  – NT${perPackMin!.toLocaleString()}
+                  – NT${singlePrice!.toLocaleString()}
                 </span>
               </>
             ) : hasDiscount ? (
