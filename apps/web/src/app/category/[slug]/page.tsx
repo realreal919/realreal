@@ -75,6 +75,8 @@ function classifyProteinProduct(name: string): ProteinSeries {
   // 同口味 2 入組沒有名稱前綴，而且「同口味」不含「原味」，不加這行會被歸到果實系列。
   if (name.startsWith("同口味")) return "steady"
   if (name.startsWith("入門推薦")) return "trial"
+  // 蛋白粉盲盒（10 入口味隨機）是嘗鮮用的組合，放「多日體驗」；不加這行會被歸到果實系列。
+  if (name.startsWith("蛋白粉盲盒")) return "trial"
   if (name.includes("原味") || name.includes("可可")) return "pure"
   return "fruit"
 }

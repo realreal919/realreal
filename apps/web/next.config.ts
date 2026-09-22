@@ -15,7 +15,10 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       // 2026-09-21 隨身包 3 入組當天改成 2 入組
-      { source: "/shop/sachet-3pack", destination: "/shop/sachet-2pack", permanent: true },
+      // 2026-09-22 同口味 2 入組下架，改賣蛋白粉盲盒；舊網址（含更早的 3 入組）都轉過去。
+      // 用 302（permanent: false）：2 入組哪天重新上架，拿掉這兩行就好，瀏覽器不會永久記住。
+      { source: "/shop/sachet-3pack", destination: "/shop/protein-blind-box", permanent: false },
+      { source: "/shop/sachet-2pack", destination: "/shop/protein-blind-box", permanent: false },
     ]
   },
 }
