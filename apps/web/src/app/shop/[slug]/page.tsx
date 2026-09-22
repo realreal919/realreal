@@ -310,26 +310,35 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         {isProtein && (
           <div className="mt-14 flex flex-col items-center gap-3">
             <h2 className="text-lg font-semibold" style={{ color: "#10305a" }}>用戶回饋</h2>
-            {/* 影片封面照（點了開第一支 Reel）：銀杏水蜜桃與多入任選組合頁 */}
-            {(product.slug.includes("ginkgo-peach") ||
-              product.slug === "protein-3pack" ||
-              product.slug === "protein-10pack-sampler") && (
-              <a
-                href="https://www.instagram.com/reel/DcxdC3WxXQa/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full max-w-[320px] overflow-hidden rounded-2xl shadow-md"
-              >
-                <Image
-                  src="/product-info/ugc-lynn-reel.jpg"
-                  alt="用戶回饋：佛系飲控的上班族一天吃什麼"
-                  width={422}
-                  height={697}
-                  sizes="320px"
-                  style={{ width: "100%", height: "auto" }}
-                />
-              </a>
-            )}
+            {/* 影片封面照（點了開對應的 Reel）：
+                銀杏水蜜桃與多入任選組合頁 → 第一支（佛系飲控一天吃什麼）
+                其他蛋白粉頁 → 第二支（草莓果乾那段） */}
+            {(() => {
+              const firstReel =
+                product.slug.includes("ginkgo-peach") ||
+                product.slug === "protein-3pack" ||
+                product.slug === "protein-10pack-sampler"
+              const cover = firstReel
+                ? { href: "https://www.instagram.com/reel/DcxdC3WxXQa/", src: "/product-info/ugc-lynn-reel.jpg", alt: "用戶回饋：佛系飲控的上班族一天吃什麼", w: 422 }
+                : { href: "https://www.instagram.com/reel/Dc0gswIzVbF/", src: "/product-info/ugc-lynn-reel-2.jpg", alt: "用戶回饋：真的好愛這裡面的草莓果乾", w: 421 }
+              return (
+                <a
+                  href={cover.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full max-w-[320px] overflow-hidden rounded-2xl shadow-md"
+                >
+                  <Image
+                    src={cover.src}
+                    alt={cover.alt}
+                    width={cover.w}
+                    height={697}
+                    sizes="320px"
+                    style={{ width: "100%", height: "auto" }}
+                  />
+                </a>
+              )
+            })()}
             <div className="flex flex-wrap justify-center gap-3">
               {["DcxdC3WxXQa", "Dc0gswIzVbF"].map((id, i) => (
                 <a
