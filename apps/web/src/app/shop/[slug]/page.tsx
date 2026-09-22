@@ -305,6 +305,22 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           </div>
         )}
 
+        {/* 用戶回饋 — IG Reel 連結。該帳號不允許嵌入（iframe 只會顯示「連結可能已損壞」），
+            所以放超連結開到 Instagram。銀杏水蜜桃（50克、300克）與組合商品頁。 */}
+        {(product.slug.includes("ginkgo-peach") || product.slug === "sachet-2pack" || product.slug === "protein-3pack") && (
+          <div className="mt-14 flex flex-col items-center gap-3">
+            <h2 className="text-lg font-semibold" style={{ color: "#10305a" }}>用戶回饋</h2>
+            <a
+              href="https://www.instagram.com/reel/DcxdC3WxXQa/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-[#10305a] px-5 py-2.5 text-sm font-medium text-[#10305a] transition-colors hover:bg-[#10305a] hover:text-white"
+            >
+              ▶ 到 Instagram 看用戶回饋影片
+            </a>
+          </div>
+        )}
+
         {/* Product info images — protein only. Slot 7 is the nutrition-facts
             sheet: 300克/夾鏈袋 products (single 300克 bags, and the 3/10-入
             bundles built from those bags) show the 6-serving sheet; every
