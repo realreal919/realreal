@@ -1,6 +1,7 @@
 import { Router } from "express"
 import { supabase } from "../../lib/supabase"
 import { confirmPayment } from "../../lib/linepay"
+import { settleFailedPayment } from "../../lib/cancel-order"
 
 export const linepayWebhookRouter = Router()
 
@@ -103,7 +104,7 @@ linepayWebhookRouter.get("/confirm", async (req, res) => {
     // Guard: never let a confirm-failure clobber an order that is already paid
     // (parity with pchomepay #10000035 — a captured order must survive a later
     // failed / forged confirm attempt).
-    await supabase
+    const { data: flipped } = await supabase
       .from("orders")
       .update({
         status: "failed",
@@ -112,6 +113,10 @@ linepayWebhookRouter.get("/confirm", async (req, res) => {
       })
       .eq("id", payment.order_id)
       .neq("payment_status", "paid")
+      // 只在第一次翻成失敗時收尾（退庫存、優惠券、首購資格）
+      .not("status", "in", "(failed,cancelled)")
+      .select("id")
+    if (flipped && flipped.length > 0) await settleFailedPayment(payment.order_id)
 
     res.redirect(`${siteUrl}/checkout/confirm?order=${orderId}&status=failed`)
   }
@@ -149,18 +154,9 @@ linepayWebhookRouter.get("/cancel", async (req, res) => {
       if (cancelErr) {
         console.error("[webhooks/linepay] cancel update failed:", cancelErr)
       } else if (cancelled && cancelled.length > 0) {
-        // Return the stock deducted at order creation (only when we actually cancelled).
-        const { data: items } = await supabase
-          .from("order_items")
-          .select("variant_id, qty")
-          .eq("order_id", order.id)
-        const variants = (items ?? [])
-          .filter((i) => i.variant_id && Number(i.qty) > 0)
-          .map((i) => ({ id: i.variant_id, qty: Number(i.qty) }))
-        if (variants.length > 0) {
-          const { error: restoreErr } = await supabase.rpc("atomic_restore_stock", { p_variants: variants })
-          if (restoreErr) console.warn("[webhooks/linepay] cancel stock restore failed:", restoreErr.message)
-        }
+        // Only when we actually cancelled: return stock, coupon usage, and the
+        // first-purchase claim (the claim used to stay stuck on the dead order).
+        await settleFailedPayment(order.id)
       }
     }
   }

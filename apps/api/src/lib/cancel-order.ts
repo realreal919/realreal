@@ -177,6 +177,23 @@ type OrderRow = {
     | null
 }
 
+/**
+ * 金流回報付款失敗（或客人在金流頁取消）後的收尾：退庫存、退優惠券使用次數、
+ * 把首購資格還給客人。
+ *
+ * 以前三家金流的失敗 webhook 只把訂單翻成 failed，這三件事都沒做，而後台又不允許
+ * 取消 failed 訂單 —— #10000268（2026-09-22）付款失敗後，客人的首購折扣永遠卡在
+ * 這筆死訂單上（uniq_first_purchase_per_user），下單扣掉的庫存也沒回來。
+ *
+ * 呼叫端必須保證只在「這次更新真的把訂單從未失敗翻成 failed/cancelled」時呼叫一次
+ * （update 加上狀態條件、看回傳列數），否則重複的失敗通知會重複退庫存。
+ */
+export async function settleFailedPayment(orderId: string): Promise<void> {
+  await restoreOrderStock(orderId)
+  await refundCouponUsage(orderId)
+  await releaseFirstPurchaseClaim(orderId)
+}
+
 export async function cancelOrderById(
   orderId: string,
   reason: string,

@@ -1,6 +1,7 @@
 import { Router } from "express"
 import { supabase } from "../../lib/supabase"
 import { queryPayment } from "../../lib/pchomepay"
+import { settleFailedPayment } from "../../lib/cancel-order"
 
 export const pchomepayWebhookRouter = Router()
 
@@ -192,8 +193,12 @@ pchomepayWebhookRouter.post("/", async (req, res) => {
         })
         .eq("id", tx.order_id)
         .neq("payment_status", "paid")
+        // 只在第一次翻成失敗時收尾；重複的失敗通知不能重複退庫存。
+        .not("status", "in", "(failed,cancelled)")
         .select("id")
-      if (!flipped || flipped.length === 0) {
+      if (flipped && flipped.length > 0) {
+        await settleFailedPayment(tx.order_id)
+      } else {
         console.warn(
           `[webhooks/pchomepay] ${notifyType} ignored for order ${tx.order_id} ` +
             `(already paid or gone) — tx ${orderNumber}`,

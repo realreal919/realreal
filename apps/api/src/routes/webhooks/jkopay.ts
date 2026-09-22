@@ -1,5 +1,6 @@
 import { Router } from "express"
 import { supabase } from "../../lib/supabase"
+import { settleFailedPayment } from "../../lib/cancel-order"
 
 export const jkopayWebhookRouter = Router()
 
@@ -263,9 +264,13 @@ jkopayWebhookRouter.post("/", async (req, res) => {
       })
       .eq("id", orderId)
       .neq("payment_status", "paid")
+      // 只在第一次翻成失敗時收尾（退庫存、優惠券、首購資格）
+      .not("status", "in", "(failed,cancelled)")
       .select("id")
     if (flipErr) {
       console.error("[webhooks/jkopay] order fail-flip failed:", flipErr)
+    } else if (flipped && flipped.length > 0) {
+      await settleFailedPayment(orderId)
     } else if (!flipped || flipped.length === 0) {
       console.warn(
         `[webhooks/jkopay] fail callback ignored for order ${orderId} (already paid) — platform_order_id=${platformOrderId}`,
