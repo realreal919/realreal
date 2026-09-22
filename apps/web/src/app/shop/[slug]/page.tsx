@@ -306,18 +306,24 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         )}
 
         {/* 用戶回饋 — IG Reel 連結。該帳號不允許嵌入（iframe 只會顯示「連結可能已損壞」），
-            所以放超連結開到 Instagram。銀杏水蜜桃（50克、300克）與組合商品頁。 */}
-        {(product.slug.includes("ginkgo-peach") || product.slug === "sachet-2pack" || product.slug === "protein-3pack") && (
+            所以放超連結開到 Instagram。所有蛋白粉商品頁。 */}
+        {isProtein && (
           <div className="mt-14 flex flex-col items-center gap-3">
             <h2 className="text-lg font-semibold" style={{ color: "#10305a" }}>用戶回饋</h2>
-            <a
-              href="https://www.instagram.com/reel/DcxdC3WxXQa/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-full border border-[#10305a] px-5 py-2.5 text-sm font-medium text-[#10305a] transition-colors hover:bg-[#10305a] hover:text-white"
-            >
-              ▶ 到 Instagram 看用戶回饋影片
-            </a>
+            <div className="flex flex-wrap justify-center gap-3">
+              {["DcxdC3WxXQa", "Dc0gswIzVbF"].map((id, i) => (
+                <a
+                  key={id}
+                  href={`https://www.instagram.com/reel/${id}/`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full border border-[#10305a] px-5 py-2.5 text-sm font-medium text-[#10305a] transition-colors hover:bg-[#10305a] hover:text-white"
+                >
+                  ▶ 用戶回饋影片 {i + 1}
+                </a>
+              ))}
+            </div>
+            <p className="text-xs" style={{ color: "#687279" }}>點擊後在 Instagram 開啟</p>
           </div>
         )}
 
