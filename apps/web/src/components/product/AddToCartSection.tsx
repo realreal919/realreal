@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Minus, Plus, PencilLine, ShoppingCart, Tag } from "lucide-react"
 import { useCart } from "@/lib/cart"
 import { API_URL } from "@/lib/api-url"
-import { marqueeSpendMessage, type SpendThreshold } from "@/lib/spend-threshold"
+import { marqueeSpendMessage, type SpendGift, type SpendThreshold } from "@/lib/spend-threshold"
 import { Badge } from "@/components/ui/badge"
 import { AddonStrip } from "./AddonStrip"
 
@@ -40,19 +40,22 @@ export function AddToCartSection({
   const [qty, setQty] = useState(1)
   // 滿額折扣檔次（GET /config，與跑馬燈、購物車同一份資料）。拿不到就不顯示。
   const [spendTiers, setSpendTiers] = useState<SpendThreshold[]>([])
+  const [spendGifts, setSpendGifts] = useState<SpendGift[]>([])
   useEffect(() => {
     let cancelled = false
     fetch(`${API_URL}/config`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((json: { spendThresholds?: SpendThreshold[] } | null) => {
-        if (!cancelled && Array.isArray(json?.spendThresholds)) setSpendTiers(json.spendThresholds)
+      .then((json: { spendThresholds?: SpendThreshold[]; spendGifts?: SpendGift[] } | null) => {
+        if (cancelled) return
+        if (Array.isArray(json?.spendThresholds)) setSpendTiers(json.spendThresholds)
+        if (Array.isArray(json?.spendGifts)) setSpendGifts(json.spendGifts)
       })
       .catch(() => {})
     return () => {
       cancelled = true
     }
   }, [])
-  const spendMessage = marqueeSpendMessage(spendTiers)
+  const spendMessage = marqueeSpendMessage(spendTiers, spendGifts)
   const addItem = useCart((s) => s.addItem)
   const updatePrice = useCart((s) => s.updatePrice)
   const cartItems = useCart((s) => s.items)
@@ -168,7 +171,7 @@ export function AddToCartSection({
           <Tag className="h-3.5 w-3.5 shrink-0 mt-px" />
           <span>
             <span className="font-semibold">全站滿額優惠</span>　{spendMessage}
-            <span className="opacity-80">（結帳自動折抵）</span>
+            <span className="opacity-80">（結帳自動套用）</span>
           </span>
         </div>
       )}

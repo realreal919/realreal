@@ -107,10 +107,40 @@ configRouter.get("/", async (_req, res) => {
     console.warn("[config] spend-threshold campaign lookup failed (non-fatal):", err)
   }
 
+  // 滿額贈（freebie）：跟滿額折扣一起講給客人聽。
+  // 只收「所有人、不用輸入折扣碼」的 —— 綁 coupon_id 的活動（例：ZUMBA100 送隨身包）
+  // 是輸入代碼才有的，放進全站文案會變成對所有人的承諾。
+  let spendGifts: Array<{ minOrder: number; giftName: string }> = []
+  try {
+    const now = new Date().toISOString()
+    const { data } = await supabase
+      .from("campaigns")
+      .select("config, starts_at, ends_at, tier_id, coupon_id")
+      .eq("type", "freebie")
+      .eq("is_active", true)
+      .is("tier_id", null)
+      .is("coupon_id", null)
+      .lte("starts_at", now)
+    spendGifts = (data ?? [])
+      .filter((c) => !c.ends_at || (c.ends_at as string) > now)
+      .map((c) => {
+        const cfg = (c.config ?? {}) as Record<string, unknown>
+        return {
+          minOrder: Number(cfg.min_order_amount ?? 0),
+          giftName: String(cfg.gift_name ?? "").trim(),
+        }
+      })
+      .filter((g) => g.minOrder > 0 && g.giftName)
+      .sort((a, b) => a.minOrder - b.minOrder)
+  } catch (err) {
+    console.warn("[config] freebie campaign lookup failed (non-fatal):", err)
+  }
+
   res.json({
     allowTestPaid: process.env.ALLOW_NON_ADMIN_TEST_PAID === "true",
     shipping,
     shippingCampaigns,
     spendThresholds,
+    spendGifts,
   })
 })

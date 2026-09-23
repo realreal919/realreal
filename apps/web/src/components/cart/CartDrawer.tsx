@@ -4,7 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { useEffect, useMemo, useState } from "react"
 import { Minus, Plus, Trash2, ShoppingBag, Truck, Check, Tag } from "lucide-react"
-import { spendProgress, type SpendThreshold } from "@/lib/spend-threshold"
+import { spendProgress, type SpendGift, type SpendThreshold } from "@/lib/spend-threshold"
 import { useCart } from "@/lib/cart"
 import { fetchRecommendations, type RecommendedProduct } from "@/lib/cart-recommendations"
 import { API_URL } from "@/lib/api-url"
@@ -89,8 +89,8 @@ function FreeShippingBar({
  * 滿額折扣進度：「再買 NT$X 享滿 1100 折 100」。結帳只套用達到的最高一檔，
  * 所以達到後講「已享」這一檔，再提示下一檔還差多少。沒有活動時整條不出現。
  */
-function SpendThresholdBar({ subtotal, tiers }: { subtotal: number; tiers: SpendThreshold[] }) {
-  const p = spendProgress(subtotal, tiers)
+function SpendThresholdBar({ subtotal, tiers, gifts }: { subtotal: number; tiers: SpendThreshold[]; gifts: SpendGift[] }) {
+  const p = spendProgress(subtotal, tiers, gifts)
   if (!p) return null
 
   return (
@@ -100,7 +100,7 @@ function SpendThresholdBar({ subtotal, tiers }: { subtotal: number; tiers: Spend
           <>
             <Check className="h-4 w-4 text-green-600 shrink-0" />
             <p className="text-green-700 font-medium">
-              已享滿 {p.current.minAmount.toLocaleString()} 折 {p.current.discount}
+              已達滿 {p.current.minAmount.toLocaleString()}　{p.current.reward}
             </p>
           </>
         ) : (
@@ -109,12 +109,12 @@ function SpendThresholdBar({ subtotal, tiers }: { subtotal: number; tiers: Spend
             <p className="text-[#92400e]">
               {p.current && (
                 <span className="text-green-700 font-medium">
-                  已享滿 {p.current.minAmount.toLocaleString()} 折 {p.current.discount}，
+                  已達滿 {p.current.minAmount.toLocaleString()} {p.current.reward}，
                 </span>
               )}
               再買 <span className="font-semibold">NT$ {p.remaining.toLocaleString()}</span>
-              {p.current ? " 可折 " : ` 享滿 ${p.next!.minAmount.toLocaleString()} 折 `}
-              <span className="font-semibold">{p.next!.discount}</span>
+              {p.current ? " 可再" : ` 享滿 ${p.next!.minAmount.toLocaleString()} `}
+              <span className="font-semibold">{p.next!.reward}</span>
             </p>
           </>
         )}
@@ -361,13 +361,16 @@ export function CartDrawer({
 
   // 滿額折扣檔次（公開設定）。拿不到就不顯示提示 —— 少一條提示可以，錯的金額不行。
   const [spendTiers, setSpendTiers] = useState<SpendThreshold[]>([])
+  const [spendGifts, setSpendGifts] = useState<SpendGift[]>([])
   useEffect(() => {
     if (!open) return
     let cancelled = false
     fetch(`${API_URL}/config`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((json: { spendThresholds?: SpendThreshold[] } | null) => {
-        if (!cancelled && Array.isArray(json?.spendThresholds)) setSpendTiers(json.spendThresholds)
+      .then((json: { spendThresholds?: SpendThreshold[]; spendGifts?: SpendGift[] } | null) => {
+        if (cancelled) return
+        if (Array.isArray(json?.spendThresholds)) setSpendTiers(json.spendThresholds)
+        if (Array.isArray(json?.spendGifts)) setSpendGifts(json.spendGifts)
       })
       .catch(() => {})
     return () => {
@@ -467,7 +470,7 @@ export function CartDrawer({
               threshold={homePreview?.shipping_rule?.free_threshold ?? null}
               loading={homePreviewLoading}
             />
-            <SpendThresholdBar subtotal={subtotal} tiers={spendTiers} />
+            <SpendThresholdBar subtotal={subtotal} tiers={spendTiers} gifts={spendGifts} />
 
             {/* Items + recommendations share ONE shrinkable scroll region so the
                 footer (繼續購物 / 前往結帳) stays pinned and on-screen at any

@@ -12,12 +12,13 @@ import {
   type ShippingCampaign,
   type ShippingConfig,
 } from "@/lib/shipping-copy"
-import { marqueeSpendMessage, type SpendThreshold } from "@/lib/spend-threshold"
+import { marqueeSpendMessage, type SpendGift, type SpendThreshold } from "@/lib/spend-threshold"
 
 function AnnouncementBar() {
   const [shipping, setShipping] = useState<ShippingConfig | null>(null)
   const [campaigns, setCampaigns] = useState<ShippingCampaign[]>([])
   const [spendTiers, setSpendTiers] = useState<SpendThreshold[]>([])
+  const [spendGifts, setSpendGifts] = useState<SpendGift[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -29,12 +30,14 @@ function AnnouncementBar() {
             shipping?: ShippingConfig | null
             shippingCampaigns?: ShippingCampaign[]
             spendThresholds?: SpendThreshold[]
+            spendGifts?: SpendGift[]
           } | null,
         ) => {
           if (cancelled) return
           if (json?.shipping) setShipping(json.shipping)
           if (Array.isArray(json?.shippingCampaigns)) setCampaigns(json.shippingCampaigns)
           if (Array.isArray(json?.spendThresholds)) setSpendTiers(json.spendThresholds)
+          if (Array.isArray(json?.spendGifts)) setSpendGifts(json.spendGifts)
         },
       )
       .catch(() => {
@@ -45,7 +48,7 @@ function AnnouncementBar() {
     }
   }, [])
 
-  const spendMessage = marqueeSpendMessage(spendTiers)
+  const spendMessage = marqueeSpendMessage(spendTiers, spendGifts)
   const messages = [
     ...(spendMessage ? [`全站${spendMessage}`] : []),
     "加入會員立即享首購折50元",
