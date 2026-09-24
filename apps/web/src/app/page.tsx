@@ -422,6 +422,15 @@ function RetailSection() {
       mapUrl: "https://share.google/eZzDBCqQWOggWP2lc",
       icon: "🌿",
     },
+    // 健身房
+    {
+      name: "健身秘境",
+      type: "健身房",
+      address: "台中市南屯區干城街166號",
+      phone: "0912-312-440",
+      fbUrl: "https://www.facebook.com/p/%E5%81%A5%E8%BA%AB%E7%A7%98%E5%A2%83-%E9%98%BF%E6%9D%B0%E9%81%8B%E5%8B%95%E4%BA%BA%E7%94%9F-100064054630965/",
+      icon: "🏋️",
+    },
   ]
 
   return (
