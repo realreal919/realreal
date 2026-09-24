@@ -381,6 +381,14 @@ function RetailSection() {
       icon: "💊",
     },
     {
+      name: "知竹藥局（高鐵藥局）",
+      type: "藥局",
+      address: "新竹縣竹北市文興路二段238號",
+      phone: "(03) 668-2026",
+      mapUrl: "https://share.google/mtYKl5SL3dXUGoKuA",
+      icon: "💊",
+    },
+    {
       name: "松泰藥師藥局",
       type: "藥局",
       address: "新北市三重區正德里大同北路65號",
