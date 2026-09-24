@@ -50,7 +50,7 @@ function AnnouncementBar() {
 
   const spendMessage = marqueeSpendMessage(spendTiers, spendGifts)
   const messages = [
-    ...(spendMessage ? [`${SPEND_HEADLINE}｜全站${spendMessage}`] : []),
+    ...(spendMessage ? [`${SPEND_HEADLINE}　${spendMessage}`] : []),
     "加入會員立即享首購折50元",
     ...marqueeShippingMessages(shipping),
     ...campaignShippingMessages(campaigns),

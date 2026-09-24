@@ -13,7 +13,7 @@
  * 滿額優惠文案前面的活動標語。跑馬燈與商品頁共用，改這一行兩邊一起變。
  * 想換季節主題（例：🎄 聖誕小禮）就改這裡。
  */
-export const SPEND_HEADLINE = "🌴 放假好心情"
+export const SPEND_HEADLINE = "放假好心情｜給自己的小小應援"
 
 export type SpendThreshold = { minAmount: number; discount: number }
 export type SpendGift = { minOrder: number; giftName: string }
