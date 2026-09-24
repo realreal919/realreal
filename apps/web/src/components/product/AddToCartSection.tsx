@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Minus, Plus, PencilLine, ShoppingCart } from "lucide-react"
+import { Minus, Plus, PencilLine, ShoppingCart, Sparkles } from "lucide-react"
 import { useCart } from "@/lib/cart"
 import { API_URL } from "@/lib/api-url"
 import { marqueeSpendMessage, SPEND_HEADLINE, type SpendGift, type SpendThreshold } from "@/lib/spend-threshold"
@@ -165,7 +165,10 @@ export function AddToCartSection({
       {/* 滿額優惠提醒 */}
       {spendMessage && (
         <div className="-mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs" style={{ color: "#92400e" }}>
-          <p className="font-semibold">{SPEND_HEADLINE}</p>
+          <p className="flex items-center gap-1.5 font-semibold">
+            <Sparkles className="h-3.5 w-3.5 shrink-0" />
+            {SPEND_HEADLINE}
+          </p>
           <p className="mt-0.5">{spendMessage}</p>
         </div>
       )}
