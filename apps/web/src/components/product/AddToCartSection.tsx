@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Minus, Plus, PencilLine, ShoppingCart, Tag } from "lucide-react"
 import { useCart } from "@/lib/cart"
 import { API_URL } from "@/lib/api-url"
-import { marqueeSpendMessage, type SpendGift, type SpendThreshold } from "@/lib/spend-threshold"
+import { marqueeSpendMessage, SPEND_HEADLINE, type SpendGift, type SpendThreshold } from "@/lib/spend-threshold"
 import { Badge } from "@/components/ui/badge"
 import { AddonStrip } from "./AddonStrip"
 
@@ -170,7 +170,7 @@ export function AddToCartSection({
         >
           <Tag className="h-3.5 w-3.5 shrink-0 mt-px" />
           <span>
-            <span className="font-semibold">全站滿額優惠</span>　{spendMessage}
+            <span className="font-semibold">{SPEND_HEADLINE}｜全站滿額優惠</span>　{spendMessage}
             <span className="opacity-80">（結帳自動套用）</span>
           </span>
         </div>

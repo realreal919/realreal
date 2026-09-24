@@ -12,7 +12,7 @@ import {
   type ShippingCampaign,
   type ShippingConfig,
 } from "@/lib/shipping-copy"
-import { marqueeSpendMessage, type SpendGift, type SpendThreshold } from "@/lib/spend-threshold"
+import { marqueeSpendMessage, SPEND_HEADLINE, type SpendGift, type SpendThreshold } from "@/lib/spend-threshold"
 
 function AnnouncementBar() {
   const [shipping, setShipping] = useState<ShippingConfig | null>(null)
@@ -50,7 +50,7 @@ function AnnouncementBar() {
 
   const spendMessage = marqueeSpendMessage(spendTiers, spendGifts)
   const messages = [
-    ...(spendMessage ? [`全站${spendMessage}`] : []),
+    ...(spendMessage ? [`${SPEND_HEADLINE}｜全站${spendMessage}`] : []),
     "加入會員立即享首購折50元",
     ...marqueeShippingMessages(shipping),
     ...campaignShippingMessages(campaigns),
