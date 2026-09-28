@@ -103,6 +103,16 @@ describe("名稱解析", () => {
     expect(names(sorted).slice(1)).toEqual(["選擇風味: 原味 10入", "選擇風味: 可可+草莓 各5入"])
   })
 
+  it("★ attributes 標「置底：是」的選項排到最後", () => {
+    const sorted = sortVariants([
+      { name: "選擇風味: 銀杏水蜜桃1入．其他口味任選2入", attributes: { 置底: "是" } },
+      { name: "選擇風味: 初心原味．可可．果真草莓 各1袋" },
+      { name: "選擇風味: 經典口味", attributes: { 置頂: "是" } },
+    ])
+    expect(names(sorted).at(-1)).toBe("選擇風味: 銀杏水蜜桃1入．其他口味任選2入")
+    expect(names(sorted)[0]).toBe("選擇風味: 經典口味")
+  })
+
   it("不修改傳入的陣列", () => {
     const input = [v("選擇風味: 草莓 60入"), v("選擇風味: 原味 60入")]
     sortVariants(input)

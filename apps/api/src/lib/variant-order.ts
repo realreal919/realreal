@@ -101,10 +101,17 @@ function packCount(name: string | null | undefined): number {
  * 「全口味 各2包」）當預設，這個標記讓她在後台規格編輯器自己改，刪掉就恢復規則排序。
  */
 export const PINNED_ATTR_KEY = "置頂"
+/** 相反的標記：不管規則怎麼排，一律排到最後（例：需要備註的「其他口味」選項）。 */
+export const LAST_ATTR_KEY = "置底"
 
 function isPinned(v: unknown): boolean {
   const attrs = (v as WithAttributes).attributes
   return attrs?.[PINNED_ATTR_KEY] === HIDDEN_ATTR_VALUE
+}
+
+function isLast(v: unknown): boolean {
+  const attrs = (v as WithAttributes).attributes
+  return attrs?.[LAST_ATTR_KEY] === HIDDEN_ATTR_VALUE
 }
 
 /** 穩定排序：規則比不出先後的，維持原本順序。不修改傳入的陣列。 */
@@ -113,6 +120,7 @@ export function sortVariants<T extends WithName>(variants: T[]): T[] {
     .map((v, i) => ({ v, i, k: variantSortKey(v.name) }))
     .sort(
       (a, b) =>
+        Number(isLast(a.v)) - Number(isLast(b.v)) ||
         Number(isPinned(b.v)) - Number(isPinned(a.v)) ||
         compareKeys(a.k, b.k) ||
         (a.k[0] === 1000 ? packCount(a.v.name) - packCount(b.v.name) : 0) ||
