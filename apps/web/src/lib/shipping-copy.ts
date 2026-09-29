@@ -113,10 +113,17 @@ const BUCKET_NAMES: Record<string, string> = {
  * 「超商取貨(非取貨付款)、超商取貨付款」會自相矛盾。
  */
 function bucketLabels(buckets: string[]): string {
-  const needsQualifier = buckets.includes("cvs") && !buckets.includes("cvsCod")
+  const hasCvs = buckets.includes("cvs")
+  const hasCvsCod = buckets.includes("cvsCod")
+  // 兩種超商取貨都適用 → 就說「超商取貨」，不必把同一件事拆成兩句
+  // （2026-09-29 週六免運改成含取貨付款後，原本會寫成「超商取貨、超商取貨付款」）。
+  if (hasCvs && hasCvsCod) {
+    const rest = buckets.filter((b) => b !== "cvs" && b !== "cvsCod").map((b) => BUCKET_NAMES[b] ?? b)
+    return ["超商取貨", ...rest].join("、")
+  }
   return buckets
     .map((b) =>
-      b === "cvs" && needsQualifier ? "超商取貨(非取貨付款)" : (BUCKET_NAMES[b] ?? b),
+      b === "cvs" ? "超商取貨(非取貨付款)" : (BUCKET_NAMES[b] ?? b),
     )
     .join("、")
 }
