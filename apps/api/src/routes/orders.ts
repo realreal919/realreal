@@ -234,12 +234,12 @@ ordersRouter.post("/preview", optionalAuth, async (req, res) => {
   const variantIds = items.map((i) => i.variantId)
   const { data: variantRows } = await supabase
     .from("product_variants")
-    .select("id, sku, name, price, sale_price, addon_price, addon_limit, product_id, attributes, products(category_id, name, is_addon)")
+    .select("id, sku, name, price, sale_price, addon_price, addon_limit, product_id, attributes, products(category_id, name, is_addon, is_active)")
     .in("id", variantIds)
   const variantMap = new Map<string, VariantPricingRow>()
-  // 停售的規格當作不存在：前台已經不顯示它，但購物車可能還留著舊的品項。
+  // 停售的規格、已下架的商品都當作不存在（同上：舊購物車會留著它們）。
   for (const row of (variantRows ?? []) as unknown as VariantPricingRow[]) {
-    if (!isHiddenVariant(row)) variantMap.set(row.id, row)
+    if (!isHiddenVariant(row) && row.products?.is_active !== false) variantMap.set(row.id, row)
   }
 
   // 加購價 (add-on price) is cart-aware + per-variant qty-capped, so coalesce
@@ -573,16 +573,18 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
   const variantIds = items.map((i) => i.variantId)
   const { data: variantRows, error: variantErr } = await supabase
     .from("product_variants")
-    .select("id, sku, name, price, sale_price, addon_price, addon_limit, product_id, attributes, products(category_id, name, is_addon)")
+    .select("id, sku, name, price, sale_price, addon_price, addon_limit, product_id, attributes, products(category_id, name, is_addon, is_active)")
     .in("id", variantIds)
   if (variantErr) {
     console.error("[orders] variant price fetch failed:", variantErr)
     res.status(500).json({ error: "讀取商品資料失敗" }); return
   }
   const variantMap = new Map<string, VariantPricingRow>()
-  // 停售的規格當作不存在：前台已經不顯示它，但購物車可能還留著舊的品項。
+  // 停售的規格、已下架的商品都當作不存在：前台已經不顯示它們，但購物車存在客人的
+  // 瀏覽器，下架不會清掉舊品項 —— #10000289（2026-09-30）就這樣買到已下架的
+  // 「30天植物蛋白自選組合」。
   for (const row of (variantRows ?? []) as unknown as VariantPricingRow[]) {
-    if (!isHiddenVariant(row)) variantMap.set(row.id, row)
+    if (!isHiddenVariant(row) && row.products?.is_active !== false) variantMap.set(row.id, row)
   }
   const missingVariants = variantIds.filter((id) => !variantMap.has(id))
   if (missingVariants.length > 0) {
