@@ -22,6 +22,11 @@ describe("marqueeSpendMessage", () => {
   it("★ 贈品名稱去掉「誠真生活禮袋．」前綴", () => {
     expect(spendTiers([], GIFTS)[0].reward).toBe("送 帆布環保袋 (大)")
   })
+
+  it("★ 不講贈品口味：破折號前面的口味要拿掉", () => {
+    expect(spendTiers([], [{ minOrder: 1200, giftName: "初心原味 – 50G隨身包" }])[0].reward).toBe("送 50G隨身包")
+    expect(spendTiers([], [{ minOrder: 3600, giftName: "初心原味 – 300克夾鏈袋" }])[0].short).toBe("送300克夾鏈袋")
+  })
 })
 
 describe("spendProgress", () => {

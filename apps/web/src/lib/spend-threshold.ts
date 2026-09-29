@@ -21,9 +21,17 @@ export type SpendGift = { minOrder: number; giftName: string }
 /** 階梯上的一格：滿 minAmount 可得 reward（「折 100」或「送 帆布環保袋 (大)」）。 */
 export type SpendTier = { minAmount: number; reward: string; short: string }
 
-/** 贈品名稱在文案裡要短。「誠真生活禮袋．帆布環保袋 (大)」→「帆布環保袋 (大)」 */
+/**
+ * 贈品名稱在文案裡要短，而且**不講口味** —— 口味是出貨時決定的，寫進全站文案
+ * 會變成對客人的承諾（例：「送初心原味」，客人就會期待一定是原味）。
+ *   「初心原味 – 50G隨身包」→「50G隨身包」
+ *   「初心原味 – 300克夾鏈袋」→「300克夾鏈袋」
+ *   「誠真生活禮袋．帆布環保袋 (大)」→「帆布環保袋 (大)」
+ * 破折號前面放口味是商品命名的慣例；沒有破折號的就只去掉品牌前綴。
+ */
 function shortGiftName(name: string): string {
-  return name.replace(/^誠真生活禮袋．/, "").trim()
+  const afterDash = name.split(/\s*[–—]\s*/).pop() ?? name
+  return afterDash.replace(/^誠真生活禮袋．/, "").trim()
 }
 
 /** 折扣 + 贈品合成一條由低到高的階梯。 */
