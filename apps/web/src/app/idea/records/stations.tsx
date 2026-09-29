@@ -54,7 +54,7 @@ export const STATIONS: Station[] = [
         <img
           width={576}
           height={1024}
-          src="https://ozwftlkgqmewtadypsfi.supabase.co/storage/v1/object/public/product-images/idea/1b03c54a36356fc1dfda299015074d6f.jpg"
+          src="https://fornopjdqwtexqfedhqv.supabase.co/storage/v1/object/public/product-images/idea/1b03c54a36356fc1dfda299015074d6f.jpg"
           alt=""
           className="mx-auto rounded-[10px] mb-8"
         />
@@ -85,7 +85,7 @@ export const STATIONS: Station[] = [
         <img
           width={610}
           height={1024}
-          src="https://ozwftlkgqmewtadypsfi.supabase.co/storage/v1/object/public/product-images/idea/7b5a736b3e787985b7993e0e263c4775.jpg"
+          src="https://fornopjdqwtexqfedhqv.supabase.co/storage/v1/object/public/product-images/idea/7b5a736b3e787985b7993e0e263c4775.jpg"
           alt=""
           className="mx-auto rounded-[10px] mb-10"
         />

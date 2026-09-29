@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 const membershipImages = [
   {
-    src: "https://ozwftlkgqmewtadypsfi.supabase.co/storage/v1/object/public/product-images/membership/675b76e81af03e313ae5e5cd98fe2ed6.jpg",
+    src: "https://fornopjdqwtexqfedhqv.supabase.co/storage/v1/object/public/product-images/membership/675b76e81af03e313ae5e5cd98fe2ed6.jpg",
     alt: "會員制度表",
     width: 1800,
     height: 1350,
