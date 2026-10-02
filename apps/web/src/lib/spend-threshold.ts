@@ -13,10 +13,10 @@
  * 滿額優惠文案前面的活動標語。跑馬燈與商品頁共用，改這一行兩邊一起變。
  * 想換季節主題（例：🎄 聖誕小禮）就改這裡。
  */
-export const SPEND_HEADLINE = "日常應援"
+export const SPEND_HEADLINE = "周末應援"
 
 export type SpendThreshold = { minAmount: number; discount: number }
-export type SpendGift = { minOrder: number; giftName: string }
+export type SpendGift = { minOrder: number; giftName: string; qty?: number }
 
 /** 階梯上的一格：滿 minAmount 可得 reward（「折 100」或「送 帆布環保袋 (大)」）。 */
 export type SpendTier = { minAmount: number; reward: string; short: string }
@@ -34,6 +34,16 @@ function shortGiftName(name: string): string {
   return afterDash.replace(/^誠真生活禮袋．/, "").trim()
 }
 
+/**
+ * 送一份以上時要把數量講出來 ——「滿1800送50克隨身包」看起來跟送一包沒兩樣，
+ * 客人結帳拿到兩包才發現，等於白白少掉一次「比預期多」的機會。
+ * 單位由品名決定：夾鏈袋論袋，其餘論包。送一份時不加（「送50克隨身包1包」很囉嗦）。
+ */
+function giftQtySuffix(name: string, qty: number | undefined): string {
+  if (!qty || qty <= 1) return ""
+  return `${qty}${name.includes("袋") ? "袋" : "包"}`
+}
+
 /** 折扣 + 贈品合成一條由低到高的階梯。 */
 export function spendTiers(thresholds: SpendThreshold[], gifts: SpendGift[] = []): SpendTier[] {
   const fromDiscounts = thresholds
@@ -41,11 +51,15 @@ export function spendTiers(thresholds: SpendThreshold[], gifts: SpendGift[] = []
     .map((t) => ({ minAmount: t.minAmount, reward: `折 ${t.discount}`, short: `折${t.discount}` }))
   const fromGifts = gifts
     .filter((g) => g.minOrder > 0 && g.giftName)
-    .map((g) => ({
-      minAmount: g.minOrder,
-      reward: `送 ${shortGiftName(g.giftName)}`,
-      short: `送${shortGiftName(g.giftName)}`,
-    }))
+    .map((g) => {
+      const name = shortGiftName(g.giftName)
+      const suffix = giftQtySuffix(name, g.qty)
+      return {
+        minAmount: g.minOrder,
+        reward: `送 ${name}${suffix}`,
+        short: `送${name}${suffix}`,
+      }
+    })
   return [...fromDiscounts, ...fromGifts].sort((a, b) => a.minAmount - b.minAmount)
 }
 

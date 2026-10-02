@@ -24,8 +24,23 @@ describe("marqueeSpendMessage", () => {
   })
 
   it("★ 不講贈品口味：破折號前面的口味要拿掉", () => {
-    expect(spendTiers([], [{ minOrder: 1200, giftName: "初心原味 – 50G隨身包" }])[0].reward).toBe("送 50G隨身包")
+    expect(spendTiers([], [{ minOrder: 1800, giftName: "初心原味 – 50克隨身包" }])[0].reward).toBe("送 50克隨身包")
     expect(spendTiers([], [{ minOrder: 3600, giftName: "初心原味 – 300克夾鏈袋" }])[0].short).toBe("送300克夾鏈袋")
+  })
+
+  it("★ 送兩份以上要講數量，單位看品名（夾鏈袋論袋、其餘論包）", () => {
+    const sachet = spendTiers([], [{ minOrder: 1800, giftName: "初心原味 – 50克隨身包", qty: 2 }])[0]
+    expect(sachet.short).toBe("送50克隨身包2包")
+    expect(sachet.reward).toBe("送 50克隨身包2包")
+    expect(spendTiers([], [{ minOrder: 3600, giftName: "初心原味 – 300克夾鏈袋", qty: 3 }])[0].short).toBe(
+      "送300克夾鏈袋3袋",
+    )
+  })
+
+  it("只送一份時不寫數量", () => {
+    expect(spendTiers([], [{ minOrder: 1800, giftName: "初心原味 – 50克隨身包", qty: 1 }])[0].short).toBe(
+      "送50克隨身包",
+    )
   })
 })
 

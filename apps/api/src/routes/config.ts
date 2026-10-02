@@ -110,7 +110,7 @@ configRouter.get("/", async (_req, res) => {
   // 滿額贈（freebie）：跟滿額折扣一起講給客人聽。
   // 只收「所有人、不用輸入折扣碼」的 —— 綁 coupon_id 的活動（例：ZUMBA100 送隨身包）
   // 是輸入代碼才有的，放進全站文案會變成對所有人的承諾。
-  let spendGifts: Array<{ minOrder: number; giftName: string }> = []
+  let spendGifts: Array<{ minOrder: number; giftName: string; qty: number }> = []
   try {
     const now = new Date().toISOString()
     const { data } = await supabase
@@ -128,6 +128,8 @@ configRouter.get("/", async (_req, res) => {
         return {
           minOrder: Number(cfg.min_order_amount ?? 0),
           giftName: String(cfg.gift_name ?? "").trim(),
+          // 數量要跟著走：送兩包的活動，文案不講數量就等於只承諾一包。
+          qty: Number(cfg.gift_qty ?? 1),
         }
       })
       .filter((g) => g.minOrder > 0 && g.giftName)
