@@ -300,6 +300,38 @@ describe("evalBundle — 適用範圍/指定分類 (scope + category_slug)", () 
   })
 })
 
+// scope:"variants" —— 夾鏈袋買十送一只能算「單袋」規格，不能把 3 入組或隨身包
+// 算進去。分類太粗、商品太粗，所以活動指定規格 id。
+describe("evalBuyXGetY — scope:\"variants\"", () => {
+  const CFG = {
+    buy_quantity: 10,
+    get_quantity: 1,
+    scope: "variants",
+    variant_ids: ["bag-a-v", "bag-b-v"],
+    free_item_rule: "lowest_price",
+  }
+
+  it("★ 只數指定規格：11 袋夾鏈袋 → 免最便宜的一袋", async () => {
+    const ctx = ctxWith([item("bag-a", 400, 6), item("bag-b", 370, 5)])
+    const r = await evalBuyXGetY({ ...campaign(CFG), type: "buy_x_get_y" }, ctx)
+    expect(r.applied).toBe(true)
+    expect(r.discount_amount).toBe(370)
+  })
+
+  it("★ 不在清單裡的規格不算數：10 袋夾鏈袋 + 1 包隨身包 ≠ 成立", async () => {
+    const ctx = ctxWith([item("bag-a", 400, 10), item("sachet", 67, 1)])
+    const r = await evalBuyXGetY({ ...campaign(CFG), type: "buy_x_get_y" }, ctx)
+    expect(r.applied).toBe(false)
+  })
+
+  it("沒給 variant_ids 時不成立，不會變成全站適用", async () => {
+    const { variant_ids: _omit, ...noIds } = CFG
+    const ctx = ctxWith([item("bag-a", 400, 11)])
+    const r = await evalBuyXGetY({ ...campaign(noIds), type: "buy_x_get_y" }, ctx)
+    expect(r.applied).toBe(false)
+  })
+})
+
 // evalFreebie coupon gating (ZUMBA100-style: "enter this exact code, get a
 // free item — no spending threshold, and no discount from the coupon itself").
 // A campaign with coupon_id set must only fire when ctx.couponId matches it;

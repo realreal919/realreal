@@ -181,8 +181,18 @@ async function resolveScopeItems(
   scope: string | undefined | null,
   slug: string | undefined | null,
   items: CartItem[],
+  variantIds?: string[],
 ): Promise<CartItem[]> {
   if (scope === "all") return items
+  // scope:"variants" —— 活動只認指定的規格。分類太粗（「植物蛋白粉」同時裝著
+  // 隨身包與夾鏈袋），商品層級又不夠細（同一個商品底下的 3 入組規格，數量 1
+  // 其實是 3 袋，混進「買 10 送 1」會算錯）。夾鏈袋買十送一就是靠這個，只把
+  // 六個口味的「單袋」規格算進來。
+  if (scope === "variants") {
+    const ids = variantIds ?? []
+    if (ids.length === 0) return []
+    return items.filter((i) => ids.includes(i.variant_id))
+  }
   if (!slug) return []
   const catId = await getCategoryIdBySlug(slug)
   if (!catId) return []
@@ -367,7 +377,7 @@ export async function evalDiscount(
     return notApplied(c, "config.scope 缺失")
   }
 
-  const items = await resolveScopeItems(scope, categorySlug, ctx.cart.items)
+  const items = await resolveScopeItems(scope, categorySlug, ctx.cart.items, asStringArray(cfg.variant_ids))
   if (items.length === 0) return notApplied(c, "scope 內無商品")
 
   const sub = sumItems(items)
@@ -484,7 +494,7 @@ export async function evalPointsMultiplier(
     return notApplied(c, "config.scope 缺失")
   }
 
-  const items = await resolveScopeItems(scope, categorySlug, ctx.cart.items)
+  const items = await resolveScopeItems(scope, categorySlug, ctx.cart.items, asStringArray(cfg.variant_ids))
   if (items.length === 0) return notApplied(c, "scope 內無商品")
 
   return { ...applied(c), rebate_multiplier: multiplier }
@@ -548,7 +558,7 @@ export async function evalBundle(
   }
 
   // bundle 為混搭任選：只計算 scope 內的商品，且只能免 scope 內的件數。
-  const items = await resolveScopeItems(scope, categorySlug, ctx.cart.items)
+  const items = await resolveScopeItems(scope, categorySlug, ctx.cart.items, asStringArray(cfg.variant_ids))
   const totalQty = items.reduce((s, i) => s + i.qty, 0)
   if (totalQty < buyQty + freeQty) {
     return notApplied(c, `總件數 ${totalQty} < ${buyQty + freeQty}（需 ${buyQty} 件購買 + ${freeQty} 件贈送）`)
@@ -599,7 +609,7 @@ export async function evalBuyXGetY(
   }
 
   const sameItemOnly = cfg.same_item_only === true || cfg.same_item_only === "true"
-  const items = await resolveScopeItems(scope, categorySlug, ctx.cart.items)
+  const items = await resolveScopeItems(scope, categorySlug, ctx.cart.items, asStringArray(cfg.variant_ids))
 
   // How many "buy X + get Y" groups the cart qualifies for, and which units are
   // eligible to be given free. When same_item_only (限同品項) is set, 買 X 與 送 Y
@@ -674,7 +684,7 @@ export async function evalSecondHalfPrice(
     return notApplied(c, "config.scope 缺失")
   }
 
-  const items = await resolveScopeItems(scope, categorySlug, ctx.cart.items)
+  const items = await resolveScopeItems(scope, categorySlug, ctx.cart.items, asStringArray(cfg.variant_ids))
   const units = explodeUnits(items).sort((a, b) => a.unit_price - b.unit_price)
   const possiblePairs = Math.floor(units.length / 2)
   const pairs = Math.min(possiblePairs, maxPairs ?? 999)
@@ -745,7 +755,7 @@ export async function evalComboDiscount(
     return notApplied(c, "config.scope 缺失")
   }
 
-  const items = await resolveScopeItems(scope, categorySlug, ctx.cart.items)
+  const items = await resolveScopeItems(scope, categorySlug, ctx.cart.items, asStringArray(cfg.variant_ids))
   const scopeQty = items.reduce((s, i) => s + i.qty, 0)
   if (scopeQty < minItems) {
     return notApplied(c, `scope 件數 ${scopeQty} < ${minItems}`)
