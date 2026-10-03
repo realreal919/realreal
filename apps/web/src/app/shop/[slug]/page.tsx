@@ -3,6 +3,8 @@ import Link from "next/link"
 import Image from "next/image"
 import { ChevronRight } from "lucide-react"
 import { getProductBySlug, getCategories } from "@/lib/catalog"
+import { limitedOfferFor } from "@/lib/limited-offers"
+import { LimitedOfferCountdown } from "@/components/product/LimitedOfferCountdown"
 import { AddToCartSection } from "@/components/product/AddToCartSection"
 import { Badge } from "@/components/ui/badge"
 import { ImageGallery } from "@/components/product/ImageGallery"
@@ -138,6 +140,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     }
   }
 
+  const limitedOffer = limitedOfferFor(product.slug)
   const images = product.images ?? []
   const mainImage = images[0]
 
@@ -222,6 +225,12 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             >
               {product.name}
             </h1>
+
+            {limitedOffer && (
+              <div className="mt-4">
+                <LimitedOfferCountdown endsAt={limitedOffer.endsAt} label={limitedOffer.label} />
+              </div>
+            )}
 
             <div className="mt-6">
               <AddToCartSection
