@@ -15,6 +15,19 @@
  */
 export const SPEND_HEADLINE = "滿額好禮"
 
+/**
+ * 買 X 送 Y 活動（GET /config 的 buyGetOffers）。跟滿額優惠分開講 —— 它不是
+ * 「買到多少錢」而是「湊到幾件」，混在同一條階梯上客人會以為也是金額門檻。
+ */
+export type BuyGetOffer = { label: string; buyQty: number; getQty: number }
+
+/** 「300克夾鏈袋買10送1」。跑馬燈與商品頁共用。 */
+export function buyGetMessages(offers: BuyGetOffer[] = []): string[] {
+  return offers
+    .filter((o) => o.label && o.buyQty > 0 && o.getQty > 0)
+    .map((o) => `${o.label}買${o.buyQty}送${o.getQty}`)
+}
+
 export type SpendThreshold = { minAmount: number; discount: number }
 export type SpendGift = { minOrder: number; giftName: string; qty?: number }
 

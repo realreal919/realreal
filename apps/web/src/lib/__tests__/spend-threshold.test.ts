@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { marqueeSpendMessage, spendProgress, spendTiers } from "../spend-threshold"
+import { buyGetMessages, marqueeSpendMessage, spendProgress, spendTiers } from "../spend-threshold"
 
 const TIERS = [
   { minAmount: 5400, discount: 400 },
@@ -72,5 +72,18 @@ describe("spendProgress", () => {
   })
   it("沒有活動時回 null（購物車不顯示提示）", () => {
     expect(spendProgress(1500, [], [])).toBeNull()
+  })
+})
+
+describe("buyGetMessages", () => {
+  it("買 X 送 Y 講成一句話", () => {
+    expect(buyGetMessages([{ label: "300克夾鏈袋", buyQty: 10, getQty: 1 }])).toEqual(["300克夾鏈袋買10送1"])
+  })
+  it("沒有活動時回空陣列（跑馬燈不多出一格）", () => {
+    expect(buyGetMessages([])).toEqual([])
+    expect(buyGetMessages()).toEqual([])
+  })
+  it("★ 缺名稱或數量的活動不出現，不會變成「買0送0」", () => {
+    expect(buyGetMessages([{ label: "", buyQty: 10, getQty: 1 }, { label: "夾鏈袋", buyQty: 0, getQty: 1 }])).toEqual([])
   })
 })
