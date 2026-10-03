@@ -411,7 +411,19 @@ export async function evalFreebie(
   if (!giftSku || giftQty === undefined || giftQty <= 0) {
     return notApplied(c, "config.gift_sku / gift_qty 缺失或非法")
   }
-  if (ctx.cart.subtotal < minOrder) {
+  // 指定商品不列入門檻計算（config.excluded_product_ids）。
+  // 穩定補給 30 天／60 天這種本來就打到骨折的長期組合，再讓它把客人推過滿額贈
+  // 門檻等於同一筆錢折兩次。排除的是「金額不計入」而不是「整筆不送」——
+  // 客人另外買滿 3,600 的其他商品時照樣拿得到，才不會莫名其妙少了贈品。
+  const excludedProductIds = asStringArray(cfg.excluded_product_ids)
+  const eligibleSubtotal =
+    excludedProductIds.length === 0
+      ? ctx.cart.subtotal
+      : ctx.cart.items
+          .filter((i) => !excludedProductIds.includes(i.product_id))
+          .reduce((s, i) => s + i.unit_price * i.qty, 0)
+
+  if (eligibleSubtotal < minOrder) {
     return notApplied(c, "subtotal 未達門檻")
   }
 

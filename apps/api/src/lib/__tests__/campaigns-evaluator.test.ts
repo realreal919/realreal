@@ -321,6 +321,37 @@ function freebieCampaign(config: Record<string, unknown>, couponId: string | nul
 
 const FREEBIE_CFG = { min_order_amount: 0, gift_sku: "251A", gift_qty: 1, gift_name: "初心原味隨身包" }
 
+// 排除商品：穩定補給 30 天／60 天這類長期組合不列入滿額贈門檻。排除的是「金額
+// 不計入」而不是「整筆不送」—— 客人另外買滿門檻時照樣要拿得到贈品。
+describe("evalFreebie — 指定商品不列入門檻", () => {
+  const CFG = {
+    min_order_amount: 3600,
+    gift_sku: "251A-52",
+    gift_qty: 1,
+    gift_name: "初心原味 – 300克夾鏈袋",
+    excluded_product_ids: ["p-30day", "p-60day"],
+  }
+
+  it("★ 被排除的商品金額不算進門檻：只買 60 天組 3,300 + 400 其他 ≠ 達標", async () => {
+    const ctx = ctxWith([item("p-60day", 3300, 1), item("p-other", 400, 1)])
+    const r = await evalFreebie(freebieCampaign(CFG), ctx)
+    expect(r.applied).toBe(false)
+  })
+
+  it("★ 其他商品自己滿門檻就照送，購物車裡有被排除的商品也一樣", async () => {
+    const ctx = ctxWith([item("p-60day", 3300, 1), item("p-other", 3600, 1)])
+    const r = await evalFreebie(freebieCampaign(CFG), ctx)
+    expect(r.applied).toBe(true)
+  })
+
+  it("沒設排除清單時照原本的小計算", async () => {
+    const { excluded_product_ids: _omit, ...noExclude } = CFG
+    const ctx = ctxWith([item("p-60day", 3600, 1)])
+    const r = await evalFreebie(freebieCampaign(noExclude), ctx)
+    expect(r.applied).toBe(true)
+  })
+})
+
 describe("evalFreebie — coupon-gated freebie", () => {
   it("does NOT apply when the campaign requires a coupon and none was entered", async () => {
     const ctx = ctxWith([item("p-x", 100, 1)])
