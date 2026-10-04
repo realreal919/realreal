@@ -373,7 +373,7 @@ export default function AdminPointsRulesPage() {
         <p className="font-medium text-[#10305a]">折抵預設行為（hardcode）</p>
         <ul className="ml-4 mt-2 list-disc space-y-0.5">
           <li>最少折抵：0 點起（不限）</li>
-          <li>單筆上限：訂單金額 100%（可全額折抵）</li>
+          <li>單筆上限：訂單金額 20%</li>
           <li>可與優惠券疊加：是</li>
           <li>可折抵運費：否</li>
           <li>可折抵特價商品：是</li>

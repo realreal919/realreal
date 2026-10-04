@@ -497,14 +497,14 @@ describe("calcPointsDiscount", () => {
   // read from settings. Tests for the removed toggles deleted; behaviour
   // verified via the consolidated tests below.
 
-  it("respects hardcoded defaults: max=100% of subtotal, shipping excluded", () => {
-    // subtotal=1000 (shipping excluded), ratio=1 → cap=1000, maxPts=1000
-    const ok = calcPointsDiscount(baseCart, 1000, { ratio: 1 })
+  it("respects hardcoded defaults: max=20% of subtotal, shipping excluded", () => {
+    // subtotal=1000 (shipping excluded), ratio=1 → cap=200, maxPts=200
+    const ok = calcPointsDiscount(baseCart, 200, { ratio: 1 })
     expect(ok.allowed).toBe(true)
-    if (ok.allowed) expect(ok.discount).toBe(1000)
+    if (ok.allowed) expect(ok.discount).toBe(200)
 
-    // 1001 exceeds cap
-    const overflow = calcPointsDiscount(baseCart, 1001, { ratio: 1 })
+    // 201 exceeds cap
+    const overflow = calcPointsDiscount(baseCart, 201, { ratio: 1 })
     expect(overflow.allowed).toBe(false)
   })
 

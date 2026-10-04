@@ -651,7 +651,9 @@ export function calcPointsDiscount(
   // apply_to_shipping,apply_to_sale}. Keep names in SCREAMING_SNAKE_CASE to
   // signal they are no longer per-tenant tunables.
   const MIN_REDEEM = 0
-  const MAX_REDEEM_PCT = 100
+  // 單筆最多折抵訂單金額的 20%（2026-10-04 店主指定）。原本是 100%，等於沒有
+  // 上限 —— 回饋金累積多的客人可以整筆用點數付掉，那筆訂單就只剩成本沒有收入。
+  const MAX_REDEEM_PCT = 20
   const APPLY_TO_SHIPPING = false
   const APPLY_TO_SALE = true
 
