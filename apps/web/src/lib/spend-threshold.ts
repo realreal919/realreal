@@ -28,6 +28,20 @@ export function buyGetMessages(offers: BuyGetOffer[] = []): string[] {
     .map((o) => `${o.label}買${o.buyQty}送${o.getQty}`)
 }
 
+/** 首購折扣（GET /config 的 firstPurchase）。 */
+export type FirstPurchase = { discount: number; minOrder: number }
+
+/**
+ * 「加入會員首購折50元」／有門檻時「加入會員首購滿300元折50元」。
+ * 門檻 0 就不提，免得客人以為還有條件。
+ */
+export function firstPurchaseMessage(fp: FirstPurchase | null | undefined): string | null {
+  if (!fp || fp.discount <= 0) return null
+  return fp.minOrder > 0
+    ? `加入會員首購滿${fp.minOrder}元折${fp.discount}元`
+    : `加入會員立即享首購折${fp.discount}元`
+}
+
 export type SpendThreshold = { minAmount: number; discount: number }
 export type SpendGift = { minOrder: number; giftName: string; qty?: number }
 

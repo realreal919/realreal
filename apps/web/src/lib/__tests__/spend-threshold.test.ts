@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buyGetMessages, marqueeSpendMessage, spendProgress, spendTiers } from "../spend-threshold"
+import { buyGetMessages, firstPurchaseMessage, marqueeSpendMessage, spendProgress, spendTiers } from "../spend-threshold"
 
 const TIERS = [
   { minAmount: 5400, discount: 400 },
@@ -85,5 +85,18 @@ describe("buyGetMessages", () => {
   })
   it("★ 缺名稱或數量的活動不出現，不會變成「買0送0」", () => {
     expect(buyGetMessages([{ label: "", buyQty: 10, getQty: 1 }, { label: "夾鏈袋", buyQty: 0, getQty: 1 }])).toEqual([])
+  })
+})
+
+describe("firstPurchaseMessage", () => {
+  it("★ 有門檻時要講出來，不然客人結帳才發現用不了", () => {
+    expect(firstPurchaseMessage({ discount: 50, minOrder: 300 })).toBe("加入會員首購滿300元折50元")
+  })
+  it("沒門檻時不提，免得以為還有條件", () => {
+    expect(firstPurchaseMessage({ discount: 50, minOrder: 0 })).toBe("加入會員立即享首購折50元")
+  })
+  it("沒有活動或折扣為 0 時不顯示", () => {
+    expect(firstPurchaseMessage(null)).toBeNull()
+    expect(firstPurchaseMessage({ discount: 0, minOrder: 300 })).toBeNull()
   })
 })

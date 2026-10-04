@@ -12,7 +12,7 @@ import {
   type ShippingCampaign,
   type ShippingConfig,
 } from "@/lib/shipping-copy"
-import { buyGetMessages, marqueeSpendMessage, SPEND_HEADLINE, type BuyGetOffer, type SpendGift, type SpendThreshold } from "@/lib/spend-threshold"
+import { buyGetMessages, firstPurchaseMessage, marqueeSpendMessage, SPEND_HEADLINE, type BuyGetOffer, type FirstPurchase, type SpendGift, type SpendThreshold } from "@/lib/spend-threshold"
 
 function AnnouncementBar() {
   const [shipping, setShipping] = useState<ShippingConfig | null>(null)
@@ -20,6 +20,7 @@ function AnnouncementBar() {
   const [spendTiers, setSpendTiers] = useState<SpendThreshold[]>([])
   const [spendGifts, setSpendGifts] = useState<SpendGift[]>([])
   const [buyGetOffers, setBuyGetOffers] = useState<BuyGetOffer[]>([])
+  const [firstPurchase, setFirstPurchase] = useState<FirstPurchase | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -33,6 +34,7 @@ function AnnouncementBar() {
             spendThresholds?: SpendThreshold[]
             spendGifts?: SpendGift[]
             buyGetOffers?: BuyGetOffer[]
+            firstPurchase?: FirstPurchase | null
           } | null,
         ) => {
           if (cancelled) return
@@ -41,6 +43,7 @@ function AnnouncementBar() {
           if (Array.isArray(json?.spendThresholds)) setSpendTiers(json.spendThresholds)
           if (Array.isArray(json?.spendGifts)) setSpendGifts(json.spendGifts)
           if (Array.isArray(json?.buyGetOffers)) setBuyGetOffers(json.buyGetOffers)
+          if (json?.firstPurchase) setFirstPurchase(json.firstPurchase)
         },
       )
       .catch(() => {
@@ -55,7 +58,7 @@ function AnnouncementBar() {
   const messages = [
     ...(spendMessage ? [`${SPEND_HEADLINE}　${spendMessage}`] : []),
     ...buyGetMessages(buyGetOffers),
-    "加入會員立即享首購折50元",
+    ...(firstPurchaseMessage(firstPurchase) ? [firstPurchaseMessage(firstPurchase) as string] : []),
     ...marqueeShippingMessages(shipping),
     ...campaignShippingMessages(campaigns),
     "港澳寄件可順豐運費到付",

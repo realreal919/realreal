@@ -169,6 +169,30 @@ configRouter.get("/", async (_req, res) => {
     console.warn("[config] buy_x_get_y campaign lookup failed (non-fatal):", err)
   }
 
+  // 首購折扣：跑馬燈要把「折多少、滿多少可用」講清楚。寫死在前端的話，
+  // 每次調門檻都要改程式再部署一次（2026-10 就從 350 改成 300）。
+  let firstPurchase: { discount: number; minOrder: number } | null = null
+  try {
+    const now = new Date().toISOString()
+    const { data } = await supabase
+      .from("campaigns")
+      .select("config, starts_at, ends_at")
+      .eq("type", "first_purchase")
+      .eq("is_active", true)
+      .lte("starts_at", now)
+      .limit(1)
+    const row = (data ?? []).filter((c) => !c.ends_at || (c.ends_at as string) > now)[0]
+    if (row) {
+      const cfg = (row.config ?? {}) as Record<string, unknown>
+      const discount = Number(cfg.discount_amount ?? 0)
+      if (discount > 0) {
+        firstPurchase = { discount, minOrder: Number(cfg.min_order_amount ?? 0) }
+      }
+    }
+  } catch (err) {
+    console.warn("[config] first_purchase campaign lookup failed (non-fatal):", err)
+  }
+
   res.json({
     allowTestPaid: process.env.ALLOW_NON_ADMIN_TEST_PAID === "true",
     shipping,
@@ -176,5 +200,6 @@ configRouter.get("/", async (_req, res) => {
     spendThresholds,
     spendGifts,
     buyGetOffers,
+    firstPurchase,
   })
 })
