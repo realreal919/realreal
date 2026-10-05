@@ -59,6 +59,7 @@ type ProductRow = {
   is_featured?: boolean | null
   images?: unknown
   min_tier_id?: string | null
+  delist_at?: string | null
 }
 
 function imageToUrl(img: unknown): string {
@@ -68,6 +69,15 @@ function imageToUrl(img: unknown): string {
     return typeof url === "string" ? url : ""
   }
   return ""
+}
+
+/** timestamptz → datetime-local 的值（當地時間，去掉秒與時區）。 */
+function toLocalInput(iso: string | null | undefined): string {
+  if (!iso) return ""
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ""
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 export default function AdminProductEditClient({ product }: { product: ProductRow }) {
@@ -85,6 +95,9 @@ export default function AdminProductEditClient({ product }: { product: ProductRo
   const [isFeatured, setIsFeatured] = useState<boolean>(product.is_featured ?? false)
   const [categoryId, setCategoryId] = useState<string>(product.category_id ?? "")
   const [minTierId, setMinTierId] = useState<string>(product.min_tier_id ?? "")
+  // <input type="datetime-local"> 要的是本地時間的 "YYYY-MM-DDTHH:mm"，沒有時區。
+  // 資料庫存的是帶時區的 timestamptz，所以進出都要轉一次。
+  const [delistAt, setDelistAt] = useState<string>(toLocalInput(product.delist_at))
   const [categories, setCategories] = useState<Category[]>([])
   const [tiers, setTiers] = useState<TierRow[]>([])
   const [variants, setVariants] = useState<Variant[]>([])
@@ -202,6 +215,7 @@ export default function AdminProductEditClient({ product }: { product: ProductRo
       is_recommended: isRecommended,
       category_id: categoryId || null,
       min_tier_id: minTierId || null,
+      delist_at: delistAt ? new Date(delistAt).toISOString() : null,
       images: imagesPayload,
     }
     try {
@@ -412,6 +426,21 @@ export default function AdminProductEditClient({ product }: { product: ProductRo
             ))}
           </select>
           <p className="mt-1 text-xs text-gray-400">設定後，未達指定等級的會員與訪客將無法加入購物車。</p>
+        </div>
+
+        {/* 限時檔期：到期自動下架 */}
+        <div className={fieldClass}>
+          <Label htmlFor="delist-at">自動下架時間</Label>
+          <input
+            id="delist-at"
+            type="datetime-local"
+            value={delistAt}
+            onChange={e => setDelistAt(e.target.value)}
+            className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+          <p className="mt-1 text-xs text-gray-400">
+            限時檔期用。填了之後，系統每小時檢查一次，到時間自動下架，商品頁也會顯示倒數。留空＝不自動下架。
+          </p>
         </div>
 
         {/* Images */}

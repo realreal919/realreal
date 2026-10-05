@@ -52,6 +52,8 @@ const productSchema = z.object({
   is_recommended: z.boolean().optional(),
   display_priority: z.number().int().min(0).max(99999).optional(),
   min_tier_id: z.string().uuid().nullable().optional(),
+  // 自動下架時間（ISO 字串）。空字串視為清空 —— 表單送出時空欄位就是 ""。
+  delist_at: z.union([z.string().datetime({ offset: true }), z.literal(""), z.null()]).optional(),
 })
 
 const nestedVariantSchema = z.object({
@@ -107,7 +109,7 @@ productsRouter.get("/", async (req, res) => {
 
   let query = supabase
     .from("products")
-    .select("id, name, slug, description, category_id, images, is_active, is_featured, is_addon, is_recommended, display_priority, created_at, min_tier_id, badge_text, membership_tiers!min_tier_id(id, name, min_spend), product_variants(id, sku, name, price, sale_price, addon_price, addon_limit, stock_qty, attributes)", { count: "exact" })
+    .select("id, name, slug, description, category_id, images, is_active, is_featured, is_addon, is_recommended, display_priority, created_at, min_tier_id, badge_text, delist_at, membership_tiers!min_tier_id(id, name, min_spend), product_variants(id, sku, name, price, sale_price, addon_price, addon_limit, stock_qty, attributes)", { count: "exact" })
     .eq("is_active", true)
     .is("deleted_at", null)
     .order("is_featured", { ascending: false })
@@ -159,7 +161,7 @@ productsRouter.get("/:slug", async (req, res) => {
   const { data, error } = await supabase
     .from("products")
     .select(`
-      id, name, slug, description, excerpt, category_id, images, is_active, created_at, min_tier_id, badge_text,
+      id, name, slug, description, excerpt, category_id, images, is_active, created_at, min_tier_id, badge_text, delist_at,
       membership_tiers!min_tier_id(id, name, min_spend),
       product_variants (id, sku, name, price, sale_price, addon_price, addon_limit, stock_qty, weight, attributes)
     `)
@@ -193,6 +195,14 @@ productsRouter.get("/:slug", async (req, res) => {
   res.json({ data: { ...rest, images, variants, min_tier: minTierRaw ?? null } })
 })
 
+/**
+ * 表單的空欄位送過來是空字串，但 delist_at 是 timestamptz —— 直接寫 "" 會被
+ * Postgres 擋下來。空字串＝清掉檔期，轉成 null。
+ */
+function normalizeProductPayload<T extends { delist_at?: string | null }>(data: T): T {
+  return data.delist_at === "" ? { ...data, delist_at: null } : data
+}
+
 // POST /products — admin only
 productsRouter.post("/", requireAuth, requireAdmin, async (req, res) => {
   const parsed = productSchema.safeParse(req.body)
@@ -200,7 +210,7 @@ productsRouter.post("/", requireAuth, requireAdmin, async (req, res) => {
 
   const { data, error } = await supabase
     .from("products")
-    .insert(parsed.data)
+    .insert(normalizeProductPayload(parsed.data))
     .select()
     .single()
 
@@ -215,7 +225,7 @@ productsRouter.put("/:id", requireAuth, requireAdmin, async (req, res) => {
 
   const { data, error } = await supabase
     .from("products")
-    .update(parsed.data)
+    .update(normalizeProductPayload(parsed.data))
     .eq("id", req.params.id)
     .select()
     .single()
@@ -306,10 +316,10 @@ productsAdminRouter.post("/", requireAuth, requireAdmin, async (req, res) => {
     seenSkus.add(sku)
   }
 
-  const productPayload = {
+  const productPayload = normalizeProductPayload({
     ...parsed.data.product,
     category_id: parsed.data.product.category_id ?? null,
-  }
+  })
   const { data: product, error: productError } = await supabase
     .from("products")
     .insert(productPayload)

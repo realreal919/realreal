@@ -140,7 +140,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     }
   }
 
-  const limitedOffer = limitedOfferFor(product.slug)
+  const limitedOffer = limitedOfferFor(product.delist_at)
   const images = product.images ?? []
   const mainImage = images[0]
 

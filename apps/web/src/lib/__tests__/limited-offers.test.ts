@@ -37,14 +37,17 @@ describe("formatRemaining", () => {
 })
 
 describe("limitedOfferFor", () => {
-  it("★ 兩個穩定補給組合有檔期，結束時間是台北 10/4 24:00", () => {
-    for (const slug of ["protein-30pack-mix", "60-day-vegan-protein"]) {
-      const offer = limitedOfferFor(slug)
-      expect(offer?.label).toBe("限時方案")
-      expect(new Date(offer!.endsAt).toISOString()).toBe("2026-10-04T16:00:00.000Z")
-    }
+  it("★ 檔期來自商品的下架時間 —— 倒數與自動下架看同一個欄位", () => {
+    const offer = limitedOfferFor(END)
+    expect(offer?.label).toBe("限時方案")
+    expect(new Date(offer!.endsAt).toISOString()).toBe("2026-10-04T16:00:00.000Z")
   })
-  it("其他商品沒有檔期", () => {
-    expect(limitedOfferFor("vegan-protein-powder-original")).toBeNull()
+  it("沒填下架時間就沒有檔期", () => {
+    expect(limitedOfferFor(null)).toBeNull()
+    expect(limitedOfferFor(undefined)).toBeNull()
+    expect(limitedOfferFor("")).toBeNull()
+  })
+  it("時間字串壞掉時不顯示倒數", () => {
+    expect(limitedOfferFor("不是時間")).toBeNull()
   })
 })

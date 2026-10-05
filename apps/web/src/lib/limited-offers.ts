@@ -1,21 +1,20 @@
 /**
- * 限時方案：商品頁上的倒數計時。
+ * 限時檔期：商品頁的倒數計時。
  *
- * 時間寫在這裡而不是資料庫，是因為這種檔期通常是「這一次」的決定 —— 寫在程式裡
- * 看得到、改得動、也進得了 git 紀錄；真的變成常態活動時再搬進後台。
- * 結束時間一律用 ISO 字串帶時區，免得「10/4 24:00」被當成 UTC 早了八小時。
+ * 結束時間來自商品本身的 `delist_at`（後台「自動下架時間」），跟真正執行下架的
+ * 排程看同一個欄位。以前時間寫在這支程式裡，倒數跑完商品還留在架上照常賣
+ * （2026-10-04 的 30 天組合就是這樣），現在兩邊不可能再對不起來。
  */
 export type LimitedOffer = { endsAt: string; label: string }
 
-/** slug → 檔期。沒列到的商品不顯示倒數。 */
-export const LIMITED_OFFERS: Record<string, LimitedOffer> = {
-  // 穩定補給 30 天／60 天：限時方案至 2026/10/4 24:00（台北時間）
-  "protein-30pack-mix": { endsAt: "2026-10-05T00:00:00+08:00", label: "限時方案" },
-  "60-day-vegan-protein": { endsAt: "2026-10-05T00:00:00+08:00", label: "限時方案" },
-}
+/** 倒數框上的字。目前所有檔期共用一個說法，之後要分不同檔期再從後台帶。 */
+export const LIMITED_OFFER_LABEL = "限時方案"
 
-export function limitedOfferFor(slug: string): LimitedOffer | null {
-  return LIMITED_OFFERS[slug] ?? null
+/** 商品有填下架時間就有檔期；沒填就沒有。 */
+export function limitedOfferFor(delistAt: string | null | undefined): LimitedOffer | null {
+  if (!delistAt) return null
+  if (Number.isNaN(new Date(delistAt).getTime())) return null
+  return { endsAt: delistAt, label: LIMITED_OFFER_LABEL }
 }
 
 /**

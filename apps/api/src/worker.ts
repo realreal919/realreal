@@ -24,6 +24,7 @@ import { subscriptionBillingQueue, subscriptionBillingWorker } from "./workers/s
 import { tierExpireQueue, tierExpireWorker } from "./workers/tier-expire"
 import { expireUnpaidOrdersQueue, expireUnpaidOrdersWorker, UNPAID_GRACE_HOURS } from "./workers/expire-unpaid-orders"
 import { completeShippedQueue, completeShippedWorker, AUTO_COMPLETE_DAYS } from "./workers/complete-shipped-orders"
+import { delistExpiredQueue, delistExpiredWorker } from "./workers/delist-expired-products"
 
 const logger = pino({
   transport: process.env.NODE_ENV !== "production" ? { target: "pino-pretty" } : undefined,
@@ -77,7 +78,14 @@ async function registerSchedulers() {
     { pattern: "0 5 * * *", tz: "Asia/Taipei" },
     { name: "complete", data: {} },
   )
-  logger.info(`Job schedulers registered (daily-billing 03:00, low-stock-check 09:00, daily-points-expire 03:00, daily-tier-expire 04:00, daily-complete-shipped 05:00 Asia/Taipei, expire-unpaid-orders hourly at :10, grace ${UNPAID_GRACE_HOURS}h, auto-complete ${AUTO_COMPLETE_DAYS}d)`)
+  // 檔期到期自動下架。每小時而不是每天 —— 檔期的結束時間常訂在午夜，每天跑
+  // 一次會讓商品在到期後多賣將近一天。
+  await delistExpiredQueue.upsertJobScheduler(
+    "hourly-delist-expired",
+    { pattern: "5 * * * *", tz: "Asia/Taipei" },
+    { name: "delist", data: {} },
+  )
+  logger.info(`Job schedulers registered (daily-billing 03:00, low-stock-check 09:00, daily-points-expire 03:00, daily-tier-expire 04:00, daily-complete-shipped 05:00 Asia/Taipei, expire-unpaid-orders hourly at :10, delist-expired hourly at :05, grace ${UNPAID_GRACE_HOURS}h, auto-complete ${AUTO_COMPLETE_DAYS}d)`)
 }
 
 const workers = [
@@ -88,6 +96,7 @@ const workers = [
   { name: "tier-expire", worker: tierExpireWorker },
   { name: "expire-unpaid-orders", worker: expireUnpaidOrdersWorker },
   { name: "complete-shipped-orders", worker: completeShippedWorker },
+  { name: "delist-expired-products", worker: delistExpiredWorker },
 ]
 
 /**
