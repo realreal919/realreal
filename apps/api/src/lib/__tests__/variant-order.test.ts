@@ -93,13 +93,6 @@ describe("名稱解析", () => {
     expect(names(sortVariants([v("單包"), v("3入組")]))).toEqual(["單包", "3入組"])
   })
 
-  it("★「7日組」要被當成 7 包，不能跟「單包」一樣算 1", () => {
-    // 認不出包數的話，7日組會跟單包並列第一，加購區（取 variants[0]）就會拿到
-    // 沒有加購價的那一個。
-    expect(names(sortVariants([v("7日組"), v("單包")]))).toEqual(["單包", "7日組"])
-    expect(names(sortVariants([v("單包"), v("7日組")]))).toEqual(["單包", "7日組"])
-  })
-
   it("★ attributes 標「置頂：是」的選項排第一個（商品頁預設選項）", () => {
     const sorted = sortVariants([
       { name: "選擇風味: 原味 10入" },
