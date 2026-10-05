@@ -91,7 +91,9 @@ function compareKeys(a: [number, number, number[]], b: [number, number, number[]
  * 的 3入組。沒寫包數的（「預設」、「單包」）視為 1 包。
  */
 function packCount(name: string | null | undefined): number {
-  const m = (name ?? "").match(/(\d+)\s*入/)
+  // 「7日組」也是包數 —— 認不出來會跟「單包」一樣被當成 1，排序與加購區取用的
+  // 預設規格都會跑掉。
+  const m = (name ?? "").match(/(\d+)\s*[入日]/)
   return m ? Number(m[1]) : 1
 }
 
