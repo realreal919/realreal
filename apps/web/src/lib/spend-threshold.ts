@@ -42,6 +42,24 @@ export function firstPurchaseMessage(fp: FirstPurchase | null | undefined): stri
     : `加入會員立即享首購折${fp.discount}元`
 }
 
+/**
+ * 商品頁價格下方那一行。這裡不講「滿 300」—— 商品本身的價格就過門檻時，多寫一個
+ * 條件只會讓人以為還要再湊；只有這個商品買一件也達不到門檻（例如 75 元的單包）
+ * 才要把門檻講出來，不然客人會在結帳頁才發現折不了。
+ *
+ * minPrice 是這個商品最便宜的規格，傳 undefined 代表不知道價格，一律講門檻。
+ */
+export function firstPurchaseProductMessage(
+  fp: FirstPurchase | null | undefined,
+  minPrice?: number,
+): string | null {
+  if (!fp || fp.discount <= 0) return null
+  const reachable = fp.minOrder <= 0 || (minPrice != null && minPrice >= fp.minOrder)
+  return reachable
+    ? `加入會員，首次購買結帳自動折 ${fp.discount}元`
+    : `加入會員，首次購買滿 ${fp.minOrder}元結帳自動折 ${fp.discount}元`
+}
+
 export type SpendThreshold = { minAmount: number; discount: number }
 export type SpendGift = { minOrder: number; giftName: string; qty?: number }
 

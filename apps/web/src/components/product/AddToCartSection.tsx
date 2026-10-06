@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Minus, Plus, PencilLine, ShoppingCart, Sparkles } from "lucide-react"
 import { useCart } from "@/lib/cart"
 import { API_URL } from "@/lib/api-url"
-import { buyGetMessages, marqueeSpendMessage, SPEND_HEADLINE, type BuyGetOffer, type SpendGift, type SpendThreshold } from "@/lib/spend-threshold"
+import { buyGetMessages, firstPurchaseProductMessage, marqueeSpendMessage, SPEND_HEADLINE, type BuyGetOffer, type FirstPurchase, type SpendGift, type SpendThreshold } from "@/lib/spend-threshold"
 import { Badge } from "@/components/ui/badge"
 import { AddonStrip } from "./AddonStrip"
 
@@ -42,15 +42,17 @@ export function AddToCartSection({
   const [spendTiers, setSpendTiers] = useState<SpendThreshold[]>([])
   const [spendGifts, setSpendGifts] = useState<SpendGift[]>([])
   const [buyGetOffers, setBuyGetOffers] = useState<BuyGetOffer[]>([])
+  const [firstPurchase, setFirstPurchase] = useState<FirstPurchase | null>(null)
   useEffect(() => {
     let cancelled = false
     fetch(`${API_URL}/config`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((json: { spendThresholds?: SpendThreshold[]; spendGifts?: SpendGift[]; buyGetOffers?: BuyGetOffer[] } | null) => {
+      .then((json: { spendThresholds?: SpendThreshold[]; spendGifts?: SpendGift[]; buyGetOffers?: BuyGetOffer[]; firstPurchase?: FirstPurchase | null } | null) => {
         if (cancelled) return
         if (Array.isArray(json?.spendThresholds)) setSpendTiers(json.spendThresholds)
         if (Array.isArray(json?.spendGifts)) setSpendGifts(json.spendGifts)
         if (Array.isArray(json?.buyGetOffers)) setBuyGetOffers(json.buyGetOffers)
+        if (json?.firstPurchase) setFirstPurchase(json.firstPurchase)
       })
       .catch(() => {})
     return () => {
@@ -59,6 +61,12 @@ export function AddToCartSection({
   }, [])
   const spendMessage = marqueeSpendMessage(spendTiers, spendGifts)
   const buyGetLines = buyGetMessages(buyGetOffers)
+  // 門檻要跟「這個商品最便宜能買到的價格」比，不是跟當下選到的規格比 ——
+  // 選了貴的規格就說「自動折」、切回便宜的又多出門檻，同一頁說兩套話。
+  const minVariantPrice = variants.length
+    ? Math.min(...variants.map((v) => Number(v.sale_price ?? v.price)))
+    : undefined
+  const firstPurchaseLine = firstPurchaseProductMessage(firstPurchase, minVariantPrice)
   const addItem = useCart((s) => s.addItem)
   const updatePrice = useCart((s) => s.updatePrice)
   const cartItems = useCart((s) => s.items)
@@ -164,6 +172,13 @@ export function AddToCartSection({
           </span>
         )}
       </div>
+
+      {/* 首購折扣 —— 價格正下方。新客最在意的就是「我現在買是多少錢」 */}
+      {firstPurchaseLine && (
+        <p className="-mt-2 text-sm font-medium" style={{ color: "#10305a" }}>
+          {firstPurchaseLine}
+        </p>
+      )}
 
       {/* 買 X 送 Y —— 跟滿額優惠分開一塊，門檻是件數不是金額，混在一起客人會看錯 */}
       {buyGetLines.length > 0 && (

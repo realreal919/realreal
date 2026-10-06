@@ -64,13 +64,13 @@ function FreeShippingBar({
         {progress.reached ? (
           <>
             <Check className="h-4 w-4 text-green-600 shrink-0" />
-            <p className="text-green-700 font-medium">已達宅配免運門檻</p>
+            <p className="text-green-700 font-medium">已達免運門檻</p>
           </>
         ) : (
           <>
             <Truck className="h-4 w-4 text-[#10305a] shrink-0" />
             <p className="text-[#10305a]">
-              再買 <span className="font-semibold">NT$ {progress.remaining.toLocaleString()}</span> 享宅配免運
+              再加 <span className="font-semibold">NT$ {progress.remaining.toLocaleString()}</span> 就免運
             </p>
           </>
         )}

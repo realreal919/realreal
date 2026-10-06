@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buyGetMessages, firstPurchaseMessage, marqueeSpendMessage, spendProgress, spendTiers } from "../spend-threshold"
+import { buyGetMessages, firstPurchaseMessage, firstPurchaseProductMessage, marqueeSpendMessage, spendProgress, spendTiers } from "../spend-threshold"
 
 const TIERS = [
   { minAmount: 5400, discount: 400 },
@@ -98,5 +98,37 @@ describe("firstPurchaseMessage", () => {
   it("沒有活動或折扣為 0 時不顯示", () => {
     expect(firstPurchaseMessage(null)).toBeNull()
     expect(firstPurchaseMessage({ discount: 0, minOrder: 300 })).toBeNull()
+  })
+})
+
+describe("firstPurchaseProductMessage", () => {
+  it("商品本身就過門檻：不多講條件", () => {
+    expect(firstPurchaseProductMessage({ discount: 50, minOrder: 300 }, 1650)).toBe(
+      "加入會員，首次購買結帳自動折 50元",
+    )
+  })
+  it("★ 買一件也達不到門檻的商品要講門檻，不然結帳才發現折不了", () => {
+    expect(firstPurchaseProductMessage({ discount: 50, minOrder: 300 }, 75)).toBe(
+      "加入會員，首次購買滿 300元結帳自動折 50元",
+    )
+  })
+  it("剛好等於門檻算達到", () => {
+    expect(firstPurchaseProductMessage({ discount: 50, minOrder: 300 }, 300)).toBe(
+      "加入會員，首次購買結帳自動折 50元",
+    )
+  })
+  it("★ 不知道商品價格時一律講門檻（寧可多講條件，不要承諾折不了的錢）", () => {
+    expect(firstPurchaseProductMessage({ discount: 50, minOrder: 300 })).toBe(
+      "加入會員，首次購買滿 300元結帳自動折 50元",
+    )
+  })
+  it("沒門檻時不提", () => {
+    expect(firstPurchaseProductMessage({ discount: 50, minOrder: 0 }, 75)).toBe(
+      "加入會員，首次購買結帳自動折 50元",
+    )
+  })
+  it("沒有活動或折扣為 0 時不顯示", () => {
+    expect(firstPurchaseProductMessage(null, 1650)).toBeNull()
+    expect(firstPurchaseProductMessage({ discount: 0, minOrder: 300 }, 1650)).toBeNull()
   })
 })
