@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { getSiteContent } from "@/lib/content"
+import { fetchShippingConfig, shippingFeeAnswer } from "@/lib/shipping-copy"
 
 export const metadata: Metadata = {
   title: "服務條款 | 誠真生活 RealReal",
@@ -10,6 +11,9 @@ export default async function TermsPage() {
   const dbContent = await getSiteContent<{ content_html: string; updated_at?: string }>(
     "terms_of_service",
   )
+  // 運費與免運門檻跟後台設定走，不寫死。這一段曾經停在「滿 NT$800 免運、宅配
+  // NT$100」，後台早就改成 999／150，條款卻還在承諾舊數字（2026-10-06 發現）。
+  const shipping = await fetchShippingConfig()
 
   if (dbContent?.content_html) {
     return (
@@ -133,9 +137,7 @@ export default async function TermsPage() {
               <li>
                 一般訂單於付款完成後 2–5 個工作日內出貨。
               </li>
-              <li>
-                單筆訂單滿 NT$800 免運費；未達免運門檻，宅配運費 NT$100，超商取貨運費 NT$60。
-              </li>
+              <li>{shippingFeeAnswer(shipping)}</li>
               <li>
                 如因不可抗力因素（天災、疫情等）導致配送延遲，本公司將盡速通知並協助處理。
               </li>
