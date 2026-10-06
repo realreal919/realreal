@@ -149,3 +149,69 @@ export function campaignShippingMessages(campaigns: ShippingCampaign[]): string[
       return `${days}${methods}滿${c.minOrder}元免運`
     })
 }
+
+export type CartFreeShippingHint = {
+  /** 已達這一組的門檻 */
+  reached: boolean
+  /** 還差多少 */
+  remaining: number
+  /** 進度條百分比 */
+  pct: number
+  /** 門檻最低的那一組門檻金額 */
+  threshold: number
+  /** 三種寄送方式門檻一致時為 null，不一致時是「超商取貨」這類說明 */
+  methods: string | null
+}
+
+/**
+ * 購物車的免運提示：講「最快能免運的那一組」，而且一定要講清楚是哪一種寄送方式。
+ *
+ * 原本這條是拿「宅配」的試算門檻在講，三種方式都同一個數字時怎麼寫都對。
+ * 2026-10-06 超商降到 999、宅配留在 1300 之後就不一樣了：900 元的購物車會被
+ * 告知「再加 400 就免運」，但他選超商其實只差 99 —— 數字沒錯，卻把人推離結帳。
+ *
+ * 當天有免運活動（例如週六超商滿 666）時，活動門檻比常態低就以活動為準，
+ * 不然週六的提示會比實際要求的還高。
+ */
+export function cartFreeShippingHint(
+  s: ShippingConfig | null,
+  subtotal: number,
+  campaigns: ShippingCampaign[] = [],
+  now: Date = new Date(),
+): CartFreeShippingHint | null {
+  if (!s) return null
+
+  const thresholds: Record<string, number> = {
+    cvs: s.cvs.free_threshold,
+    cvsCod: s.cvsCod.free_threshold,
+    home: s.home.free_threshold,
+  }
+  const keys = Object.keys(thresholds)
+
+  for (const c of campaigns) {
+    if (c.minOrder <= 0) continue
+    if (c.weekdays.length > 0 && !c.weekdays.includes(now.getDay())) continue
+    const buckets = c.buckets.length > 0 ? c.buckets : keys
+    for (const b of buckets) {
+      if (!(b in thresholds)) continue
+      // 門檻 0 代表「這個方式不提供免運」，活動不該把它變成有免運。
+      if (thresholds[b] <= 0) continue
+      thresholds[b] = Math.min(thresholds[b], c.minOrder)
+    }
+  }
+
+  const usable = keys.filter((k) => thresholds[k] > 0)
+  if (usable.length === 0) return null
+
+  const threshold = Math.min(...usable.map((k) => thresholds[k]))
+  const group = usable.filter((k) => thresholds[k] === threshold)
+  const coversEveryMethod = group.length === keys.length
+
+  return {
+    reached: subtotal >= threshold,
+    remaining: Math.max(0, threshold - subtotal),
+    pct: Math.min(100, Math.round((subtotal / threshold) * 100)),
+    threshold,
+    methods: coversEveryMethod ? null : bucketLabels(group),
+  }
+}

@@ -10,10 +10,11 @@ import { fetchRecommendations, type RecommendedProduct } from "@/lib/cart-recomm
 import { API_URL } from "@/lib/api-url"
 import { applyAddonDisplay, cartDisplaySubtotal, type AddonDisplayLine } from "@/lib/addon-display"
 import {
-  buildOrderPreviewItems,
-  getFreeShippingProgress,
-  type OrderPreviewData,
-} from "@/lib/shipping-preview"
+  cartFreeShippingHint,
+  type CartFreeShippingHint,
+  type ShippingCampaign,
+  type ShippingConfig,
+} from "@/lib/shipping-copy"
 import { Button } from "@/components/ui/button"
 import { AddonStrip } from "@/components/product/AddonStrip"
 import {
@@ -24,30 +25,24 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet"
 
-function FreeShippingBar({
-  subtotal,
-  threshold,
-  loading,
-}: {
-  subtotal: number
-  threshold: number | null
-  loading: boolean
-}) {
+/**
+ * 免運進度。講的是「最快能免運的那一條路」，所以門檻不一致時一定要把寄送方式
+ * 寫出來（例如「超商取貨再加 NT$ 99 就免運」）—— 只報數字的話，選超商的客人
+ * 會看到宅配的門檻，以為還差很多。
+ */
+function FreeShippingBar({ hint, loading }: { hint: CartFreeShippingHint | null; loading: boolean }) {
   if (loading) {
     return (
       <div className="px-6 py-3 border-b bg-zinc-50/50 shrink-0">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Truck className="h-4 w-4 shrink-0" />
-          <p>宅配免運門檻計算中…</p>
+          <p>免運門檻計算中…</p>
         </div>
       </div>
     )
   }
 
-  const progress = threshold == null
-    ? null
-    : getFreeShippingProgress({ subtotal, threshold })
-  if (!progress?.enabled) {
+  if (!hint) {
     return (
       <div className="px-6 py-3 border-b bg-zinc-50/50 shrink-0">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -61,24 +56,24 @@ function FreeShippingBar({
   return (
     <div className="px-6 py-3 border-b bg-zinc-50/50 shrink-0">
       <div className="flex items-center gap-2 text-xs">
-        {progress.reached ? (
+        {hint.reached ? (
           <>
             <Check className="h-4 w-4 text-green-600 shrink-0" />
-            <p className="text-green-700 font-medium">已達免運門檻</p>
+            <p className="text-green-700 font-medium">已達{hint.methods ?? ""}免運門檻</p>
           </>
         ) : (
           <>
             <Truck className="h-4 w-4 text-[#10305a] shrink-0" />
             <p className="text-[#10305a]">
-              再加 <span className="font-semibold">NT$ {progress.remaining.toLocaleString()}</span> 就免運
+              {hint.methods}再加 <span className="font-semibold">NT$ {hint.remaining.toLocaleString()}</span> 就免運
             </p>
           </>
         )}
       </div>
       <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-200">
         <div
-          className={`h-full transition-all duration-300 ${progress.reached ? "bg-green-500" : "bg-[#10305a]"}`}
-          style={{ width: `${progress.pct}%` }}
+          className={`h-full transition-all duration-300 ${hint.reached ? "bg-green-500" : "bg-[#10305a]"}`}
+          style={{ width: `${hint.pct}%` }}
         />
       </div>
     </div>
@@ -351,8 +346,10 @@ export function CartDrawer({
   const updateQty = useCart((s) => s.updateQty)
   const total = useCart((s) => s.total)
   const [hydrated, setHydrated] = useState(false)
-  const [homePreview, setHomePreview] = useState<OrderPreviewData | null>(null)
-  const [homePreviewLoading, setHomePreviewLoading] = useState(false)
+  // 免運門檻與當天的免運活動（公開設定）。沒拿到就不講免運那一條。
+  const [shippingCfg, setShippingCfg] = useState<ShippingConfig | null>(null)
+  const [shippingCampaigns, setShippingCampaigns] = useState<ShippingCampaign[]>([])
+  const [shippingLoading, setShippingLoading] = useState(true)
 
   useEffect(() => {
     useCart.persist.rehydrate()
@@ -367,12 +364,24 @@ export function CartDrawer({
     let cancelled = false
     fetch(`${API_URL}/config`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((json: { spendThresholds?: SpendThreshold[]; spendGifts?: SpendGift[] } | null) => {
-        if (cancelled) return
-        if (Array.isArray(json?.spendThresholds)) setSpendTiers(json.spendThresholds)
-        if (Array.isArray(json?.spendGifts)) setSpendGifts(json.spendGifts)
-      })
-      .catch(() => {})
+      .then(
+        (
+          json: {
+            spendThresholds?: SpendThreshold[]
+            spendGifts?: SpendGift[]
+            shipping?: ShippingConfig | null
+            shippingCampaigns?: ShippingCampaign[]
+          } | null,
+        ) => {
+          if (cancelled) return
+          if (Array.isArray(json?.spendThresholds)) setSpendTiers(json.spendThresholds)
+          if (Array.isArray(json?.spendGifts)) setSpendGifts(json.spendGifts)
+          if (json?.shipping) setShippingCfg(json.shipping)
+          if (Array.isArray(json?.shippingCampaigns)) setShippingCampaigns(json.shippingCampaigns)
+          setShippingLoading(false)
+        },
+      )
+      .catch(() => setShippingLoading(false))
     return () => {
       cancelled = true
     }
@@ -388,57 +397,14 @@ export function CartDrawer({
   // Plain pre-discount sum — only surfaced (struck-through) when it differs.
   const plainSubtotal = hydrated ? total() : 0
 
-  const excludeIds = useMemo(() => cartItems.map((i) => i.variantId), [cartItems])
-  const itemsKey = useMemo(
-    () => cartItems.map((item) => `${item.variantId}:${item.qty}:${item.price}`).sort().join("|"),
-    [cartItems],
+  // 門檻一致時講「再加 X 就免運」，不一致（例如週六超商 666、其餘 999）時
+  // 講最低的那一組並標出寄送方式。
+  const freeShippingHint = useMemo(
+    () => cartFreeShippingHint(shippingCfg, subtotal, shippingCampaigns),
+    [shippingCfg, subtotal, shippingCampaigns],
   )
 
-  useEffect(() => {
-    if (!hydrated || cartItems.length === 0) {
-      setHomePreview(null)
-      setHomePreviewLoading(false)
-      return
-    }
-
-    setHomePreview(null)
-    setHomePreviewLoading(true)
-    const timeout = setTimeout(async () => {
-      try {
-        const { createClient } = await import("@/lib/supabase/client")
-        const supabase = createClient()
-        const { data } = await supabase.auth.getSession()
-        const token = data.session?.access_token
-        const res = await fetch(`${API_URL}/orders/preview`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({
-            items: buildOrderPreviewItems(cartItems),
-            shippingMethod: "home_delivery",
-          }),
-        })
-        if (!res.ok) {
-          setHomePreview(null)
-          return
-        }
-        const json = await res.json()
-        setHomePreview(json.data ?? null)
-      } catch {
-        setHomePreview(null)
-      } finally {
-        setHomePreviewLoading(false)
-      }
-    }, 250)
-
-    return () => {
-      clearTimeout(timeout)
-      setHomePreviewLoading(false)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, itemsKey])
+  const excludeIds = useMemo(() => cartItems.map((i) => i.variantId), [cartItems])
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -465,11 +431,7 @@ export function CartDrawer({
         ) : (
           <>
             {/* Free shipping progress (just below header) */}
-            <FreeShippingBar
-              subtotal={subtotal}
-              threshold={homePreview?.shipping_rule?.free_threshold ?? null}
-              loading={homePreviewLoading}
-            />
+            <FreeShippingBar hint={freeShippingHint} loading={shippingLoading} />
             <SpendThresholdBar subtotal={subtotal} tiers={spendTiers} gifts={spendGifts} />
 
             {/* Items + recommendations share ONE shrinkable scroll region so the

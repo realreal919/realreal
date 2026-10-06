@@ -10,6 +10,7 @@
 import { describe, it, expect } from "vitest"
 import {
   campaignShippingMessages,
+  cartFreeShippingHint,
   freeShippingGroups,
   marqueeShippingMessages,
   shippingFeeAnswer,
@@ -128,5 +129,69 @@ describe("免運活動的跑馬燈文案", () => {
 
   it("沒有活動時不產生任何句子", () => {
     expect(campaignShippingMessages([])).toEqual([])
+  })
+})
+
+/**
+ * 購物車的免運提示。2026-10-06 的回歸測試：超商降到 999、宅配留在 1300 的那段
+ * 期間，提示是用宅配門檻算的，900 元的購物車會被告知「再加 400」，但他選超商
+ * 其實只差 99。提示一定要講最快能免運的那條路，而且要說是哪一種寄送方式。
+ */
+describe("cartFreeShippingHint", () => {
+  const SAT = new Date("2026-10-10T10:00:00+08:00") // 週六
+  const WED = new Date("2026-10-07T10:00:00+08:00") // 週三
+  const SAT_CVS = [{ minOrder: 666, buckets: ["cvs", "cvsCod"], weekdays: [6] }]
+
+  it("三種方式同門檻：不提寄送方式", () => {
+    const h = cartFreeShippingHint(SAME, 800)!
+    expect(h.threshold).toBe(999)
+    expect(h.methods).toBeNull()
+    expect(h.remaining).toBe(199)
+    expect(h.reached).toBe(false)
+  })
+
+  it("★ 門檻不一致：講最低的那一組，並標出寄送方式", () => {
+    const split: ShippingConfig = {
+      cvs: { fee: 80, free_threshold: 999 },
+      cvsCod: { fee: 80, free_threshold: 999 },
+      home: { fee: 150, free_threshold: 1300 },
+    }
+    const h = cartFreeShippingHint(split, 900)!
+    expect(h.threshold).toBe(999)
+    expect(h.remaining).toBe(99)
+    expect(h.methods).toBe("超商取貨")
+  })
+
+  it("★ 週六的免運活動門檻較低時以活動為準", () => {
+    const h = cartFreeShippingHint(SAME, 600, SAT_CVS, SAT)!
+    expect(h.threshold).toBe(666)
+    expect(h.remaining).toBe(66)
+    expect(h.methods).toBe("超商取貨")
+  })
+
+  it("不是活動日就回到常態門檻", () => {
+    const h = cartFreeShippingHint(SAME, 600, SAT_CVS, WED)!
+    expect(h.threshold).toBe(999)
+    expect(h.methods).toBeNull()
+  })
+
+  it("達標：reached 為 true，進度 100%", () => {
+    const h = cartFreeShippingHint(SAME, 999)!
+    expect(h.reached).toBe(true)
+    expect(h.remaining).toBe(0)
+    expect(h.pct).toBe(100)
+  })
+
+  it("★ 門檻 0 代表不提供免運，活動不該把它變成有免運", () => {
+    const none: ShippingConfig = {
+      cvs: { fee: 80, free_threshold: 0 },
+      cvsCod: { fee: 80, free_threshold: 0 },
+      home: { fee: 150, free_threshold: 0 },
+    }
+    expect(cartFreeShippingHint(none, 800, SAT_CVS, SAT)).toBeNull()
+  })
+
+  it("拿不到設定時不顯示這一條", () => {
+    expect(cartFreeShippingHint(null, 800)).toBeNull()
   })
 })
