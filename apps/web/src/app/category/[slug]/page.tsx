@@ -72,6 +72,9 @@ type ProteinSeries = "pure" | "fruit" | "steady" | "trial"
 
 function classifyProteinProduct(name: string): ProteinSeries {
   if (name.startsWith("穩定補給") || name.startsWith("任選口味")) return "steady"
+  // 2026-10-06 的 3 袋組改掛「習慣養成」前綴，它一樣是自己配口味的組合包。
+  // 不加這行會掉到最後的 fallback，被歸到「果實系列」跟單一口味擺在一起。
+  if (name.startsWith("習慣養成")) return "steady"
   // 10 天組 2026-09 由「任選口味」改名「多種選擇」，名稱沒有口味字，不加這行會被歸到果實系列。
   if (name.startsWith("多種選擇") || name.startsWith("多種搭配") || name.startsWith("任選組合")) return "steady"
   // 同口味 2 入組沒有名稱前綴，而且「同口味」不含「原味」，不加這行會被歸到果實系列。
