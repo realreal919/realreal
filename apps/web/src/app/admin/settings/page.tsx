@@ -143,7 +143,21 @@ const FIELD_META: Record<
     placeholder: "1000",
     hint: "折前金額。與首購不同日、未退貨才算",
   },
-  "membership.scoop_gift_enabled": { label: "首購附計量勺", placeholder: "true", hint: "true / false" },
+  "membership.scoop_gift_enabled": {
+    label: "送計量勺",
+    placeholder: "true",
+    hint: "true / false。條件是「這位會員還沒拿過勺」且訂單含夾鏈袋商品，與是不是第一張訂單無關",
+  },
+  "membership.scoop_trigger_slugs": {
+    label: "會觸發送勺的商品",
+    placeholder: "vegan-protein-or300, protein-5pack",
+    hint: "夾鏈袋商品的網址代號，逗號分隔。新增夾鏈袋商品時要記得加進來，否則買了不會送勺",
+  },
+  "membership.scoop_gift_slug": {
+    label: "計量勺的商品代號",
+    placeholder: "measuring-spoon",
+    hint: "贈品要掛在哪個商品上",
+  },
   "membership.scoop_addon_price": {
     label: "計量勺加購價 NT$",
     placeholder: "45",

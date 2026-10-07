@@ -53,7 +53,7 @@ export async function enqueuePostPaymentJobs(
   // Fetch order details needed for the email
   const { data: order } = await supabase
     .from("orders")
-    .select("id, order_number, subtotal, discount_amount, total, guest_email, user_id, points_used, attributed_kol_slug, metadata, payment_method, notes, order_items(*)")
+    .select("id, order_number, subtotal, discount_amount, total, guest_email, user_id, points_used, attributed_kol_slug, metadata, payment_method, notes, free_items, order_items(*)")
     .eq("id", orderId)
     .single()
 
@@ -112,6 +112,33 @@ export async function enqueuePostPaymentJobs(
       }
     } catch (err) {
       console.warn("[post-payment] tier upgrade failed (non-fatal):", err)
+    }
+  }
+
+  // 0b) 這張訂單附了計量勺 → 記下「這位會員拿過了」，下一張不再送。
+  //
+  // 放在付款確認而不是下單當下：下單後失敗／取消的訂單不該消耗掉這個人唯一的
+  // 一次機會。代價是「第一張還沒付款就下第二張」會兩張都附勺 —— 窗口很短，
+  // 而且兩張出貨單上都看得到，裝箱時會發現。
+  if (order.user_id) {
+    try {
+      const freeItems = ((order as { free_items?: Array<{ name?: string; product_id?: string }> })
+        .free_items) ?? []
+      const scoopSlug = (await getSetting("membership.scoop_gift_slug")) || "measuring-spoon"
+      const { data: scoopProduct } = await supabase
+        .from("products")
+        .select("id")
+        .eq("slug", scoopSlug)
+        .maybeSingle()
+      const scoopId = (scoopProduct as { id?: string } | null)?.id
+      if (scoopId && freeItems.some((f) => f.product_id === scoopId)) {
+        await supabase
+          .from("user_profiles")
+          .update({ received_scoop: true })
+          .eq("user_id", order.user_id)
+      }
+    } catch (err) {
+      console.warn("[post-payment] received_scoop 標記失敗（不影響其他步驟）:", err)
     }
   }
 

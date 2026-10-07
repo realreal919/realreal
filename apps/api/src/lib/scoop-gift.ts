@@ -14,6 +14,12 @@
  * 新增商品時在後台設定頁加一筆就好，不必重新部署。
  */
 
+export type ScoopGiftConfig = {
+  enabled: boolean
+  triggerSlugs: string[]
+  giftSlug: string
+}
+
 export type ScoopCartItem = {
   product_slug?: string | null
   qty: number
@@ -54,4 +60,39 @@ export function scoopGiftApplies(input: ScoopGiftInput): boolean {
   return input.items.some(
     (i) => i.qty > 0 && i.product_slug != null && input.triggerSlugs.includes(i.product_slug),
   )
+}
+
+/** 預設的夾鏈袋商品；後台設定留白時用這份。 */
+export const DEFAULT_SCOOP_TRIGGER_SLUGS = [
+  "vegan-protein-or300",
+  "vegan-protein-ca300",
+  "vegan-protein-am300",
+  "vegan-protein-st300",
+  "vegan-protein-powder-sesame",
+  "vegan-protein-ginkgo-peach300",
+  "protein-3pack",
+  "protein-5pack",
+  "protein-10pack-60day",
+]
+
+export const DEFAULT_SCOOP_GIFT_SLUG = "measuring-spoon"
+
+/**
+ * 從設定讀出贈勺規則。設定留白時用上面的預設值 —— 留白不該等於「關掉」，
+ * 不然後台一個欄位沒填，贈品就悄悄停發而沒有任何訊息。
+ */
+export async function loadScoopGiftConfig(
+  getSetting: (key: string) => Promise<string | null>,
+): Promise<ScoopGiftConfig> {
+  const [enabled, slugs, giftSlug] = await Promise.all([
+    getSetting("membership.scoop_gift_enabled"),
+    getSetting("membership.scoop_trigger_slugs"),
+    getSetting("membership.scoop_gift_slug"),
+  ])
+  const parsed = parseSlugList(slugs)
+  return {
+    enabled: enabled === null || enabled === "" ? true : enabled === "true" || enabled === "1",
+    triggerSlugs: parsed.length > 0 ? parsed : DEFAULT_SCOOP_TRIGGER_SLUGS,
+    giftSlug: giftSlug?.trim() || DEFAULT_SCOOP_GIFT_SLUG,
+  }
 }

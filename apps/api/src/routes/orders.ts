@@ -35,8 +35,57 @@ import {
   type VariantPricingRow,
 } from "../lib/addon-pricing"
 import { isHiddenVariant } from "../lib/variant-order"
+import { loadScoopGiftConfig, scoopGiftApplies } from "../lib/scoop-gift"
+import { getSetting } from "../lib/settings"
 
 export const ordersRouter = Router()
+
+/**
+ * 這張訂單要不要附一支計量勺，要的話回傳那一筆贈品。
+ *
+ * 贈品跟著活動的 free_items 走，所以出貨單、訂單明細、後台都已經看得到，不用
+ * 另外接。價格固定 0 —— 它是贈品，不是加購。
+ */
+async function resolveScoopGift(
+  userId: string | undefined,
+  cartItems: Array<{ product_slug?: string | null; qty: number }>,
+  alreadyReceived: boolean,
+): Promise<FreeItem | null> {
+  try {
+    const cfg = await loadScoopGiftConfig(getSetting)
+    if (!scoopGiftApplies({
+      enabled: cfg.enabled,
+      triggerSlugs: cfg.triggerSlugs,
+      items: cartItems,
+      alreadyReceived,
+      isMember: !!userId,
+    })) return null
+
+    const { data: gift } = await supabase
+      .from("products")
+      .select("id, name, product_variants(id, sku)")
+      .eq("slug", cfg.giftSlug)
+      .maybeSingle()
+    if (!gift) {
+      console.warn(`[scoop-gift] 找不到贈品商品 slug=${cfg.giftSlug}，這張訂單不附勺`)
+      return null
+    }
+    const variant = (gift as { product_variants?: Array<{ id: string; sku: string | null }> })
+      .product_variants?.[0]
+    return {
+      product_id: (gift as { id: string }).id,
+      sku: variant?.sku ?? undefined,
+      qty: 1,
+      name: (gift as { name: string }).name,
+      unit_price: 0,
+    }
+  } catch (err) {
+    // 贈品算不出來不該擋住結帳 —— 少一支勺可以補寄，訂單下不了不行。
+    console.warn("[scoop-gift] 判斷失敗（不影響結帳）:", err)
+    return null
+  }
+}
+
 
 function centsToTwd(cents: number): number {
   return Math.round(cents) / 100
@@ -234,7 +283,7 @@ ordersRouter.post("/preview", optionalAuth, async (req, res) => {
   const variantIds = items.map((i) => i.variantId)
   const { data: variantRows } = await supabase
     .from("product_variants")
-    .select("id, sku, name, price, sale_price, addon_price, addon_limit, product_id, attributes, products(category_id, name, is_addon, is_active)")
+    .select("id, sku, name, price, sale_price, addon_price, addon_limit, product_id, attributes, products(category_id, name, slug, is_addon, is_active)")
     .in("id", variantIds)
   const variantMap = new Map<string, VariantPricingRow>()
   // 停售的規格、已下架的商品都當作不存在（同上：舊購物車會留著它們）。
@@ -280,16 +329,19 @@ ordersRouter.post("/preview", optionalAuth, async (req, res) => {
   let profileTierId: string | null = null
   let profileBirthday: string | null = null
   let profileCreatedAt: string | null = null
+  // 讀不到就當成「拿過」—— 判斷不出來寧可不送，送錯要追回來，漏送補寄就好。
+  let profileReceivedScoop = true
   if (userId) {
     const { data: profile } = await supabase
       .from("user_profiles")
-      .select("membership_tier_id, birthday, created_at")
+      .select("membership_tier_id, birthday, created_at, received_scoop")
       .eq("user_id", userId)
       .maybeSingle()
     if (profile) {
       profileTierId = (profile as { membership_tier_id: string | null }).membership_tier_id
       profileBirthday = (profile as { birthday: string | null }).birthday
       profileCreatedAt = (profile as { created_at: string | null }).created_at
+      profileReceivedScoop = (profile as { received_scoop: boolean | null }).received_scoop === true
     }
   }
 
@@ -305,6 +357,7 @@ ordersRouter.post("/preview", optionalAuth, async (req, res) => {
         product_id: v?.product_id ?? "",
         variant_id: item.variantId,
         category_id: v?.products?.category_id ?? null,
+        product_slug: v?.products?.slug ?? null,
         sku: v?.sku ?? null,
         name: item.productName ?? v?.products?.name ?? v?.name ?? "",
         unit_price: blendedUnitPrice,
@@ -362,6 +415,15 @@ ordersRouter.post("/preview", optionalAuth, async (req, res) => {
       freeShippingNames.push(r.campaign_name)
     }
   }
+
+  // 計量勺：第一次買夾鏈袋的會員送一支。活動引擎沒有「每人一生一次」這種條件，
+  // 所以獨立判斷，但結果併進同一份 free_items，下游不用分兩套。
+  const scoopGiftPreview = await resolveScoopGift(
+    userId,
+    cartItems as Array<{ product_slug?: string | null; qty: number }>,
+    profileReceivedScoop,
+  )
+  if (scoopGiftPreview) freeItems.push(scoopGiftPreview)
 
   // Member tier discount — mirrors POST / precedence (subtotal → tier →
   // campaign → coupon → points). Audit H15 fix.
@@ -573,7 +635,7 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
   const variantIds = items.map((i) => i.variantId)
   const { data: variantRows, error: variantErr } = await supabase
     .from("product_variants")
-    .select("id, sku, name, price, sale_price, addon_price, addon_limit, product_id, attributes, products(category_id, name, is_addon, is_active)")
+    .select("id, sku, name, price, sale_price, addon_price, addon_limit, product_id, attributes, products(category_id, name, slug, is_addon, is_active)")
     .in("id", variantIds)
   if (variantErr) {
     console.error("[orders] variant price fetch failed:", variantErr)
@@ -720,15 +782,18 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
   let profileTierId: string | null = null
   let profileBirthday: string | null = null
   let profileCreatedAt: string | null = null
+  // 讀不到就當成「拿過」—— 判斷不出來寧可不送，送錯要追回來，漏送補寄就好。
+  let profileReceivedScoop = true
   if (userId) {
     const { data: profile } = await supabase
       .from("user_profiles")
-      .select("membership_tier_id, birthday, created_at")
+      .select("membership_tier_id, birthday, created_at, received_scoop")
       .eq("user_id", userId)
       .maybeSingle()
     profileTierId = (profile?.membership_tier_id as string | null) ?? null
     profileBirthday = (profile?.birthday as string | null) ?? null
     profileCreatedAt = (profile?.created_at as string | null) ?? null
+    profileReceivedScoop = (profile?.received_scoop as boolean | null) === true
   }
 
   // Cart items for the campaign evaluator — reuse variantMap (built above for
@@ -742,6 +807,7 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
       product_id: v?.product_id ?? "",
       variant_id: item.variantId,
       category_id: v?.products?.category_id ?? null,
+      product_slug: v?.products?.slug ?? null,
       sku: v?.sku ?? null,
       name: item.productName ?? v?.products?.name ?? v?.name ?? "",
       unit_price: blendedUnitPrice,
@@ -788,6 +854,13 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
       firstPurchaseApplied = true
     }
   }
+
+  const scoopGift = await resolveScoopGift(
+    userId,
+    cartItems as Array<{ product_slug?: string | null; qty: number }>,
+    profileReceivedScoop,
+  )
+  if (scoopGift) freeItems.push(scoopGift)
 
   // Clear any first-purchase claim still held by this user's dead orders before
   // we insert one that claims it again. `uniq_first_purchase_per_user`

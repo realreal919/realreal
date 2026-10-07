@@ -7,7 +7,7 @@ export type VariantPricingRow = {
   addon_price: number | string | null
   addon_limit: number | string | null
   product_id: string
-  products: { category_id: string | null; name: string | null; is_addon: boolean | null; is_active?: boolean | null } | null
+  products: { category_id: string | null; name: string | null; slug?: string | null; is_addon: boolean | null; is_active?: boolean | null } | null
   /** 停售旗標在這裡（見 lib/variant-order.ts）。 */
   attributes?: Record<string, unknown> | null
 }

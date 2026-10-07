@@ -71,3 +71,28 @@ describe("parseSlugList", () => {
     expect(parseSlugList("")).toEqual([])
   })
 })
+
+describe("loadScoopGiftConfig", () => {
+  const stub = (m: Record<string, string | null>) => async (k: string) => m[k] ?? null
+
+  it("★ 設定全部留白時用預設值，不是靜悄悄停發", async () => {
+    const { loadScoopGiftConfig, DEFAULT_SCOOP_TRIGGER_SLUGS, DEFAULT_SCOOP_GIFT_SLUG } =
+      await import("../scoop-gift")
+    const cfg = await loadScoopGiftConfig(stub({}))
+    expect(cfg.enabled).toBe(true)
+    expect(cfg.triggerSlugs).toEqual(DEFAULT_SCOOP_TRIGGER_SLUGS)
+    expect(cfg.giftSlug).toBe(DEFAULT_SCOOP_GIFT_SLUG)
+  })
+
+  it("後台填了就以後台為準", async () => {
+    const { loadScoopGiftConfig } = await import("../scoop-gift")
+    const cfg = await loadScoopGiftConfig(
+      stub({
+        "membership.scoop_gift_enabled": "false",
+        "membership.scoop_trigger_slugs": "a, b",
+        "membership.scoop_gift_slug": "spoon-x",
+      }),
+    )
+    expect(cfg).toEqual({ enabled: false, triggerSlugs: ["a", "b"], giftSlug: "spoon-x" })
+  })
+})
