@@ -51,7 +51,9 @@ export async function loadPointsSettings(): Promise<PointsSettings> {
     await Promise.all([
       getSettingOrEnv("points.ratio", "POINTS_RATIO", "1"),
       getSettingOrEnv("points.min_redeem", "POINTS_MIN_REDEEM", "0"),
-      getSettingOrEnv("points.max_redeem_pct", "POINTS_MAX_REDEEM_PCT", "100"),
+      // 預設 20，不是 100。設定讀不到時要退回「有上限」那一邊 —— 退回 100
+      // 等於整筆訂單都能用公益存款付掉，那筆就只剩成本沒有收入。
+      getSettingOrEnv("points.max_redeem_pct", "POINTS_MAX_REDEEM_PCT", "20"),
       getSettingOrEnv(
         "points.allow_coupon_stack",
         "POINTS_ALLOW_COUPON_STACK",
@@ -645,15 +647,18 @@ export type PointsDiscountResult =
 export function calcPointsDiscount(
   cart: CartForPoints,
   requestedPoints: number,
-  settings: Pick<PointsSettings, "ratio">,
+  settings: Pick<PointsSettings, "ratio"> & Partial<Pick<PointsSettings, "max_redeem_pct">>,
 ): PointsDiscountResult {
-  // Spec D hardcoded defaults — was settings.{min_redeem,max_redeem_pct,
-  // apply_to_shipping,apply_to_sale}. Keep names in SCREAMING_SNAKE_CASE to
-  // signal they are no longer per-tenant tunables.
+  // Spec D hardcoded defaults — was settings.{min_redeem,apply_to_shipping,
+  // apply_to_sale}. Keep names in SCREAMING_SNAKE_CASE to signal they are no
+  // longer per-tenant tunables.
   const MIN_REDEEM = 0
-  // 單筆最多折抵訂單金額的 20%（2026-10-04 店主指定）。原本是 100%，等於沒有
-  // 上限 —— 回饋金累積多的客人可以整筆用點數付掉，那筆訂單就只剩成本沒有收入。
-  const MAX_REDEEM_PCT = 20
+  // 單筆最多折抵商品金額的 20%（2026-10-04 店主指定，原本 100% 等於沒有上限）。
+  // 誠真之友 v2 要求這個數字可以從後台調，所以改回讀設定 —— 它直接決定每一筆
+  // 訂單還剩多少收入，要改的時候不該需要重新部署。讀不到就退回 20，不是 100。
+  const rawPct = Number(settings.max_redeem_pct)
+  const MAX_REDEEM_PCT =
+    Number.isFinite(rawPct) && rawPct > 0 && rawPct <= 100 ? rawPct : 20
   const APPLY_TO_SHIPPING = false
   const APPLY_TO_SALE = true
 

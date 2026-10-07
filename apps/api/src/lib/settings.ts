@@ -183,6 +183,37 @@ export const ALLOWED_KEYS = new Set<string>([
   // Old rows in app_settings are left intact for audit; reads ignore them.
   "points.ratio",
   "points.expire_days",
+  // 折抵上限（誠真之友 v2 的 redeem_cap_percent）。Spec D 曾把它從後台拿掉改成
+  // 寫死，2026-10-07 店主要求重新可調 —— 它是直接影響每一筆訂單收入的數字，
+  // 要改的時候不應該需要重新部署。
+  "points.max_redeem_pct",
+  // ── 誠真之友 v2 ──────────────────────────────────────────
+  // 這裡只放「沒有別的家」的設定。規格列的 first_order_discount /
+  // first_order_min_amount 在活動引擎（first_purchase 活動）、
+  // free_shipping_threshold 在 shipping.*、rebate_rate_by_tier 與
+  // tier_*_valid_months 在 membership_tiers 表 —— 都不在這裡再開一份，
+  // 否則同一個數字會有兩個來源，改了一邊另一邊照舊。
+  "membership.scoop_gift_enabled",
+  "membership.scoop_addon_price",
+  "membership.hold_days",
+  "membership.redeem_excluded_categories",
+  "membership.zhixin_second_order_min_amount",
+  "membership.birthday_amount_chuxin",
+  "membership.birthday_amount_zhixin",
+  "membership.birthday_amount_tongxin",
+  "membership.birthday_min_register_days",
+  "membership.birthday_expiry_days",
+  "repurchase.coupon_amount",
+  "repurchase.coupon_valid_days",
+  "repurchase.ship_to_arrival_days",
+  "repurchase.reminder_days_sachet",
+  "repurchase.reminder_days_jar_old",
+  "repurchase.reminder_days_jar_new",
+  "referral.min_order",
+  "referral.reward",
+  "referral.points",
+  "referral.monthly_budget",
+  "referral.expiry_days",
   // Shipping fees
   "shipping.fee_home_delivery",
   "shipping.fee_cvs",
@@ -225,6 +256,43 @@ export function maskPreview(value: string): string {
 }
 
 export const SECTIONS: Record<string, { label: string; keys: string[] }> = {
+  membership: {
+    label: "會員制度（誠真之友）",
+    keys: [
+      "points.max_redeem_pct",
+      "membership.redeem_excluded_categories",
+      "membership.hold_days",
+      "membership.zhixin_second_order_min_amount",
+      "membership.scoop_gift_enabled",
+      "membership.scoop_addon_price",
+      "membership.birthday_amount_chuxin",
+      "membership.birthday_amount_zhixin",
+      "membership.birthday_amount_tongxin",
+      "membership.birthday_min_register_days",
+      "membership.birthday_expiry_days",
+    ],
+  },
+  repurchase: {
+    label: "回購提醒與回購券（功能尚未上線）",
+    keys: [
+      "repurchase.coupon_amount",
+      "repurchase.coupon_valid_days",
+      "repurchase.ship_to_arrival_days",
+      "repurchase.reminder_days_sachet",
+      "repurchase.reminder_days_jar_old",
+      "repurchase.reminder_days_jar_new",
+    ],
+  },
+  referral: {
+    label: "推薦好友（功能尚未上線）",
+    keys: [
+      "referral.min_order",
+      "referral.reward",
+      "referral.points",
+      "referral.monthly_budget",
+      "referral.expiry_days",
+    ],
+  },
   pchomepay: {
     label: "PChomePay 支付連",
     keys: [

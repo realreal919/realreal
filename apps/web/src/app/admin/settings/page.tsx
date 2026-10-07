@@ -127,6 +127,59 @@ const FIELD_META: Record<
   "shipping.free_threshold_cvs":  { label: "超商免運門檻 NT$", placeholder: "649", hint: "0 = 不提供免運" },
   "shipping.free_threshold_cvs_cod": { label: "超商取貨付款免運門檻 NT$", placeholder: "999", hint: "0 = 不提供免運" },
   "shipping.fee_overseas_cod":    { label: "海外到付運費（顯示用）", placeholder: "0", hint: "實際由司機收取，固定顯示 NT$0，此設定僅供備忘" },
+  // 會員制度（誠真之友 v2）
+  "points.max_redeem_pct": {
+    label: "公益存款單筆折抵上限 %",
+    placeholder: "20",
+    hint: "以商品金額計算，不含運費。留空視為 20%",
+  },
+  "membership.redeem_excluded_categories": {
+    label: "不可折抵的品項",
+    placeholder: "隨身包",
+    hint: "以逗號分隔。隨身包官網價已接近通路底價，再折會低於底價",
+  },
+  "membership.hold_days": {
+    label: "公益存款保留天數",
+    placeholder: "7",
+    hint: "訂單完成後幾天、確認沒有退貨才正式入帳",
+  },
+  "membership.zhixin_second_order_min_amount": {
+    label: "升知心的第二張訂單門檻 NT$",
+    placeholder: "300",
+    hint: "折前金額。與首購不同日、未退貨才算",
+  },
+  "membership.scoop_gift_enabled": { label: "首購附計量勺", placeholder: "true", hint: "true / false" },
+  "membership.scoop_addon_price": { label: "計量勺加購價 NT$", placeholder: "49", hint: "不分層級" },
+  "membership.birthday_amount_chuxin": { label: "生日公益存款：初心 NT$", placeholder: "50" },
+  "membership.birthday_amount_zhixin": { label: "生日公益存款：知心 NT$", placeholder: "100" },
+  "membership.birthday_amount_tongxin": { label: "生日公益存款：同心 NT$", placeholder: "150" },
+  "membership.birthday_min_register_days": {
+    label: "生日禮資格：註冊滿幾天",
+    placeholder: "30",
+    hint: "且需已有至少一張完成訂單",
+  },
+  "membership.birthday_expiry_days": {
+    label: "生日公益存款效期（天）",
+    placeholder: "90",
+    hint: "到期未選擇者自動轉為公益",
+  },
+  // 回購提醒與回購券
+  "repurchase.coupon_amount": { label: "回購券金額 NT$", placeholder: "50", hint: "限購物車含夾鏈袋時可用" },
+  "repurchase.coupon_valid_days": { label: "回購券有效天數", placeholder: "14" },
+  "repurchase.ship_to_arrival_days": {
+    label: "出貨到貨推估天數",
+    placeholder: "3",
+    hint: "7-11 走交貨便批次上傳，拿不到綠界的到貨回報，提醒一律用「出貨日 + 這個天數」起算",
+  },
+  "repurchase.reminder_days_sachet": { label: "提醒天數：隨身包 10 包", placeholder: "6", hint: "到貨推估日之後第幾天" },
+  "repurchase.reminder_days_jar_old": { label: "提醒天數：舊版夾鏈袋", placeholder: "3" },
+  "repurchase.reminder_days_jar_new": { label: "提醒天數：新版夾鏈袋 450g", placeholder: "6" },
+  // 推薦好友
+  "referral.min_order": { label: "推薦成立門檻 NT$", placeholder: "600", hint: "被推薦人首購的折前金額" },
+  "referral.reward": { label: "推薦獎勵 NT$", placeholder: "50", hint: "雙方各得，記入公益存款" },
+  "referral.points": { label: "推薦互動點數", placeholder: "5", hint: "只記在後台，不顯示給會員" },
+  "referral.monthly_budget": { label: "推薦獎勵每月預算 NT$", placeholder: "2000", hint: "超過的留在待確認佇列，順延下月" },
+  "referral.expiry_days": { label: "推薦獎勵效期（天）", placeholder: "180" },
   // Contact
   "contact.email": { label: "客服 Email", placeholder: "love@realreal.cc" },
 }

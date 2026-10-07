@@ -43,3 +43,31 @@ describe("calcPointsDiscount — 單筆上限 20%", () => {
     expect(calcPointsDiscount(cart(1000), 0, settings).allowed).toBe(false)
   })
 })
+
+/**
+ * 2026-10-07（誠真之友 v2）：上限改回可從後台調整。
+ * 關鍵是「讀不到設定時要退回 20，不是 100」—— 退回 100 等於悄悄解除上限。
+ */
+describe("calcPointsDiscount — 上限可設定", () => {
+  it("後台設 10% 就以 10% 為準", () => {
+    const r = calcPointsDiscount(cart(1000), 100, { ratio: 1, max_redeem_pct: 10 })
+    expect(r.allowed).toBe(true)
+    const over = calcPointsDiscount(cart(1000), 101, { ratio: 1, max_redeem_pct: 10 })
+    expect(over.allowed).toBe(false)
+    if (!over.allowed) expect(over.reason).toBe("最多 100 點")
+  })
+
+  it("後台設 100% 代表不設限", () => {
+    const r = calcPointsDiscount(cart(1000), 1000, { ratio: 1, max_redeem_pct: 100 })
+    expect(r.allowed).toBe(true)
+    if (r.allowed) expect(r.discount).toBe(1000)
+  })
+
+  it("★ 設定缺漏或是亂值時退回 20%，不是解除上限", () => {
+    for (const bad of [undefined, 0, -5, 150, Number.NaN]) {
+      const r = calcPointsDiscount(cart(1000), 201, { ratio: 1, max_redeem_pct: bad as number })
+      expect(r.allowed).toBe(false)
+      if (!r.allowed) expect(r.reason).toBe("最多 200 點")
+    }
+  })
+})
