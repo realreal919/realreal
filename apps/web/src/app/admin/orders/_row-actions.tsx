@@ -9,6 +9,7 @@ import {
   deleteOrderAction,
   restoreOrderAction,
   reissueAllInvoicesAction,
+  confirmCodPaymentsBatchAction,
   retryPostPaymentBatchAction,
   shipBatchAction,
   voidLegacyDuplicateInvoicesAction,
@@ -242,6 +243,59 @@ export function RetryPostPaymentBatchAction() {
   return (
     <div className="flex items-center gap-2">
       <span className="text-xs text-zinc-600">確定執行？</span>
+      <Button size="sm" onClick={handleRun} disabled={isPending}>
+        {isPending ? "執行中…" : "確定"}
+      </Button>
+      <Button variant="ghost" size="sm" onClick={() => setConfirm(false)} disabled={isPending}>
+        取消
+      </Button>
+    </div>
+  )
+}
+
+/**
+ * 一次確認所有「已出貨但還停在待付款」的超商取貨付款訂單。
+ *
+ * 手動出貨的 COD 收不到綠界的取貨回報，會一直停在待付款 —— 沒開發票、消費與
+ * 點數都沒算。2026-07／08 累積過 25 筆（29,361 元），10 月又 23 筆（26,545 元），
+ * 每次都得一筆一筆進訂單頁按「確認取貨付款」。
+ *
+ * 只處理 status 是已出貨／已完成的，已取消的不會被碰到。COD 不會補寄付款確認信
+ * （下單時已經寄過），所以幾週前取貨的客人不會突然收到信。
+ */
+export function ConfirmCodPaymentsBatchAction() {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [confirm, setConfirm] = useState(false)
+
+  function handleRun() {
+    startTransition(async () => {
+      const result = await confirmCodPaymentsBatchAction()
+      if (result.ok) {
+        const amount = result.amount ? `，共 NT$ ${Math.round(result.amount).toLocaleString()}` : ""
+        const failed = result.failed ? `，${result.failed} 筆失敗` : ""
+        toast.success(`已確認 ${result.processed ?? 0} 筆取貨付款${amount}${failed}`, {
+          description: "發票、消費金額與點數已一併補上。",
+        })
+        router.refresh()
+      } else {
+        toast.error(result.error ?? "確認失敗")
+      }
+      setConfirm(false)
+    })
+  }
+
+  if (!confirm) {
+    return (
+      <Button variant="outline" size="sm" onClick={() => setConfirm(true)}>
+        確認取貨付款（全部）
+      </Button>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-zinc-600">確定客人都已取貨付款？</span>
       <Button size="sm" onClick={handleRun} disabled={isPending}>
         {isPending ? "執行中…" : "確定"}
       </Button>

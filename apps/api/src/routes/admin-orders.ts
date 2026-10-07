@@ -277,6 +277,63 @@ adminOrdersRouter.post("/:id/confirm-payment", async (req, res) => {
   res.json({ ok: true, message: "Payment confirmed", status: order.status })
 })
 
+// POST /admin/orders/confirm-cod-payments-batch
+// 確認所有「已出貨但還停在待付款」的超商取貨付款訂單。
+//
+// 手動出貨的 COD 永遠收不到綠界的取貨回報，所以 payment_status 一直是 pending
+// —— 沒開發票、消費與點數都沒算。這件事已經發生三次（2026-07/08 兩批共 25 筆
+// 29,361 元，2026-10-07 又累積 23 筆 26,545 元），每次都要一筆一筆按
+// 「確認取貨付款」，所以這裡做成一次處理完。
+//
+// 只挑 status 是 shipped/completed 的：已取消／失敗的訂單確認付款會把發票和
+// 消費一起復活，但訂單本身還是死的。每個步驟都是冪等的，重複按不會重複計算。
+// COD 在 enqueuePostPaymentJobs 裡本來就跳過通知信（下單時已經寄過），所以
+// 不會對幾週前取貨的客人補寄「付款確認信」。
+adminOrdersRouter.post("/confirm-cod-payments-batch", async (req, res) => {
+  const { limit } = req.body as { limit?: number }
+  const cap = Math.min(Math.max(Number(limit) || 500, 1), 2000)
+
+  const { data: pending, error } = await supabase
+    .from("orders")
+    .select("id, order_number, total")
+    .eq("payment_method", "cvs_cod")
+    .eq("payment_status", "pending")
+    .in("status", ["shipped", "completed"])
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true })
+    .limit(cap)
+  if (error) { res.status(500).json({ error: error.message }); return }
+
+  const targets = (pending ?? []) as Array<{ id: string; order_number: string; total: number | string }>
+  const processed: string[] = []
+  const failed: Array<{ orderNumber: string; error: string }> = []
+  let amount = 0
+
+  for (const o of targets) {
+    try {
+      const { error: updErr } = await supabase
+        .from("orders")
+        .update({ payment_status: "paid", updated_at: new Date().toISOString() })
+        .eq("id", o.id)
+        .eq("payment_status", "pending")
+      if (updErr) throw new Error(updErr.message)
+      await enqueuePostPaymentJobs(o.id)
+      processed.push(o.order_number)
+      amount += Number(o.total ?? 0)
+    } catch (err) {
+      failed.push({ orderNumber: o.order_number, error: err instanceof Error ? err.message : String(err) })
+    }
+  }
+
+  res.json({
+    message: `Confirmed payment for ${processed.length} COD order(s)`,
+    processed: processed.length,
+    amount,
+    failed,
+    orderNumbers: processed,
+  })
+})
+
 // POST /admin/orders/retry-post-payment-batch
 // Re-run the post-payment pipeline across every paid order that never
 // completed it, instead of pressing 補跑付款後流程 once per order.

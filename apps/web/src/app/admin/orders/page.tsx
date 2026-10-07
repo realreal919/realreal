@@ -7,6 +7,7 @@ import {
   ArchivedRowActions,
   ArchiveRowAction,
   ReissueAllInvoicesAction,
+  ConfirmCodPaymentsBatchAction,
   RetryPostPaymentBatchAction,
   ShipBatchAction,
   VoidLegacyDuplicatesAction,
@@ -150,6 +151,7 @@ export default async function AdminOrdersPage({
         <h1 className="text-xl font-semibold text-[#10305a]">訂單</h1>
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <ShipBatchAction />
+          <ConfirmCodPaymentsBatchAction />
           <RetryPostPaymentBatchAction />
           <ReissueAllInvoicesAction />
           <VoidLegacyDuplicatesAction />

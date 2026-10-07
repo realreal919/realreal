@@ -112,6 +112,40 @@ export async function retryPostPaymentBatchAction(): Promise<
 }
 
 /**
+ * 確認所有「已出貨但還停在待付款」的超商取貨付款訂單。
+ *
+ * 手動出貨的 COD 收不到綠界的取貨回報，會一直停在待付款：發票沒開、消費與
+ * 點數都沒算。2026-07／08 累積過 25 筆、10 月又 23 筆，所以改成一次處理完，
+ * 不用一筆一筆進去按「確認取貨付款」。COD 本來就不會補寄付款確認信。
+ */
+export async function confirmCodPaymentsBatchAction(): Promise<
+  ActionResult & { processed?: number; amount?: number; failed?: number }
+> {
+  try {
+    const supabase = await createClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    const result = await apiClient<{
+      processed: number
+      amount: number
+      failed: Array<{ orderNumber: string; error: string }>
+    }>("/admin/orders/confirm-cod-payments-batch", {
+      method: "POST",
+      body: JSON.stringify({}),
+      token: session?.access_token,
+    })
+    revalidatePath("/admin/orders")
+    return {
+      ok: true,
+      processed: result.processed,
+      amount: result.amount,
+      failed: result.failed?.length ?? 0,
+    }
+  } catch (e) {
+    return toErrorResult(e)
+  }
+}
+
+/**
  * Re-drive every unissued invoice at once.
  *
  * When Amego's 字軌 runs out, the whole backlog fails together and each one

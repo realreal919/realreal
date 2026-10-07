@@ -478,6 +478,72 @@ describe("POST /admin/orders/:id/confirm-payment", () => {
 })
 
 /**
+ * POST /admin/orders/confirm-cod-payments-batch — 一次確認所有已出貨的 COD 取貨付款。
+ *
+ * 手動出貨的 COD 收不到綠界的取貨回報，會一直停在待付款：沒開發票、消費與點數
+ * 都沒算。這裡驗的是選取範圍 —— 只能碰「已出貨／已完成、待付款、未封存」的
+ * cvs_cod 訂單，確認付款會把發票與消費一起復活，誤觸到已取消的訂單就是憑空
+ * 生出一張發票。
+ */
+describe("POST /admin/orders/confirm-cod-payments-batch", () => {
+  const C1 = "dddddddd-0000-0000-0000-000000000001"
+  const C2 = "eeeeeeee-0000-0000-0000-000000000002"
+  let ordersChain: any
+
+  function withPending(rows: Array<{ id: string; order_number: string; total: number }>) {
+    ordersChain = chain({ terminal: { data: rows, error: null } })
+    ordersChain.in = vi.fn().mockReturnThis()
+    ordersChain.is = vi.fn().mockReturnThis()
+    ordersChain.order = vi.fn().mockReturnThis()
+    ordersChain.limit = vi.fn().mockReturnThis()
+    ordersChain.update = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }),
+    })
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === "user_profiles") return adminProfileChain() as any
+      if (table === "orders") return ordersChain as any
+      return chain() as any
+    })
+  }
+
+  const run = () =>
+    request(app).post("/admin/orders/confirm-cod-payments-batch").set("Authorization", "Bearer t").send({})
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockAdminAuth()
+  })
+
+  it("把每一筆都標記已付款並補跑付款後流程，回報筆數與金額", async () => {
+    const { enqueuePostPaymentJobs } = await import("../../lib/enqueue-post-payment")
+    withPending([
+      { id: C1, order_number: "10000252", total: 630 },
+      { id: C2, order_number: "10000256", total: 1645 },
+    ])
+
+    const res = await run()
+
+    expect(res.status).toBe(200)
+    expect(res.body.processed).toBe(2)
+    expect(res.body.amount).toBe(2275)
+    expect(enqueuePostPaymentJobs).toHaveBeenCalledTimes(2)
+  })
+
+  it("★ 只挑已出貨／已完成的 cvs_cod 待付款訂單，已取消的不會被確認付款", async () => {
+    withPending([])
+
+    const res = await run()
+
+    expect(res.status).toBe(200)
+    expect(res.body.processed).toBe(0)
+    expect(ordersChain.eq).toHaveBeenCalledWith("payment_method", "cvs_cod")
+    expect(ordersChain.eq).toHaveBeenCalledWith("payment_status", "pending")
+    expect(ordersChain.in).toHaveBeenCalledWith("status", ["shipped", "completed"])
+    expect(ordersChain.is).toHaveBeenCalledWith("deleted_at", null)
+  })
+})
+
+/**
  * POST /admin/orders/retry-post-payment-batch — 補算漏掉的消費／點數／等級。
  *
  * 手動出貨的 COD 訂單長期停在待付款，付款後流程從沒跑過。確認收款後仍要補跑，
