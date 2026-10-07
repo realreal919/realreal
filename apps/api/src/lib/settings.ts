@@ -198,8 +198,9 @@ export const ALLOWED_KEYS = new Set<string>([
   // 捐出。所以沒有 birthday_expiry_days / referral.expiry_days 這兩個設定。
   "membership.scoop_gift_enabled",
   "membership.scoop_addon_price",
+  // 沒有「不可折抵品項」的設定：2026-10-07 店主確認隨身包也能折抵，全站一致。
+  // 多一個永遠是空值的設定，只會讓人以為有這條規則在運作。
   "membership.hold_days",
-  "membership.redeem_excluded_categories",
   "membership.zhixin_second_order_min_amount",
   "membership.birthday_amount_chuxin",
   "membership.birthday_amount_zhixin",
@@ -261,7 +262,6 @@ export const SECTIONS: Record<string, { label: string; keys: string[] }> = {
     label: "會員制度（誠真之友）",
     keys: [
       "points.max_redeem_pct",
-      "membership.redeem_excluded_categories",
       "membership.hold_days",
       "membership.zhixin_second_order_min_amount",
       "membership.scoop_gift_enabled",

@@ -133,11 +133,6 @@ const FIELD_META: Record<
     placeholder: "20",
     hint: "以商品金額計算，不含運費。留空視為 20%",
   },
-  "membership.redeem_excluded_categories": {
-    label: "不可折抵的品項",
-    placeholder: "隨身包",
-    hint: "以逗號分隔。隨身包官網價已接近通路底價，再折會低於底價",
-  },
   "membership.hold_days": {
     label: "公益存款保留天數",
     placeholder: "7",
@@ -145,7 +140,7 @@ const FIELD_META: Record<
   },
   "membership.zhixin_second_order_min_amount": {
     label: "升知心的第二張訂單門檻 NT$",
-    placeholder: "300",
+    placeholder: "1000",
     hint: "折前金額。與首購不同日、未退貨才算",
   },
   "membership.scoop_gift_enabled": { label: "首購附計量勺", placeholder: "true", hint: "true / false" },

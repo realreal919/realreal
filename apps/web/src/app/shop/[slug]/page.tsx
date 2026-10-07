@@ -103,6 +103,10 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const productCategory = categories.find(c => c.id === product.category_id)
   const isProtein = productCategory?.slug === "plant-based-powder"
   const isFruit = productCategory?.slug === "freeze-dried"
+  // 提袋配件（帆布袋、量匙…）不掛安心保證圖 —— 那張講的是食品的檢驗與成分，
+  // 放在配件底下文不對題。原本是一條一條寫死 slug（bag1 / canvabag_s），
+  // 每加一個配件就要記得補一行，量匙上架當天就漏了。改看分類，新配件自動適用。
+  const isAccessory = productCategory?.slug === "sustain-life"
 
   // Membership tier gate — compute server-side so the locked state is in the HTML
   let minTierName: string | undefined
@@ -283,8 +287,8 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           </div>
         )}
 
-        {/* 安心保證 image — non-protein, non-fruit products only (bags skipped: use 公益存款 image inline in description) */}
-        {!isProtein && !isFruit && product.slug !== "bag1" && product.slug !== "canvabag_s" && (
+        {/* 安心保證 image — 食品類才掛（配件用描述裡的公益存款圖） */}
+        {!isProtein && !isFruit && !isAccessory && (
           <div className="mt-12 flex justify-center">
             <Image
               src="/product-info/assurance.jpg"
