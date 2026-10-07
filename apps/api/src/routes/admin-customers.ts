@@ -452,6 +452,11 @@ adminCustomersRouter.patch("/:id/profile", async (req, res) => {
   if (Object.keys(updates).length === 0) {
     res.json({ ok: true }); return
   }
+  // 記下生日是什麼時候被設定的。生日禮有一條「設定當月不給」—— 沒有這個時間戳，
+  // 那條規則就無從判斷，客服改完當月照樣領得到。
+  if ("birthday" in updates) {
+    updates.birthday_changed_at = new Date().toISOString()
+  }
   const { error } = await supabase
     .from("user_profiles")
     .update(updates)

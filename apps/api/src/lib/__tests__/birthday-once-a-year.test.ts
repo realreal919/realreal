@@ -37,8 +37,15 @@ function ctx(over: Record<string, unknown> = {}) {
   } as never
 }
 
-/** campaigns 查詢回傳三個生日活動；orders 查詢回傳指定的命中筆數。 */
-function mockDb(orderCount: number) {
+/**
+ * campaigns 查詢回傳三個生日活動；orders 查詢回傳指定的命中筆數。
+ *
+ * orders 這一張被兩段程式查：資格檢查的「有沒有完成訂單」（.eq().is().in()）
+ * 與一年一次的「視窗內用過沒」（.eq().overlaps().not().gte()），所以同一個
+ * 回傳物件要同時認得兩條鏈。
+ */
+function mockDb(orderCount: number, opts: { priorOrders?: number; birthdayChangedAt?: string | null } = {}) {
+  const priorOrders = opts.priorOrders ?? 1
   fromMock.mockImplementation((table: string) => {
     if (table === "campaigns") {
       return {
@@ -50,9 +57,26 @@ function mockDb(orderCount: number) {
         }),
       }
     }
+    if (table === "user_profiles") {
+      return {
+        select: () => ({
+          eq: () => ({
+            maybeSingle: () => Promise.resolve({
+              data: { birthday_changed_at: opts.birthdayChangedAt ?? null },
+              error: null,
+            }),
+          }),
+        }),
+      }
+    }
     return {
       select: () => ({
         eq: () => ({
+          // 資格檢查：有沒有完成訂單
+          is: () => ({
+            in: () => Promise.resolve({ count: priorOrders, error: null }),
+          }),
+          // 一年一次：這個生日視窗內用過沒
           overlaps: () => ({
             not: () => ({
               gte: () => Promise.resolve({ count: orderCount, error: null }),
@@ -94,9 +118,17 @@ describe("生日禮金 — 一年限用一次", () => {
       if (table === "campaigns") {
         return { select: () => ({ eq: () => Promise.resolve({ data: [{ id: "camp-bday-50" }], error: null }) }) }
       }
+      if (table === "user_profiles") {
+        return {
+          select: () => ({
+            eq: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }) }),
+          }),
+        }
+      }
       return {
         select: () => ({
           eq: () => ({
+            is: () => ({ in: () => Promise.resolve({ count: 1, error: null }) }),
             overlaps: () => ({
               not: () => ({ gte: () => Promise.resolve({ count: null, error: { message: "boom" } }) }),
             }),
@@ -199,5 +231,59 @@ describe("生日禮金 — 生日當月", () => {
     const r = await evalBirthdayBonus(MONTH_CAMPAIGN, ctx({ birthday: "1990-05-21" }), at("2026-05-10T04:00:00Z"))
     expect(r.applied).toBe(false)
     expect(r.reason).toContain("一年限用一次")
+  })
+})
+
+/**
+ * 生日禮的資格條件（2026-10-08）。
+ *
+ * 在這之前唯一的條件是「生日在當月」，所以新帳號註冊當下把生日填成本月，
+ * 第一筆訂單就能折 50，再加上首購折 50，開箱就是 100 元。鎖住生日不能改
+ * 擋不到這條 —— 註冊時填的那一次本來就是合法的。
+ */
+describe("生日禮金 — 資格條件", () => {
+  it("★ 註冊未滿 30 天不給 —— 擋掉「註冊當下填本月生日就領」", async () => {
+    mockDb(0)
+    const recent = new Date(NOW.getTime() - 5 * 86_400_000).toISOString()
+    const r = await evalBirthdayBonus(CAMPAIGN, ctx({ created_at: recent }), NOW)
+    expect(r.applied).toBe(false)
+    expect(r.reason).toContain("註冊未滿 30 天")
+  })
+
+  it("註冊滿 30 天就放行", async () => {
+    mockDb(0)
+    const old = new Date(NOW.getTime() - 40 * 86_400_000).toISOString()
+    const r = await evalBirthdayBonus(CAMPAIGN, ctx({ created_at: old }), NOW)
+    expect(r.applied).toBe(true)
+  })
+
+  it("★ 還沒有完成訂單不給", async () => {
+    mockDb(0, { priorOrders: 0 })
+    const old = new Date(NOW.getTime() - 40 * 86_400_000).toISOString()
+    const r = await evalBirthdayBonus(CAMPAIGN, ctx({ created_at: old }), NOW)
+    expect(r.applied).toBe(false)
+    expect(r.reason).toContain("尚無完成訂單")
+  })
+
+  it("★ 生日在本月才設定的不給 —— 客服改完當月不該馬上領得到", async () => {
+    mockDb(0, { birthdayChangedAt: NOW.toISOString() })
+    const old = new Date(NOW.getTime() - 40 * 86_400_000).toISOString()
+    const r = await evalBirthdayBonus(CAMPAIGN, ctx({ created_at: old }), NOW)
+    expect(r.applied).toBe(false)
+    expect(r.reason).toContain("本月才設定")
+  })
+
+  it("上個月設定的就可以", async () => {
+    mockDb(0, { birthdayChangedAt: "2026-02-10T00:00:00Z" })
+    const old = new Date(NOW.getTime() - 40 * 86_400_000).toISOString()
+    const r = await evalBirthdayBonus(CAMPAIGN, ctx({ created_at: old }), NOW)
+    expect(r.applied).toBe(true)
+  })
+
+  it("★ 查不到註冊日期時，仍然要檢查訂單與設定月份，不是整段放行", async () => {
+    mockDb(0, { priorOrders: 0 })
+    const r = await evalBirthdayBonus(CAMPAIGN, ctx(), NOW)
+    expect(r.applied).toBe(false)
+    expect(r.reason).toContain("尚無完成訂單")
   })
 })

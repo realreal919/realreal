@@ -776,6 +776,71 @@ export async function evalComboDiscount(
  * 取消／失敗的訂單不算數 —— 那些訂單從來沒有成立，跟首購折扣的處理一致，否則
  * 一次付款失敗就會讓客人整年拿不到生日禮金。
  */
+/**
+ * 生日禮的資格：註冊滿 N 天，而且已經有過一張完成訂單。
+ *
+ * 2026-10-08 加上的。在這之前，生日禮唯一的條件是「生日在當月」，所以新帳號
+ * 註冊當下把生日填成本月，第一筆訂單就能折 —— 再加上首購折 50，開箱就是 100 元。
+ * 鎖住生日不能改擋不到這條，因為註冊時填的那一次本來就是合法的。
+ *
+ * 兩個條件合起來的效果是「領生日禮之前你得先等一個月、而且買過一次」，
+ * 把開帳號farm 的報酬壓到不划算。
+ *
+ * 查詢失敗一律放行 —— 跟 birthdayGiftAlreadyUsed 同一個理由：寧可偶爾多送一次，
+ * 也不要因為一個查詢出錯就在結帳頁默默拿掉客人看得到的折扣。
+ */
+async function birthdayEligibilityMet(
+  userId: string,
+  createdAt: string | null,
+  minSignupDays: number,
+  requirePriorOrder: boolean,
+  now: Date,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  // 註冊日期拿不到就跳過「這一道」檢查，不是跳過整個資格判斷 —— 下面的
+  // 「已有完成訂單」與「設定當月不給」還是要跑。
+  if (minSignupDays > 0 && createdAt) {
+    const days = (now.getTime() - new Date(createdAt).getTime()) / 86_400_000
+    if (Number.isFinite(days) && days < minSignupDays) {
+      return { ok: false, reason: `註冊未滿 ${minSignupDays} 天` }
+    }
+  }
+
+  if (requirePriorOrder) {
+    const { count, error } = await supabase
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .is("deleted_at", null)
+      .in("status", ["completed", "shipped"])
+    if (error) return { ok: true }
+    if ((count ?? 0) === 0) return { ok: false, reason: "尚無完成訂單" }
+  }
+
+  // 設定生日的當月不給禮金。
+  //
+  // 註冊時填的生日被上面的「註冊滿 30 天」擋住了，所以這一條管的是另一種情況：
+  // 客服後來幫客人補設定。沒有這條的話，客服把生日改成本月，當月就能領 ——
+  // 一通電話就能拿到的禮金，不該存在。
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("birthday_changed_at")
+    .eq("user_id", userId)
+    .maybeSingle()
+  const changedAt = (profile as { birthday_changed_at?: string | null } | null)?.birthday_changed_at
+  if (changedAt) {
+    const changed = new Date(changedAt)
+    if (
+      !Number.isNaN(changed.getTime()) &&
+      changed.getFullYear() === now.getFullYear() &&
+      changed.getMonth() === now.getMonth()
+    ) {
+      return { ok: false, reason: "生日於本月才設定，本次不適用" }
+    }
+  }
+
+  return { ok: true }
+}
+
 async function birthdayGiftAlreadyUsed(
   userId: string,
   windowStartIso: string,
@@ -841,6 +906,25 @@ export async function evalBirthdayBonus(
   )
   if (!window.inWindow) {
     return notApplied(c, windowMode === "calendar_month" ? "不在生日當月" : "不在生日當月 window 內")
+  }
+
+  // 資格條件：註冊滿 N 天 + 已有完成訂單 + 生日不是本月才設定的。
+  // 沒設定就用規格 v2 的 30 天。
+  //
+  // 放在視窗判斷「之後」是刻意的：這兩道檢查要打資料庫，而絕大多數結帳都不在
+  // 任何人的生日當月。放前面等於每一筆結帳都多兩次查詢，換來的資訊在那些月份
+  // 根本用不到。
+  const minSignupDays = asNumber(cfg.min_signup_days) ?? 30
+  const requirePriorOrder = cfg.require_prior_order !== false
+  if (ctx.user.id) {
+    const eligible = await birthdayEligibilityMet(
+      ctx.user.id,
+      ctx.user.created_at ?? null,
+      minSignupDays,
+      requirePriorOrder,
+      now,
+    )
+    if (!eligible.ok) return notApplied(c, eligible.reason)
   }
 
   // 一年限用一次。視窗起點就是這次生日的前一天，所以「視窗內是否用過」等同
