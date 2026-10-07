@@ -796,6 +796,23 @@ async function birthdayEligibilityMet(
   requirePriorOrder: boolean,
   now: Date,
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
+  try {
+    return await birthdayEligibilityInner(userId, createdAt, minSignupDays, requirePriorOrder, now)
+  } catch (err) {
+    // 查詢整個拋例外（連線斷掉之類）時也放行，理由同下面各處：寧可偶爾多送一次，
+    // 也不要因為基礎設施出問題就在結帳頁默默拿掉客人看得到的折扣。
+    console.warn("[evalBirthdayBonus] 資格檢查失敗，本次放行:", err)
+    return { ok: true }
+  }
+}
+
+async function birthdayEligibilityInner(
+  userId: string,
+  createdAt: string | null,
+  minSignupDays: number,
+  requirePriorOrder: boolean,
+  now: Date,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
   // 註冊日期拿不到就跳過「這一道」檢查，不是跳過整個資格判斷 —— 下面的
   // 「已有完成訂單」與「設定當月不給」還是要跑。
   if (minSignupDays > 0 && createdAt) {
