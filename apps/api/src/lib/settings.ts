@@ -193,6 +193,9 @@ export const ALLOWED_KEYS = new Set<string>([
   // free_shipping_threshold 在 shipping.*、rebate_rate_by_tier 與
   // tier_*_valid_months 在 membership_tiers 表 —— 都不在這裡再開一份，
   // 否則同一個數字會有兩個來源，改了一邊另一邊照舊。
+  // 公益存款沒有效期設定，是因為它不會過期。2026-10-07 店主定調「公益優先、
+  // 折抵是例外」：回饋、推薦、生日的存款都一直累積，沒用掉的在年度結算時整批
+  // 捐出。所以沒有 birthday_expiry_days / referral.expiry_days 這兩個設定。
   "membership.scoop_gift_enabled",
   "membership.scoop_addon_price",
   "membership.hold_days",
@@ -202,7 +205,6 @@ export const ALLOWED_KEYS = new Set<string>([
   "membership.birthday_amount_zhixin",
   "membership.birthday_amount_tongxin",
   "membership.birthday_min_register_days",
-  "membership.birthday_expiry_days",
   "repurchase.coupon_amount",
   "repurchase.coupon_valid_days",
   "repurchase.ship_to_arrival_days",
@@ -213,7 +215,6 @@ export const ALLOWED_KEYS = new Set<string>([
   "referral.reward",
   "referral.points",
   "referral.monthly_budget",
-  "referral.expiry_days",
   // Shipping fees
   "shipping.fee_home_delivery",
   "shipping.fee_cvs",
@@ -269,7 +270,6 @@ export const SECTIONS: Record<string, { label: string; keys: string[] }> = {
       "membership.birthday_amount_zhixin",
       "membership.birthday_amount_tongxin",
       "membership.birthday_min_register_days",
-      "membership.birthday_expiry_days",
     ],
   },
   repurchase: {
@@ -290,7 +290,6 @@ export const SECTIONS: Record<string, { label: string; keys: string[] }> = {
       "referral.reward",
       "referral.points",
       "referral.monthly_budget",
-      "referral.expiry_days",
     ],
   },
   pchomepay: {

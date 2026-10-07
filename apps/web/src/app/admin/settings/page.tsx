@@ -156,12 +156,7 @@ const FIELD_META: Record<
   "membership.birthday_min_register_days": {
     label: "生日禮資格：註冊滿幾天",
     placeholder: "30",
-    hint: "且需已有至少一張完成訂單",
-  },
-  "membership.birthday_expiry_days": {
-    label: "生日公益存款效期（天）",
-    placeholder: "90",
-    hint: "到期未選擇者自動轉為公益",
+    hint: "且需已有至少一張完成訂單。生日公益存款沒有效期，沒用掉會繼續累積",
   },
   // 回購提醒與回購券
   "repurchase.coupon_amount": { label: "回購券金額 NT$", placeholder: "50", hint: "限購物車含夾鏈袋時可用" },
@@ -179,7 +174,6 @@ const FIELD_META: Record<
   "referral.reward": { label: "推薦獎勵 NT$", placeholder: "50", hint: "雙方各得，記入公益存款" },
   "referral.points": { label: "推薦互動點數", placeholder: "5", hint: "只記在後台，不顯示給會員" },
   "referral.monthly_budget": { label: "推薦獎勵每月預算 NT$", placeholder: "2000", hint: "超過的留在待確認佇列，順延下月" },
-  "referral.expiry_days": { label: "推薦獎勵效期（天）", placeholder: "180" },
   // Contact
   "contact.email": { label: "客服 Email", placeholder: "love@realreal.cc" },
 }
