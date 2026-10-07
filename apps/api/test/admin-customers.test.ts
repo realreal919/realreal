@@ -398,7 +398,7 @@ describe("PATCH /admin/customers/:id/tier", () => {
           eq: vi.fn().mockReturnThis(),
           maybeSingle: vi
             .fn()
-            .mockResolvedValue({ data: { id: TIER_ID }, error: null }),
+            .mockResolvedValue({ data: { id: TIER_ID, validity_months: 12 }, error: null }),
         } as any
       }
       return {} as any
@@ -412,7 +412,16 @@ describe("PATCH /admin/customers/:id/tier", () => {
     expect(res.status).toBe(200)
     expect(res.body).toEqual({ ok: true })
     expect(updates).toHaveLength(1)
-    expect(updates[0]).toEqual({ membership_tier_id: TIER_ID })
+    expect(updates[0]).toMatchObject({ membership_tier_id: TIER_ID })
+    // ★ 手動改等級也要開始新的一期。只寫 membership_tier_id 的話，效期會留在
+    //   原本的值（通常是空的），tier-expire 掃不到，這個人就永遠保留該等級
+    //   —— 2026-10-07 在正式資料裡找到 4 位這樣的會員。
+    const payload = updates[0] as Record<string, unknown>
+    expect(typeof payload.tier_started_at).toBe("string")
+    expect(payload.tier_period_spend).toBe(0)
+    const expires = new Date(payload.tier_expires_at as string)
+    const started = new Date(payload.tier_started_at as string)
+    expect(expires.getFullYear() - started.getFullYear()).toBe(1)
   })
 
   it("returns 400 when tier_id is not a uuid", async () => {

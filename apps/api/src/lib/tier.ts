@@ -12,6 +12,30 @@ export function addMonths(date: Date, n: number): Date {
 }
 
 /**
+ * The three fields that define a tier period, for a tier change happening now.
+ *
+ * `increment_user_tier_spend` (migration 0047) writes exactly these when an order
+ * pushes someone up a tier: start = now, expiry = now + validity_months (null when
+ * the tier never expires), and the re-qualification counter restarts at 0.
+ *
+ * Admin-side tier changes have to write the same three, or the member ends up with
+ * no expiry at all and tier-expire can never see them — its sweep filters on
+ * `tier_expires_at is not null`. Four members were sitting in that state on
+ * 2026-10-07, every one of them with a tier that was set by hand.
+ */
+export function tierPeriodFields(
+  validityMonths: number | null | undefined,
+  now: Date = new Date(),
+): { tier_started_at: string; tier_expires_at: string | null; tier_period_spend: number } {
+  const months = Number(validityMonths ?? 0)
+  return {
+    tier_started_at: now.toISOString(),
+    tier_expires_at: months > 0 ? addMonths(now, months).toISOString() : null,
+    tier_period_spend: 0,
+  }
+}
+
+/**
  * Add `amount` to the user's `tier_period_spend` (re-qualification window total).
  * Called from enqueue-post-payment after every successful order.
  *

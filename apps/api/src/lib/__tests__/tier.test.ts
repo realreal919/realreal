@@ -7,7 +7,7 @@ import { describe, it, expect, vi } from "vitest"
 vi.mock("../supabase", () => ({ supabase: {} }))
 vi.mock("../points", () => ({ adjustPoints: vi.fn() }))
 
-import { tierBonusMatches } from "../tier"
+import { tierBonusMatches, tierPeriodFields } from "../tier"
 
 // Regression: the tier_upgrade_bonus consumer used to compare config.tier_id
 // (a UUID the admin form NEVER writes) against the upgraded tier's UUID, so the
@@ -49,5 +49,35 @@ describe("tierBonusMatches", () => {
   it("does not false-match empty-string slug against an unresolved (null) upgraded slug", () => {
     // Guards against "" === "" accidentally matching every campaign.
     expect(tierBonusMatches({ tier_slug: "" }, null, GOLD_ID)).toBe(false)
+  })
+})
+
+/**
+ * Regression for 2026-10-07: the admin "更換等級" endpoint wrote only
+ * membership_tier_id, so a hand-set tier had no tier_expires_at. tier-expire
+ * filters on `tier_expires_at is not null`, so those members kept the tier for
+ * good — four of them were in that state when it was found.
+ */
+describe("tierPeriodFields", () => {
+  const NOW = new Date("2026-10-07T03:00:00.000Z")
+
+  it("★ 有效期的等級一定要寫出到期日，不然降等排程永遠掃不到", () => {
+    const f = tierPeriodFields(12, NOW)
+    expect(f.tier_expires_at).toBe("2027-10-07T03:00:00.000Z")
+    expect(f.tier_started_at).toBe("2026-10-07T03:00:00.000Z")
+  })
+
+  it("換等級就是新的一期，重新認定的累計歸零", () => {
+    expect(tierPeriodFields(12, NOW).tier_period_spend).toBe(0)
+  })
+
+  it("validity_months 為 0 或空值代表不過期", () => {
+    expect(tierPeriodFields(0, NOW).tier_expires_at).toBeNull()
+    expect(tierPeriodFields(null, NOW).tier_expires_at).toBeNull()
+    expect(tierPeriodFields(undefined, NOW).tier_expires_at).toBeNull()
+  })
+
+  it("36 個月的同心之友跨年也要算對", () => {
+    expect(tierPeriodFields(36, NOW).tier_expires_at).toBe("2029-10-07T03:00:00.000Z")
   })
 })

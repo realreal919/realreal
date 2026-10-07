@@ -5,6 +5,7 @@ import { requireAuth } from "../middleware/auth"
 import { requireAdmin } from "../middleware/admin"
 import { adjustPoints } from "../lib/points"
 import { sendEmail } from "../lib/email"
+import { tierPeriodFields } from "../lib/tier"
 import {
   birthdayInviteSubject,
   renderBirthdayInvite,
@@ -509,10 +510,10 @@ adminCustomersRouter.patch("/:id/tier", async (req, res) => {
   }
   const userId = req.params.id
 
-  // Sanity check — tier must exist
+  // Sanity check — tier must exist. validity_months decides the new expiry.
   const { data: tier } = await supabase
     .from("membership_tiers")
-    .select("id")
+    .select("id, validity_months")
     .eq("id", parsed.data.tier_id)
     .maybeSingle()
   if (!tier) {
@@ -520,9 +521,16 @@ adminCustomersRouter.patch("/:id/tier", async (req, res) => {
     return
   }
 
+  // A hand-set tier starts a fresh period, exactly like the automatic upgrade in
+  // increment_user_tier_spend. Writing only membership_tier_id leaves
+  // tier_expires_at as it was — usually null — and tier-expire only looks at rows
+  // where it is set, so the member keeps that tier forever.
   const { error } = await supabase
     .from("user_profiles")
-    .update({ membership_tier_id: parsed.data.tier_id })
+    .update({
+      membership_tier_id: parsed.data.tier_id,
+      ...tierPeriodFields((tier as { validity_months: number | null }).validity_months),
+    })
     .eq("user_id", userId)
   if (error) {
     res.status(500).json({ error: error.message })
