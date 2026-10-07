@@ -98,9 +98,14 @@ function ProfileBlock({
 }) {
   const [displayName, setDisplayName] = useState(initialDisplayName)
   const [phone, setPhone] = useState(initialPhone)
-  // 生日填過就鎖住。資料庫也有 lock_birthday_once trigger 擋——這裡的唯讀只是
-  // 別讓人白填一場，真正的鎖在資料庫，因為這個表單是前端直接寫 Supabase 的。
-  const birthdayLocked = initialBirthday !== ""
+  // 生日在註冊當下決定，之後一律唯讀（2026-10-08 店主定案）。
+  //
+  // 原本是「填過才鎖」，所以註冊時沒填的人還能補填一次 —— 那一次就是漏洞：
+  // 註冊完把生日填成當月，當月就能領生日公益存款。
+  //
+  // 真正的鎖在資料庫的 lock_birthday_once trigger，這裡的唯讀只是別讓人白填
+  // 一場；這個表單是前端直接寫 Supabase 的，擋在前端沒有意義。
+  const birthdayLocked = true
   const [birthday, setBirthday] = useState(initialBirthday)
   const today = new Date().toISOString().slice(0, 10)
   const router = useRouter()
@@ -109,7 +114,7 @@ function ProfileBlock({
   const dirty =
     displayName !== initialDisplayName ||
     phone !== initialPhone ||
-    (!birthdayLocked && birthday !== "")
+    false
 
   function handleSave() {
     startTransition(async () => {
@@ -186,9 +191,9 @@ function ProfileBlock({
             onChange={(e) => setBirthday(e.target.value)}
           />
           <p className="text-xs text-zinc-500">
-            {birthdayLocked
-              ? "生日已設定，如需更正請聯絡客服"
-              : "生日當月消費享會員禮金；儲存後無法自行修改"}
+            {initialBirthday
+              ? "生日於註冊時設定，如需更正請聯絡客服"
+              : "註冊時未填生日，無法自行補填；如需設定請聯絡客服"}
           </p>
         </div>
         <div className="space-y-1.5 md:col-span-2">

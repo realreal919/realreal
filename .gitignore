@@ -12,3 +12,6 @@ Wordpress/
 supabase/.temp/
 .worktrees/
 .superpowers/
+
+# 後端環境變數（含 Supabase service_role key），一律不進版本庫
+apps/api/.env
