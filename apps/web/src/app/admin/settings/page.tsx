@@ -149,7 +149,11 @@ const FIELD_META: Record<
     hint: "折前金額。與首購不同日、未退貨才算",
   },
   "membership.scoop_gift_enabled": { label: "首購附計量勺", placeholder: "true", hint: "true / false" },
-  "membership.scoop_addon_price": { label: "計量勺加購價 NT$", placeholder: "49", hint: "不分層級" },
+  "membership.scoop_addon_price": {
+    label: "計量勺加購價 NT$",
+    placeholder: "45",
+    hint: "不分層級。必須低於商品頁的定價，否則加購區會當作沒有加購價而不顯示",
+  },
   "membership.birthday_amount_chuxin": { label: "生日公益存款：初心 NT$", placeholder: "50" },
   "membership.birthday_amount_zhixin": { label: "生日公益存款：知心 NT$", placeholder: "100" },
   "membership.birthday_amount_tongxin": { label: "生日公益存款：同心 NT$", placeholder: "150" },
