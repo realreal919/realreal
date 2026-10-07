@@ -89,11 +89,12 @@ describe("buyGetMessages", () => {
 })
 
 describe("firstPurchaseMessage", () => {
-  it("★ 有門檻時要講出來，不然客人結帳才發現用不了", () => {
-    expect(firstPurchaseMessage({ discount: 50, minOrder: 300 })).toBe("加入會員首購滿300元折50元")
+  it("跑馬燈只講一句短的，門檻留給商品頁講", () => {
+    expect(firstPurchaseMessage({ discount: 50, minOrder: 300 })).toBe("會員首購折50元")
+    expect(firstPurchaseMessage({ discount: 50, minOrder: 0 })).toBe("會員首購折50元")
   })
-  it("沒門檻時不提，免得以為還有條件", () => {
-    expect(firstPurchaseMessage({ discount: 50, minOrder: 0 })).toBe("加入會員立即享首購折50元")
+  it("金額跟著後台設定走，不寫死", () => {
+    expect(firstPurchaseMessage({ discount: 80, minOrder: 300 })).toBe("會員首購折80元")
   })
   it("沒有活動或折扣為 0 時不顯示", () => {
     expect(firstPurchaseMessage(null)).toBeNull()

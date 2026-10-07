@@ -32,14 +32,15 @@ export function buyGetMessages(offers: BuyGetOffer[] = []): string[] {
 export type FirstPurchase = { discount: number; minOrder: number }
 
 /**
- * 「加入會員首購折50元」／有門檻時「加入會員首購滿300元折50元」。
- * 門檻 0 就不提，免得客人以為還有條件。
+ * 跑馬燈用：「會員首購折50元」。
+ *
+ * 2026-10-07 店主指定改短，不在這裡講滿額門檻 —— 跑馬燈一格只有幾個字的停留
+ * 時間，條件講不清楚反而更容易誤會。門檻還是會講，但講在商品頁價格下方，而且
+ * 只對「買一件也湊不到門檻」的商品講（見 firstPurchaseProductMessage）。
  */
 export function firstPurchaseMessage(fp: FirstPurchase | null | undefined): string | null {
   if (!fp || fp.discount <= 0) return null
-  return fp.minOrder > 0
-    ? `加入會員首購滿${fp.minOrder}元折${fp.discount}元`
-    : `加入會員立即享首購折${fp.discount}元`
+  return `會員首購折${fp.discount}元`
 }
 
 /**
