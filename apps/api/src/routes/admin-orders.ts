@@ -301,14 +301,21 @@ adminOrdersRouter.post("/:id/confirm-payment", async (req, res) => {
 // sentinel / UNIQUE index), so a double press cannot double-count spend or
 // points.
 adminOrdersRouter.post("/retry-post-payment-batch", async (req, res) => {
+  // Default high enough to cover every paid order in one press. It used to be
+  // 100 while 266 orders qualified, so the button reported success having looked
+  // at the first 100 — the rest stayed uncredited with nothing saying so
+  // (2026-10-07: 6 members were owed spend, one press fixed 2 of them).
   const { limit } = req.body as { limit?: number }
-  const cap = Math.min(Math.max(Number(limit) || 100, 1), 500)
+  const cap = Math.min(Math.max(Number(limit) || 2000, 1), 5000)
 
+  // Oldest first, so a capped run makes progress from a stable end of the list
+  // instead of re-examining whatever Postgres happens to return.
   const { data: paidOrders, error } = await supabase
     .from("orders")
     .select("id, order_number, user_id")
     .eq("payment_status", "paid")
     .not("user_id", "is", null)
+    .order("created_at", { ascending: true })
     .limit(cap)
   if (error) { res.status(500).json({ error: error.message }); return }
 

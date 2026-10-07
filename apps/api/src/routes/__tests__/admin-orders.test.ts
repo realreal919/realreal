@@ -502,6 +502,7 @@ describe("POST /admin/orders/retry-post-payment-batch", () => {
       },
     })
     ordersChain.not = vi.fn().mockReturnThis()
+    ordersChain.order = vi.fn().mockReturnThis()
     ordersChain.limit = vi.fn().mockReturnThis()
     lastOrdersChain = ordersChain
 
