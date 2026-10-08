@@ -205,8 +205,23 @@ configRouter.get("/", async (_req, res) => {
   } | null = null
   try {
     const cfg = await loadScoopGiftConfig(getSetting)
-    const priceRaw = await getSetting("membership.scoop_addon_price")
-    const price = Number(priceRaw)
+
+    // 加購價以「商品上實際設定的那個數字」為準，而不是設定表的值。
+    // 前台顯示的價格必須等於結帳真正收的錢；兩者來源不同的話，後台改了商品
+    // 卻忘了改設定（或反過來），客人就會看到一個付不到的價格。設定表只在
+    // 商品查不到時當備援。
+    const { data: giftRow } = await supabase
+      .from("products")
+      .select("product_variants(addon_price)")
+      .eq("slug", cfg.giftSlug)
+      .maybeSingle()
+    const variantPrice = Number(
+      (giftRow as { product_variants?: Array<{ addon_price: number | string | null }> } | null)
+        ?.product_variants?.find((v) => v.addon_price != null)?.addon_price,
+    )
+    const settingPrice = Number(await getSetting("membership.scoop_addon_price"))
+    const price = Number.isFinite(variantPrice) && variantPrice > 0 ? variantPrice : settingPrice
+
     scoopGift = {
       slug: cfg.giftSlug,
       triggerSlugs: cfg.triggerSlugs,

@@ -267,8 +267,9 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                   >
                     日本製不鏽鋼量匙
                   </Link>
-                  {scoopGift.addonPrice ? `　加購價 NT$${scoopGift.addonPrice}` : null}
-                  ，可在下方加購區一起帶走。
+                  {scoopGift.addonPrice
+                    ? `，加購價 NT$${scoopGift.addonPrice}，可在下方加購區一起帶走。`
+                    : "，可在下方加購區一起帶走。"}
                 </p>
               </div>
             )}
