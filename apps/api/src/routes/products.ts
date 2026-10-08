@@ -6,7 +6,7 @@ import { requireEditor } from "../middleware/editor"
 import { enrichProducts } from "../lib/enrich-products"
 import { visibleSortedVariants } from "../lib/variant-order"
 import { z } from "zod"
-import { withDerivedStock } from "../lib/pack-stock"
+import { withDerivedStock, referencedVariantIds } from "../lib/pack-stock"
 
 export const productsRouter = Router()
 export const productsAdminRouter = Router()
@@ -15,21 +15,47 @@ export const productsAdminRouter = Router()
  * 前台商品列表的規格：去掉停售的，並依規則排序（lib/variant-order.ts）。
  * 列表卡片的「NT$ 起」價格也從這裡算，停售的規格不該影響它。
  */
-function withVisibleVariants<T extends { product_variants?: unknown }>(rows: T[] | null | undefined): T[] {
-  return (rows ?? []).map((row) => ({
+type StockVariant = {
+  id: string
+  name: string
+  stock_qty: number | string | null
+  attributes?: Record<string, unknown> | null
+}
+
+/**
+ * 組合規格的配方可能指到別的商品的規格（「穩定補給 任選5袋」用的是單口味
+ * 商品的單袋），所以換算前要先把那些規格的庫存查回來。一次查完，不要每個
+ * 商品各查一次。
+ */
+async function externalStockFor(rowsVariants: StockVariant[][]): Promise<Map<string, number>> {
+  const own = new Set(rowsVariants.flat().map((v) => v.id))
+  const need = [...new Set(rowsVariants.flatMap((vs) => referencedVariantIds(vs)))].filter(
+    (id) => !own.has(id),
+  )
+  if (need.length === 0) return new Map()
+  const { data } = await supabase
+    .from("product_variants")
+    .select("id, stock_qty")
+    .in("id", need)
+  return new Map(
+    ((data ?? []) as Array<{ id: string; stock_qty: number | string | null }>).map((v) => [
+      v.id,
+      Number(v.stock_qty) || 0,
+    ]),
+  )
+}
+
+async function withVisibleVariants<T extends { product_variants?: unknown }>(
+  rows: T[] | null | undefined,
+): Promise<T[]> {
+  const list = rows ?? []
+  const allVariants = list.map((row) => (row.product_variants ?? []) as StockVariant[])
+  const external = await externalStockFor(allVariants)
+  return list.map((row, i) => ({
     ...row,
-    // 先換算組合規格的可售數量，再過濾停售與排序 —— 換算需要看到同商品的
-    // 單品規格，順序反過來的話單品可能已經被濾掉，組合就算不出來。
-    product_variants: visibleSortedVariants(
-      withDerivedStock(
-        (row.product_variants ?? []) as Array<{
-          id: string
-          name: string
-          stock_qty: number | string | null
-          attributes?: Record<string, unknown> | null
-        }>,
-      ),
-    ),
+    // 先換算可售數量，再過濾停售與排序 —— 換算需要看到同商品的單品規格，
+    // 順序反過來的話單品可能已經被濾掉，組合就算不出來。
+    product_variants: visibleSortedVariants(withDerivedStock(allVariants[i], external)),
   }))
 }
 
@@ -146,7 +172,7 @@ productsRouter.get("/", async (req, res) => {
     const { data: allData, error: allError, count: allCount } = await query
     if (allError) { res.status(500).json({ error: allError.message }); return }
 
-    const enriched = await enrichProducts(withVisibleVariants(allData))
+    const enriched = await enrichProducts(await withVisibleVariants(allData))
     enriched.sort((a, b) => {
       const pa = a.min_price ?? 0
       const pb = b.min_price ?? 0
@@ -162,7 +188,7 @@ productsRouter.get("/", async (req, res) => {
   const { data, error, count } = await query
   if (error) { res.status(500).json({ error: error.message }); return }
 
-  const enriched = await enrichProducts(withVisibleVariants(data))
+  const enriched = await enrichProducts(await withVisibleVariants(data))
   res.json({ data: enriched, total: count ?? 0 })
 })
 
@@ -199,15 +225,13 @@ productsRouter.get("/:slug", async (req, res) => {
     }
   }
 
+  const ownVariants = (product_variants ?? []) as StockVariant[]
+  const externalStock = await externalStockFor([ownVariants])
   const variants = visibleSortedVariants(
-    withDerivedStock(
-      (product_variants ?? []) as Array<{
-        id: string
-        name: string
-        stock_qty: number | string | null
-        attributes?: Record<string, unknown> | null
-      }>,
-    ) as Array<{ name: string; attributes?: Record<string, unknown> | null }>,
+    withDerivedStock(ownVariants, externalStock) as Array<{
+      name: string
+      attributes?: Record<string, unknown> | null
+    }>,
   )
   res.json({ data: { ...rest, images, variants, min_tier: minTierRaw ?? null } })
 })
