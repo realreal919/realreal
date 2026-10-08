@@ -6,6 +6,7 @@ import { requireEditor } from "../middleware/editor"
 import { enrichProducts } from "../lib/enrich-products"
 import { visibleSortedVariants } from "../lib/variant-order"
 import { z } from "zod"
+import { withDerivedStock } from "../lib/pack-stock"
 
 export const productsRouter = Router()
 export const productsAdminRouter = Router()
@@ -17,8 +18,17 @@ export const productsAdminRouter = Router()
 function withVisibleVariants<T extends { product_variants?: unknown }>(rows: T[] | null | undefined): T[] {
   return (rows ?? []).map((row) => ({
     ...row,
+    // 先換算組合規格的可售數量，再過濾停售與排序 —— 換算需要看到同商品的
+    // 單品規格，順序反過來的話單品可能已經被濾掉，組合就算不出來。
     product_variants: visibleSortedVariants(
-      (row.product_variants ?? []) as Array<{ name: string; attributes?: Record<string, unknown> | null }>,
+      withDerivedStock(
+        (row.product_variants ?? []) as Array<{
+          id: string
+          name: string
+          stock_qty: number | string | null
+          attributes?: Record<string, unknown> | null
+        }>,
+      ),
     ),
   }))
 }
@@ -190,7 +200,14 @@ productsRouter.get("/:slug", async (req, res) => {
   }
 
   const variants = visibleSortedVariants(
-    (product_variants ?? []) as Array<{ name: string; attributes?: Record<string, unknown> | null }>,
+    withDerivedStock(
+      (product_variants ?? []) as Array<{
+        id: string
+        name: string
+        stock_qty: number | string | null
+        attributes?: Record<string, unknown> | null
+      }>,
+    ) as Array<{ name: string; attributes?: Record<string, unknown> | null }>,
   )
   res.json({ data: { ...rest, images, variants, min_tier: minTierRaw ?? null } })
 })

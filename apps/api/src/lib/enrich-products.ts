@@ -1,4 +1,5 @@
 import { supabase } from "./supabase"
+import { readPackOf } from "./pack-stock"
 
 // Helper: enrich products with prices, total_stock, and flatten image URLs.
 // Shared by routes/products.ts (GET /products, GET /products/:slug) and
@@ -10,7 +11,7 @@ export async function enrichProducts(products: any[]) {
   const productIds = products.map((p) => p.id)
   const { data: variants } = await supabase
     .from("product_variants")
-    .select("product_id, name, price, sale_price, stock_qty")
+    .select("product_id, name, price, sale_price, stock_qty, attributes")
     .in("product_id", productIds)
 
   // 隨身包單一口味頁的選項是「單包／2入組／15入組」。商品卡要顯示「單包價 – 最低每包價」
@@ -34,7 +35,12 @@ export async function enrichProducts(products: any[]) {
     const price = Number(v.price)
     const salePrice = v.sale_price != null ? Number(v.sale_price) : null
     const effectivePrice = salePrice != null && salePrice < price ? salePrice : price
-    const stock = Number(v.stock_qty) || 0
+    // 有配方的組合規格不計入總庫存 —— 它不是另一批貨，是同一批貨換個包裝賣法。
+    // 加總的話「草莓 300克」會變成 單袋20 + 3入組100 + 5入組100 = 220，
+    // 實際只有 20 袋。
+    const stock = readPackOf((v as { attributes?: Record<string, unknown> | null }).attributes)
+      ? 0
+      : Number(v.stock_qty) || 0
     if (!entry) {
       statsMap.set(v.product_id, { min_price: price, max_price: price, min_sale_price: effectivePrice, total_stock: stock })
     } else {
