@@ -1,6 +1,8 @@
 import { Router } from "express"
 import { getShippingRule } from "../lib/shipping"
 import { supabase } from "../lib/supabase"
+import { getSetting } from "../lib/settings"
+import { loadScoopGiftConfig } from "../lib/scoop-gift"
 
 export const configRouter = Router()
 
@@ -193,6 +195,27 @@ configRouter.get("/", async (_req, res) => {
     console.warn("[config] first_purchase campaign lookup failed (non-fatal):", err)
   }
 
+  // 贈勺規則。前台的夾鏈袋商品頁要據此顯示「可加購量匙」的引導，所以夾鏈袋的
+  // 清單只能有一份來源 —— 後端判斷送不送、前台判斷要不要提示，兩邊各寫一份
+  // slug 清單的話，改了一邊另一邊照舊，提示和實際贈送就會對不上。
+  let scoopGift: {
+    slug: string
+    triggerSlugs: string[]
+    addonPrice: number | null
+  } | null = null
+  try {
+    const cfg = await loadScoopGiftConfig(getSetting)
+    const priceRaw = await getSetting("membership.scoop_addon_price")
+    const price = Number(priceRaw)
+    scoopGift = {
+      slug: cfg.giftSlug,
+      triggerSlugs: cfg.triggerSlugs,
+      addonPrice: Number.isFinite(price) && price > 0 ? price : null,
+    }
+  } catch (err) {
+    console.warn("[config] scoop gift lookup failed (non-fatal):", err)
+  }
+
   res.json({
     allowTestPaid: process.env.ALLOW_NON_ADMIN_TEST_PAID === "true",
     shipping,
@@ -201,5 +224,6 @@ configRouter.get("/", async (_req, res) => {
     spendGifts,
     buyGetOffers,
     firstPurchase,
+    scoopGift,
   })
 })

@@ -32,3 +32,28 @@ export async function getProductBySlug(slug: string): Promise<(Product & { varia
   const json = await res.json()
   return json.data ?? null
 }
+
+/**
+ * 贈勺規則（GET /config 的 scoopGift）。夾鏈袋商品頁用它決定要不要顯示
+ * 「可加購量匙」的引導。
+ *
+ * 夾鏈袋的清單只有後台設定這一份來源 —— 前台若自己再寫一份，改了一邊另一邊
+ * 照舊，提示和實際贈送就會對不上。
+ */
+export type ScoopGiftConfig = {
+  slug: string
+  triggerSlugs: string[]
+  addonPrice: number | null
+}
+
+export async function getScoopGiftConfig(): Promise<ScoopGiftConfig | null> {
+  try {
+    const res = await fetch(`${API_URL}/config`, { next: { revalidate: 60 } })
+    if (!res.ok) return null
+    const json = (await res.json()) as { scoopGift?: ScoopGiftConfig | null }
+    return json.scoopGift ?? null
+  } catch {
+    // 拿不到就不顯示那一句。少一句引導沒關係，顯示錯的價格不行。
+    return null
+  }
+}

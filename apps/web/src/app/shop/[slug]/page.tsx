@@ -2,7 +2,7 @@ import { notFound } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { ChevronRight } from "lucide-react"
-import { getProductBySlug, getCategories } from "@/lib/catalog"
+import { getProductBySlug, getCategories, getScoopGiftConfig } from "@/lib/catalog"
 import { limitedOfferFor } from "@/lib/limited-offers"
 import { LimitedOfferCountdown } from "@/components/product/LimitedOfferCountdown"
 import { AddToCartSection } from "@/components/product/AddToCartSection"
@@ -95,7 +95,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function ProductDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const [product, categories] = await Promise.all([getProductBySlug(slug), getCategories()])
+  const [product, categories, scoopGift] = await Promise.all([
+    getProductBySlug(slug),
+    getCategories(),
+    getScoopGiftConfig(),
+  ])
   if (!product) notFound()
 
   if (!product.is_active) notFound()
@@ -107,6 +111,9 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   // 放在配件底下文不對題。原本是一條一條寫死 slug（bag1 / canvabag_s），
   // 每加一個配件就要記得補一行，量匙上架當天就漏了。改看分類，新配件自動適用。
   const isAccessory = productCategory?.slug === "sustain-life"
+  // 夾鏈袋商品才提量匙 —— 隨身包是單份包裝，不需要勺子，提了只是雜訊。
+  const showScoopPrompt =
+    !!scoopGift && scoopGift.triggerSlugs.includes(product.slug) && product.slug !== scoopGift.slug
 
   // Membership tier gate — compute server-side so the locked state is in the HTML
   let minTierName: string | undefined
@@ -247,6 +254,24 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                 variantNote={variantNote}
               />
             </div>
+
+            {showScoopPrompt && scoopGift && (
+              <div className="mt-4 rounded-lg bg-[#10305a]/5 px-4 py-3 text-sm text-[#687279]">
+                <p>
+                  夾鏈袋裝沒有附量匙。一匙舀滿刮平約 10 公克，一份 50 公克就是 5 匙。
+                </p>
+                <p className="mt-1">
+                  <Link
+                    href={`/shop/${scoopGift.slug}`}
+                    className="font-semibold text-[#10305a] underline underline-offset-2"
+                  >
+                    日本製不鏽鋼量匙
+                  </Link>
+                  {scoopGift.addonPrice ? `　加購價 NT$${scoopGift.addonPrice}` : null}
+                  ，可在下方加購區一起帶走。
+                </p>
+              </div>
+            )}
 
             {/* Excerpt — short intro stays in right column */}
             {displayExcerpt && (
