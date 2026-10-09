@@ -69,6 +69,7 @@ export function renderMembershipUpdate(data: {
         <tr><td style="padding-right:16px;opacity:.75">優惠碼</td><td><strong style="letter-spacing:.15em">${data.couponCode}</strong></td></tr>
         <tr><td style="padding-right:16px;opacity:.75">使用期限</td><td>${data.validUntil}</td></tr>
       </table>
+      <p style="margin:12px 0 0;font-size:13px;opacity:.75">優惠可併用</p>
     </div>
 
     <p style="margin:28px 0">
