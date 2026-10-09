@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useTransition } from "react"
 import { toast } from "sonner"
-import { apiClient } from "@/lib/api-client"
+// 這是瀏覽器端元件，不能用 lib/api-client —— 那支讀的是 RAILWAY_API_URL，
+// 只有 server action 跑得到；在瀏覽器裡它會直接丟「未設定」的錯誤。
+import { API_URL } from "@/lib/api-url"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 
@@ -25,6 +27,24 @@ type Report = {
 
 const MONTHLY_CAP = 2
 
+/** 帶上登入 token 呼叫後台 API，錯誤訊息沿用後端回傳的那一句。 */
+async function callApi<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const token = (await createClient().auth.getSession()).data.session?.access_token
+  const res = await fetch(`${API_URL}${path}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(init.headers ?? {}),
+    },
+  })
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error((json as { error?: string }).error ?? `HTTP ${res.status}`)
+  return json as T
+}
+
+
+
 export function ShareReportsClient() {
   const [types, setTypes] = useState<TypeOption[]>([])
   const [rows, setRows] = useState<Report[]>([])
@@ -36,10 +56,8 @@ export function ShareReportsClient() {
   async function load(next: "pending" | "all" = filter) {
     setLoading(true)
     try {
-      const token = (await createClient().auth.getSession()).data.session?.access_token
-      const json = await apiClient<{ types: TypeOption[]; data: Report[] }>(
+      const json = await callApi<{ types: TypeOption[]; data: Report[] }>(
         `/admin/share-reports?status=${next}`,
-        { token },
       )
       setTypes(json.types)
       setRows(json.data)
@@ -63,10 +81,9 @@ export function ShareReportsClient() {
     }
     startTransition(async () => {
       try {
-        const token = (await createClient().auth.getSession()).data.session?.access_token
-        const res = await apiClient<{ points?: number; upgrade?: { eligible: boolean } }>(
+        const res = await callApi<{ points?: number; upgrade?: { eligible: boolean } }>(
           `/admin/share-reports/${row.id}`,
-          { method: "PATCH", body: JSON.stringify({ action, type }), token },
+          { method: "PATCH", body: JSON.stringify({ action, type }) },
         )
         if (action === "reject") {
           toast.success("已標記為不計")
