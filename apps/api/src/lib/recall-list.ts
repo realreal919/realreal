@@ -10,6 +10,7 @@ export type RecallCandidate = {
   user_id: string
   email: string | null
   display_name: string | null
+  first_order_id: string
   first_order_number: string
   first_order_at: string
   days_since: number

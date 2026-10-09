@@ -89,20 +89,26 @@ async function buildList(now: Date): Promise<RecallCandidate[]> {
   )
   const sentTo = new Set(((already ?? []) as Array<{ user_id: string }>).map((r) => r.user_id))
 
-  // Email 在 auth.users，一筆一筆查。這份名單是人工操作、一週跑一次，
-  // 幾十筆的 round-trip 比多維護一張鏡像表划算。
+  // Email 在 auth.users。一次 listUsers 撈完比逐筆 getUserById 快得多 ——
+  // 名單上通常有上百人，一百多次往返會讓這支請求直接逾時。
+  const emails = new Map<string, string>()
+  const { data: authList } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 })
+  for (const u of authList?.users ?? []) {
+    if (u.email) emails.set(u.id, u.email)
+  }
+
   const out: RecallCandidate[] = []
   for (const c of candidates) {
     const uid = c.row.user_id
     if (sentTo.has(uid)) continue
     if (profile.get(uid)?.marketing_opt_out) continue
-    const { data: authUser } = await supabase.auth.admin.getUserById(uid)
-    const email = authUser.user?.email ?? null
+    const email = emails.get(uid) ?? null
     if (!email) continue
     out.push({
       user_id: uid,
       email,
       display_name: profile.get(uid)?.display_name ?? null,
+      first_order_id: c.row.id,
       first_order_number: c.row.order_number,
       first_order_at: c.row.created_at,
       days_since: c.days,
@@ -173,18 +179,9 @@ adminRecallRouter.post("/mark", async (req, res) => {
       skipped.push(uid)
       continue
     }
-    const { data: order } = await supabase
-      .from("orders")
-      .select("id")
-      .eq("order_number", row.first_order_number)
-      .maybeSingle()
-    if (!order) {
-      skipped.push(uid)
-      continue
-    }
     const { error } = await supabase.from("reminders").insert({
       user_id: uid,
-      source_order_id: (order as { id: string }).id,
+      source_order_id: row.first_order_id,
       type: "manual_batch",
       channel: "email",
       sent_at: now.toISOString(),

@@ -40,6 +40,7 @@ describe("toCsv", () => {
     user_id: "u1",
     email: "a@b.com",
     display_name: "王小明",
+    first_order_id: "o1",
     first_order_number: "10000001",
     first_order_at: "2026-09-01T00:00:00Z",
     days_since: 38,
