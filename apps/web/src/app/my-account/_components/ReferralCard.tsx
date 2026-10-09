@@ -66,9 +66,9 @@ export function ReferralCard() {
     <section className="mt-8 rounded-lg border border-[#10305a]/15 bg-[#10305a]/5 p-5">
       <h2 className="mb-1 font-semibold text-[#10305a]">推薦朋友，雙方各得 {info.rules.referee_reward} 元</h2>
       <p className="mb-4 text-sm text-[#687279]">
-        朋友第一次購物，折扣前滿 {info.rules.min_order} 元，
-        他得 {info.rules.referee_reward} 元購物金（下次購物可折），
-        你得 {info.rules.referrer_points} 元公益存款回饋金。
+        推薦朋友首次消費滿 {info.rules.min_order.toLocaleString()} 元（折扣前），
+        您與朋友各獲得 {info.rules.referee_reward} 元公益存款，
+        可選擇下次購物折抵，或留存累積，讓善意持續發生。
       </p>
 
       <div className="mb-3 flex flex-wrap items-center gap-2">

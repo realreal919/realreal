@@ -42,8 +42,9 @@ export function renderMembershipUpdate(data: {
 
     <div style="background:#f6f8fa;border-radius:10px;padding:16px 18px;margin:20px 0">
       <p style="margin:0"><strong>🤍 推薦朋友，雙方都有回饋</strong></p>
-      <p style="margin:8px 0 0">新朋友第一次消費折扣前滿 ${data.referralMinOrder.toLocaleString()} 元，
-         您與朋友都能各獲得 ${data.referralReward} 元公益存款，可於下次消費時折抵使用。</p>
+      <p style="margin:8px 0 0">推薦朋友首次消費滿 ${data.referralMinOrder.toLocaleString()} 元（折扣前），
+         您與朋友各獲得 ${data.referralReward} 元公益存款，
+         可選擇下次購物折抵，或留存累積，讓善意持續發生。</p>
       ${codeLine}
       <p style="margin:12px 0 0">
         <a href="https://realreal.cc/my-account" style="color:#10305a;font-weight:600">
