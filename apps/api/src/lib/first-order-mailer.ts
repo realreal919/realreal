@@ -65,6 +65,7 @@ export type SweepResult = { sent: number; skipped: number }
 export async function sweepFirstOrderMail<T = void>({
   days,
   reminderType,
+  enabled,
   maxLateDays = 14,
   maxPerRun = 60,
   lookbackDays = 120,
@@ -77,6 +78,8 @@ export async function sweepFirstOrderMail<T = void>({
   days: number
   /** 寫進 reminders.type，用來擋重複 */
   reminderType: string
+  /** 後台的開關。false 時整輪不寄。 */
+  enabled: boolean
   /** 到期後最多還能補寄幾天。null = 不限（不建議） */
   maxLateDays?: number | null
   /** 單次最多寄幾封 */
@@ -94,6 +97,15 @@ export async function sweepFirstOrderMail<T = void>({
   prepare?: (c: FirstOrderCandidate) => Promise<T>
   send: (c: FirstOrderCandidate, prepared: T) => Promise<void>
 }): Promise<SweepResult> {
+  // 開關預設關閉。排程一旦寫進 Redis 就會自己到時間觸發，光改程式不會取消它；
+  // 有一個店主在後台按得到的開關，比「記得要改程式」可靠。
+  // 預設關閉是故意的：這兩支排程第一次上線會把積欠的名單一次寄出去，
+  // 要寄之前必須有人看過名單。
+  if (!enabled) {
+    console.log(`[${label}] 開關未打開，這一輪不寄。`)
+    return { sent: 0, skipped: 0 }
+  }
+
   const since = new Date(now)
   since.setDate(since.getDate() - lookbackDays)
 

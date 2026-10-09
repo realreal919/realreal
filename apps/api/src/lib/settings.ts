@@ -208,6 +208,8 @@ export const ALLOWED_KEYS = new Set<string>([
   "membership.birthday_amount_zhixin",
   "membership.birthday_amount_tongxin",
   "membership.birthday_min_register_days",
+  "repurchase.enabled",
+  "feedback.enabled",
   "repurchase.coupon_amount",
   "repurchase.coupon_min_order",
   "repurchase.coupon_valid_days",
@@ -278,6 +280,8 @@ export const SECTIONS: Record<string, { label: string; keys: string[] }> = {
   repurchase: {
     label: "回購提醒與回購券（功能尚未上線）",
     keys: [
+      "repurchase.enabled",
+      "feedback.enabled",
       "repurchase.coupon_amount",
       "repurchase.coupon_min_order",
       "repurchase.coupon_valid_days",

@@ -172,6 +172,8 @@ const FIELD_META: Record<
     hint: "且需已有至少一張完成訂單。生日公益存款沒有效期，沒用掉會繼續累積",
   },
   // 兩封自動信（回饋信第 14 天、回購提醒第 30 天）與回購券
+  "repurchase.enabled": { label: "回購提醒：開啟自動寄信", placeholder: "false", hint: "填 true 才會寄。空白或其他值都當作關閉" },
+  "feedback.enabled": { label: "回饋信：開啟自動寄信", placeholder: "false", hint: "填 true 才會寄。空白或其他值都當作關閉" },
   "feedback.days_after_ship": { label: "回饋信：出貨後第幾天", placeholder: "14", hint: "只寄給首購的人，每人一次" },
   "repurchase.days_after_ship": { label: "回購提醒：出貨後第幾天", placeholder: "30", hint: "只寄給首購、且還沒有第二張單的人" },
   "repurchase.coupon_amount": { label: "回購券金額 NT$", placeholder: "100" },

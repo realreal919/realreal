@@ -29,9 +29,12 @@ export const feedbackRequestWorker = new Worker(
     const days = Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_FEEDBACK_DAYS
     const referral = await loadReferralSettings()
 
+    const enabled = (await getSetting("feedback.enabled")) === "true"
+
     return sweepFirstOrderMail({
       days,
       reminderType: "feedback",
+      enabled,
       // 出貨滿 14~28 天的才寄。對三個月前買的人問「這段時間喝得還習慣嗎」
       // 沒有意義，回饋也不會準。
       maxLateDays: 14,
