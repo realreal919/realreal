@@ -28,6 +28,12 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { API_URL } from "@/lib/api-url"
+import {
+  clearReferralCookie,
+  normalizeReferralCode,
+  readReferralCookie,
+  writeReferralCookie,
+} from "@/lib/referral-code"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -49,6 +55,8 @@ export type PromoState = {
   pointsReason: string
   pointsRatio: number
   allowCouponStack: boolean
+  /** 認出來的推薦碼。跟優惠碼共用一個輸入框，但不互斥——見下方 applyPromoCode 的說明。 */
+  referralCode: string
   memberDiscountRate: number // 0..1
   tierName: string | null
   subtotalAtApply: number
@@ -68,6 +76,7 @@ const DEFAULT_PROMO: PromoState = {
   pointsReason: "",
   pointsRatio: 1,
   allowCouponStack: true,
+  referralCode: "",
   memberDiscountRate: 0,
   tierName: null,
   subtotalAtApply: 0,
@@ -118,7 +127,11 @@ export function PromoWidget({ subtotal }: { subtotal: number }) {
 
   // Restore from localStorage on mount
   useEffect(() => {
-    setState(readPromoState())
+    const restored = readPromoState()
+    // 從邀請連結進來的人沒打過任何碼，但 cookie 裡有 —— 也要看得到。
+    // 不顯示的話他沒有任何跡象可以知道朋友的推薦有沒有被認到。
+    const fromLink = readReferralCookie()
+    setState(fromLink && !restored.referralCode ? { ...restored, referralCode: fromLink } : restored)
     setHydrated(true)
   }, [])
 
@@ -173,7 +186,7 @@ export function PromoWidget({ subtotal }: { subtotal: number }) {
   const applyCouponCore = useCallback(async (codeRaw: string, currentSubtotal: number) => {
     const code = codeRaw.trim()
     if (!code) {
-      setState(s => ({ ...s, couponError: "請輸入優惠碼" }))
+      setState(s => ({ ...s, couponError: "請輸入優惠碼或推薦碼" }))
       return
     }
     setCouponLoading(true)
@@ -188,10 +201,18 @@ export function PromoWidget({ subtotal }: { subtotal: number }) {
         body: JSON.stringify({ code, order_amount: currentSubtotal }),
       })
       if (!res.ok) {
+        // 不是優惠碼，再試試是不是朋友的推薦碼。先查優惠碼是因為它影響這一單的
+        // 金額，而且碼是店主自己建的 —— 搬不動的那一個要優先。
+        const referralMsg = await tryReferralCode(code)
+        if (referralMsg === null) {
+          setState(s => ({ ...s, referralCode: code, couponCode: "", couponError: "" }))
+          return
+        }
         const body = await res.json().catch(() => ({ error: "無效的優惠碼" }))
         setState(s => ({
           ...s,
-          couponError: (body as { error?: string }).error ?? "無效的優惠碼",
+          // 推薦碼格式對但不成立時，講推薦碼的理由比講「無效的優惠碼」有用
+          couponError: referralMsg || ((body as { error?: string }).error ?? "無效的優惠碼"),
           couponApplied: false,
           couponDiscount: 0,
         }))
@@ -230,6 +251,41 @@ export function PromoWidget({ subtotal }: { subtotal: number }) {
     void applyCouponCore(state.couponCode, subtotal)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subtotal, hydrated, state.couponApplied])
+
+  /**
+   * 這組碼是不是推薦碼。
+   *
+   * 回 null 代表成立（已寫入 cookie，結帳時會帶進 POST /orders），
+   * 回字串代表「看起來是推薦碼但不能用」的理由，回空字串代表根本不是推薦碼。
+   */
+  async function tryReferralCode(code: string): Promise<string | null | ""> {
+    if (!normalizeReferralCode(code)) return ""
+    try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) return "推薦碼要先登入會員才能使用"
+      const res = await fetch(`${API_URL}/referral/check`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ code }),
+      })
+      const body = await res.json().catch(() => ({})) as { valid?: boolean; code?: string; reason?: string }
+      if (!res.ok) return ""
+      if (!body.valid) return body.reason ?? ""
+      writeReferralCookie(body.code ?? code)
+      return null
+    } catch {
+      return ""
+    }
+  }
+
+  function handleRemoveReferral() {
+    clearReferralCookie()
+    setState(s => ({ ...s, referralCode: "" }))
+  }
 
   function handleRemoveCoupon() {
     setState(s => ({ ...s, couponCode: "", couponApplied: false, couponDiscount: 0, couponError: "" }))
@@ -313,12 +369,31 @@ export function PromoWidget({ subtotal }: { subtotal: number }) {
         </div>
       )}
 
-      {/* Coupon section */}
+      {/* Coupon / referral section —— 一個輸入框，打什麼系統自己認。
+          兩種碼不互斥：優惠碼折這一單的錢，推薦碼只是記下「誰介紹你來的」。
+          強制擇一的話，客人當然選折現的那個，推薦人就什麼都拿不到，而且永遠
+          不會知道為什麼。 */}
       <div className="space-y-1.5">
         <div className="flex items-center gap-2">
-          <Label className="text-sm font-medium">🎟 優惠碼</Label>
+          <Label className="text-sm font-medium">🎟 優惠碼／推薦碼</Label>
           <span className="text-xs text-zinc-500">優惠碼區分大小寫</span>
         </div>
+
+        {state.referralCode && (
+          <div className="flex items-center justify-between rounded border border-[#10305a]/20 bg-[#10305a]/5 p-3 text-sm">
+            <span>
+              推薦碼 <strong>{state.referralCode}</strong>
+              <span className="ml-2 text-[#687279]">朋友介紹，完成首購後雙方各得 50 元</span>
+            </span>
+            <button
+              type="button"
+              onClick={handleRemoveReferral}
+              className="text-xs text-red-600 hover:underline"
+            >
+              移除
+            </button>
+          </div>
+        )}
         {state.couponApplied ? (
           <div className="flex items-center justify-between rounded bg-emerald-50 border border-emerald-200 p-3 text-sm">
             <span>
@@ -347,7 +422,7 @@ export function PromoWidget({ subtotal }: { subtotal: number }) {
                   void applyCouponCore(state.couponCode, subtotal)
                 }
               }}
-              placeholder="輸入優惠碼"
+              placeholder="輸入優惠碼或推薦碼"
               className="flex-1"
             />
             <Button

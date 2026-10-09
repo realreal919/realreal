@@ -24,3 +24,20 @@ export function readReferralCookie(): string | null {
   const m = document.cookie.match(new RegExp(`(?:^|;\\s*)${REFERRAL_COOKIE}=([^;]*)`))
   return m ? normalizeReferralCode(decodeURIComponent(m[1])) : null
 }
+
+export function writeReferralCookie(code: string): void {
+  if (typeof document === "undefined") return
+  const parts = [
+    `${REFERRAL_COOKIE}=${encodeURIComponent(code)}`,
+    `Max-Age=${REFERRAL_MAX_AGE}`,
+    "Path=/",
+    "SameSite=Lax",
+  ]
+  if (window.location.protocol === "https:") parts.push("Secure")
+  document.cookie = parts.join("; ")
+}
+
+export function clearReferralCookie(): void {
+  if (typeof document === "undefined") return
+  document.cookie = `${REFERRAL_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax`
+}
