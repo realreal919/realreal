@@ -25,22 +25,19 @@ export function renderMembershipUpdate(data: {
   return `
   <div style="font-family:-apple-system,'PingFang TC','Noto Sans TC',sans-serif;line-height:1.9;color:#10305a;max-width:560px;margin:0 auto;padding:24px">
     <p>${hi}</p>
-    <p>謝謝您曾經選擇誠真生活。</p>
-    <p>這段時間我們重新想了一次「會員」這件事。
-       與其用消費金額把人分成幾級，我們更想記得的是：誰願意一起把好的事情做下去。</p>
-    <p>所以從今天起，誠真生活的會員制度做了一些調整，想第一時間讓您知道。</p>
+    <p>誠真生活的會員制度做了一些調整，想第一時間讓您知道。</p>
 
     <div style="background:#f6f8fa;border-radius:10px;padding:16px 18px;margin:20px 0">
       <p style="margin:0"><strong>🌱 每筆消費 ${data.rebatePercent}% 公益存款，不分等級</strong></p>
-      <p style="margin:8px 0 0">以前不同等級回饋比例不同，現在統一為 ${data.rebatePercent}%。
-         這筆存款是您的，您可以在下次購物時折抵使用，也可以留著和其他會員一起累積，
-         讓這份心意流向需要的地方。選擇權一直在您手上。</p>
+      <p style="margin:8px 0 0">以前不同等級回饋比例不同（2%–${data.rebatePercent}%），現在統一提升為 ${data.rebatePercent}%。
+         這筆存款是您的，您可以在下次購物時折抵使用，也可以選擇留著和其他會員一起累積，
+         讓這份心意流向需要的地方。</p>
     </div>
 
     <div style="background:#f6f8fa;border-radius:10px;padding:16px 18px;margin:20px 0">
       <p style="margin:0"><strong>🥄 第一次購買夾鏈袋，送不鏽鋼量匙</strong></p>
-      <p style="margin:8px 0 0">夾鏈袋裝沒有附量匙。如果您還沒拿過，下次購買夾鏈袋時我們會一起寄出，
-         不需要做任何事。</p>
+      <p style="margin:8px 0 0">夾鏈袋裝本身沒有附量匙。如果您還沒拿過，下次購買夾鏈袋時我們會主動一起寄出；
+         如果您需要多根，也可以再加購。</p>
     </div>
 
     <div style="background:#f6f8fa;border-radius:10px;padding:16px 18px;margin:20px 0">
@@ -82,7 +79,6 @@ export function renderMembershipUpdate(data: {
       </a>
     </p>
 
-    <p>如果現在還不需要，放著就好，不用特別為了這張券下單。</p>
     <p>謝謝您讓誠真生活走進日常。</p>
     <p style="margin-top:24px">讓身心輕盈，讓生活誠真。</p>
     <p>誠真生活</p>
