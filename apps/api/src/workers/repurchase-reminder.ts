@@ -103,6 +103,9 @@ export const repurchaseReminderWorker = new Worker(
     return sweepFirstOrderMail({
       days: settings.daysAfterShip,
       reminderType: "auto",
+      // 出貨滿 30~60 天的才寄。再舊的不補 —— 三個月前買的人收到「還夠喝嗎」
+      // 只會覺得我們很慢，而且第一次上線會把所有歷史訂單一次全部補寄出去。
+      maxLateDays: 30,
       label: "repurchase-reminder",
       now,
       // 券先發，再寄信。券發不出來就不寄 —— 信上要印優惠碼，寫不出來的信不能寄。

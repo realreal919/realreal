@@ -21,8 +21,38 @@ type OrderRow = {
   id: string
   user_id: string
   order_number: string
+  created_at: string
   updated_at: string
+  metadata: { shipped_at?: string } | null
   order_items: Array<{ qty: number }>
+}
+
+/** 沒有 metadata.shipped_at 的舊訂單，用建立日加上這個天數推估出貨。 */
+export const TYPICAL_SHIP_LAG_DAYS = 2
+
+/**
+ * 這張訂單的出貨時間。
+ *
+ * **不能用 updated_at** —— 它是「最後一次任何欄位被改動」的時間，不是出貨時間。
+ * 批次改狀態、補發票、後台點一下都會把它推到今天。實測 351 張已出貨訂單裡有
+ * 328 張的 updated_at 離建立超過兩天，用它算「出貨後第 14 天」會整批算錯。
+ *
+ * metadata.shipped_at 是出貨時真的寫下去的時間，但只有較新的訂單有（84/351）。
+ * 舊訂單退而求其次用「建立日 + 典型出貨落差」，至少不會被後來的異動污染。
+ */
+export function shipDateOf(order: {
+  created_at: string
+  metadata?: { shipped_at?: string } | null
+}): Date | null {
+  const recorded = order.metadata?.shipped_at
+  if (recorded) {
+    const d = new Date(recorded)
+    if (!Number.isNaN(d.getTime())) return d
+  }
+  const created = new Date(order.created_at)
+  if (Number.isNaN(created.getTime())) return null
+  created.setDate(created.getDate() + TYPICAL_SHIP_LAG_DAYS)
+  return created
 }
 
 export type SweepResult = { sent: number; skipped: number }
@@ -35,6 +65,8 @@ export type SweepResult = { sent: number; skipped: number }
 export async function sweepFirstOrderMail<T = void>({
   days,
   reminderType,
+  maxLateDays = 14,
+  maxPerRun = 60,
   lookbackDays = 120,
   now = new Date(),
   prepare,
@@ -45,6 +77,10 @@ export async function sweepFirstOrderMail<T = void>({
   days: number
   /** 寫進 reminders.type，用來擋重複 */
   reminderType: string
+  /** 到期後最多還能補寄幾天。null = 不限（不建議） */
+  maxLateDays?: number | null
+  /** 單次最多寄幾封 */
+  maxPerRun?: number
   lookbackDays?: number
   now?: Date
   label: string
@@ -63,7 +99,7 @@ export async function sweepFirstOrderMail<T = void>({
 
   const { data, error } = await supabase
     .from("orders")
-    .select("id, user_id, order_number, updated_at, order_items(qty)")
+    .select("id, user_id, order_number, created_at, updated_at, metadata, order_items(qty)")
     .not("user_id", "is", null)
     .is("deleted_at", null)
     .in("status", ["shipped", "delivered", "completed"])
@@ -96,9 +132,21 @@ export async function sweepFirstOrderMail<T = void>({
       continue
     }
 
-    // 出貨日沒有獨立欄位，用狀態最後異動時間當出貨時間
-    const dueAt = dueAfterShip(order.updated_at, days)
+    const ship = shipDateOf(order)
+    const dueAt = ship ? dueAfterShip(ship.toISOString(), days) : null
     if (!dueAt || dueAt > now) {
+      skipped++
+      continue
+    }
+    // 時效窗：過期太久就不補寄。對三個月前買的人問「這段時間喝得還
+    // 習慣嗎」沒有意義，而且系統第一次上線時會把所有歷史訂單一次全部
+    // 补寄出去 —— 一個早上一百多封，寄件聲譽也承受不起。
+    if (maxLateDays != null && now.getTime() - dueAt.getTime() > maxLateDays * 86_400_000) {
+      skipped++
+      continue
+    }
+    // 單次上限：排队的人分幾天寄完，不要一次爆出去
+    if (sent >= maxPerRun) {
       skipped++
       continue
     }

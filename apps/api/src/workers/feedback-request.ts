@@ -32,6 +32,9 @@ export const feedbackRequestWorker = new Worker(
     return sweepFirstOrderMail({
       days,
       reminderType: "feedback",
+      // 出貨滿 14~28 天的才寄。對三個月前買的人問「這段時間喝得還習慣嗎」
+      // 沒有意義，回饋也不會準。
+      maxLateDays: 14,
       label: "feedback-request",
       // 配不到推薦碼不是失敗：信裡只留「登入領取」的連結，照寄。
       prepare: async (c) => ensureReferralCode(c.userId).catch(() => null),
