@@ -174,10 +174,21 @@ adminBroadcastRouter.post("/membership-update", async (req, res) => {
         })
         sent++
       } catch (err) {
-        // 券已經發了但信沒寄出去 —— 說出來，這個人不會被名單再挑到
-        console.error(`[broadcast] 寄信失敗（券已發出，需人工補寄）${r.email}:`, err)
+        // 券是「這個人寄過了」的憑據，信沒寄成就要把它收回來，
+        // 否則這個人永遠不會再被名單挑到 —— 手上有券、卻沒收過信，
+        // 而且沒有任何地方看得出來。收回之後下一批會自動重試。
+        console.error(`[broadcast] 寄信失敗，收回感謝券後繼續 ${r.email}:`, err)
+        await supabase
+          .from("member_coupons")
+          .delete()
+          .eq("user_id", r.userId)
+          .eq("type", "thanks")
+          .eq("status", "active")
         failed.push(r.email)
       }
+
+      // 寄送服務有每秒請求上限，一批幾十封連發會被擋。慲一點沒有損失。
+      await new Promise((resolve) => setTimeout(resolve, 150))
     }
 
     const { list: rest } = await buildRecipients()
