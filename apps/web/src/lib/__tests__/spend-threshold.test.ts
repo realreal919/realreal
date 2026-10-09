@@ -23,23 +23,27 @@ describe("marqueeSpendMessage", () => {
     expect(spendTiers([], GIFTS)[0].reward).toBe("送 帆布環保袋 (大)")
   })
 
-  it("★ 不講贈品口味：破折號前面的口味要拿掉", () => {
-    expect(spendTiers([], [{ minOrder: 1800, giftName: "初心原味 – 50克隨身包" }])[0].reward).toBe("送 50克隨身包")
-    expect(spendTiers([], [{ minOrder: 3600, giftName: "初心原味 – 300克夾鏈袋" }])[0].short).toBe("送300克夾鏈袋")
+  it("★ 贈品要講口味 —— 滿額贈設的就是指定口味的那個變體", () => {
+    expect(spendTiers([], [{ minOrder: 1400, giftName: "銀杏水蜜桃 – 50克隨身包" }])[0].reward).toBe(
+      "送 銀杏水蜜桃 50克隨身包",
+    )
+    expect(spendTiers([], [{ minOrder: 3800, giftName: "銀杏水蜜桃 – 300克夾鏈袋" }])[0].short).toBe(
+      "送銀杏水蜜桃 300克夾鏈袋",
+    )
   })
 
   it("★ 送兩份以上要講數量，單位看品名（夾鏈袋論袋、其餘論包）", () => {
     const sachet = spendTiers([], [{ minOrder: 1800, giftName: "初心原味 – 50克隨身包", qty: 2 }])[0]
-    expect(sachet.short).toBe("送50克隨身包2包")
-    expect(sachet.reward).toBe("送 50克隨身包2包")
+    expect(sachet.short).toBe("送初心原味 50克隨身包2包")
+    expect(sachet.reward).toBe("送 初心原味 50克隨身包2包")
     expect(spendTiers([], [{ minOrder: 3600, giftName: "初心原味 – 300克夾鏈袋", qty: 3 }])[0].short).toBe(
-      "送300克夾鏈袋3袋",
+      "送初心原味 300克夾鏈袋3袋",
     )
   })
 
   it("只送一份時不寫數量", () => {
     expect(spendTiers([], [{ minOrder: 1800, giftName: "初心原味 – 50克隨身包", qty: 1 }])[0].short).toBe(
-      "送50克隨身包",
+      "送初心原味 50克隨身包",
     )
   })
 })

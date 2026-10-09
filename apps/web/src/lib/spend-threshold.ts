@@ -73,16 +73,21 @@ export type SpendGift = { minOrder: number; giftName: string; qty?: number }
 export type SpendTier = { minAmount: number; reward: string; short: string }
 
 /**
- * 贈品名稱在文案裡要短，而且**不講口味** —— 口味是出貨時決定的，寫進全站文案
- * 會變成對客人的承諾（例：「送初心原味」，客人就會期待一定是原味）。
- *   「初心原味 – 50G隨身包」→「50G隨身包」
- *   「初心原味 – 300克夾鏈袋」→「300克夾鏈袋」
+ * 贈品名稱在文案裡要短，但**要講口味**（2026-10-09 店主指定改的）。
+ *   「銀杏水蜜桃 – 50克隨身包」→「銀杏水蜜桃 50克隨身包」
  *   「誠真生活禮袋．帆布環保袋 (大)」→「帆布環保袋 (大)」
- * 破折號前面放口味是商品命名的慣例；沒有破折號的就只去掉品牌前綴。
+ * 破折號前面放口味是商品命名的慣例，這裡只是把破折號換成空格。
+ *
+ * 原本刻意不講口味，怕變成對客人的承諾；現在滿額贈設定的就是指定口味的那個
+ * 變體（活動裡存的是該口味的 SKU），講出來才跟實際出貨一致。**反過來說，
+ * 日後如果把贈品改成「出貨時看庫存決定口味」，這裡要一起改回去**，否則文案
+ * 會承諾一個不保證拿得到的口味。
  */
 function shortGiftName(name: string): string {
-  const afterDash = name.split(/\s*[–—]\s*/).pop() ?? name
-  return afterDash.replace(/^誠真生活禮袋．/, "").trim()
+  return name
+    .replace(/^誠真生活禮袋．/, "")
+    .replace(/\s*[–—]\s*/g, " ")
+    .trim()
 }
 
 /**
