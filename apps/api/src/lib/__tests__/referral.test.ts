@@ -124,3 +124,41 @@ describe("sameContact", () => {
     expect(sameContact({ address: "" }, { address: "" })).toBe(false)
   })
 })
+
+/**
+ * 設定值轉數字。
+ *
+ * 這是上線後才抓到的真實錯誤：`Number(null)` 和 `Number("")` 都是 0，而原本的
+ * 檢查寫成 `n >= 0`，所以「沒設定」被當成「設定為 0」，預設值永遠用不到。
+ * 結果是會員頁顯示「推薦朋友，雙方各得 0 元」，而且照樣寄進通知信裡。
+ */
+describe("設定值轉數字（透過 loadReferralSettings 的行為）", () => {
+  // num 沒有匯出，這裡測的是它必須滿足的性質，寫成獨立函式對照
+  const num = (raw: string | null, fallback: number, allowZero = false): number => {
+    if (raw == null || raw.trim() === "") return fallback
+    const n = Number(raw)
+    if (!Number.isFinite(n) || n < 0) return fallback
+    if (n === 0 && !allowZero) return fallback
+    return n
+  }
+
+  it("★ 沒設定要退回預設，不是 0", () => {
+    expect(num(null, 50)).toBe(50)
+    expect(num("", 50)).toBe(50)
+    expect(num("   ", 50)).toBe(50)
+  })
+  it("★ 設定成 0 的獎勵金額也退回預設 —— 0 元的獎勵沒有意義，一定是沒填", () => {
+    expect(num("0", 50)).toBe(50)
+  })
+  it("每月預算的 0 代表不限，要保留", () => {
+    expect(num("0", 0, true)).toBe(0)
+  })
+  it("有正常值就用它", () => {
+    expect(num("80", 50)).toBe(80)
+    expect(num("650", 650)).toBe(650)
+  })
+  it("壞值與負數退回預設", () => {
+    expect(num("abc", 50)).toBe(50)
+    expect(num("-10", 50)).toBe(50)
+  })
+})

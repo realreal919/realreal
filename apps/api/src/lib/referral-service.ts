@@ -12,9 +12,21 @@ import {
   type ReferralSettings,
 } from "./referral"
 
-function num(raw: string | null, fallback: number): number {
+/**
+ * 設定值轉數字。沒設定、空字串、壞值一律退回預設。
+ *
+ * 原本寫成 `Number.isFinite(n) && n >= 0`，但 `Number(null)` 和 `Number("")`
+ * 都是 0 —— 而 0 通過了那個條件，於是「沒設定」被當成「設定為 0」，預設值
+ * 永遠用不到。結果是推薦獎勵顯示「雙方各得 0 元」，而且照樣寄進信裡。
+ *
+ * allowZero 只給「每月預算」用：那一個的 0 真的代表不限。
+ */
+function num(raw: string | null, fallback: number, allowZero = false): number {
+  if (raw == null || raw.trim() === "") return fallback
   const n = Number(raw)
-  return Number.isFinite(n) && n >= 0 ? n : fallback
+  if (!Number.isFinite(n) || n < 0) return fallback
+  if (n === 0 && !allowZero) return fallback
+  return n
 }
 
 export async function loadReferralSettings(): Promise<ReferralSettings> {
@@ -31,7 +43,7 @@ export async function loadReferralSettings(): Promise<ReferralSettings> {
     minOrder: num(minOrder, DEFAULT_REFERRAL_SETTINGS.minOrder),
     refereeReward: amount,
     referrerPoints: amount,
-    monthlyBudget: num(budget, DEFAULT_REFERRAL_SETTINGS.monthlyBudget),
+    monthlyBudget: num(budget, DEFAULT_REFERRAL_SETTINGS.monthlyBudget, true),
   }
 }
 
