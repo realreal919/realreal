@@ -559,6 +559,15 @@ ordersRouter.post("/preview", optionalAuth, async (req, res) => {
   // cannot preview an impossible discount.
   // Base = subtotal - member - campaign - coupon to match POST / cap math
   // (audit H3 — was previously using raw subtotal as base).
+  // 會員券（回購券、感謝券）。必須算在點數之前 —— 規格 5.1 的折抵順序是
+  // 「首購折抵 → 會員券 → 公益存款」，而公益存款的 20% 上限是用「扣掉其他
+  // 折抵後」的金額算的。算在後面的話上限會以折前金額為基準，比規格寬。
+  const repurchase = await resolveRepurchaseCoupon(
+    userId,
+    cartItems as Array<{ product_slug?: string | null; unit_price: number; qty: number }>,
+  )
+  const repurchaseDiscountCents = repurchase ? Math.round(repurchase.discount * 100) : 0
+
   let pointsDiscountCents = 0
   let appliedPreviewPointsUsed = 0
   let effectivePointsBalance: number | null = null
@@ -574,7 +583,11 @@ ordersRouter.post("/preview", optionalAuth, async (req, res) => {
     const settings = await loadPointsSettings()
     const baseAfterAllOtherDiscounts = Math.max(
       0,
-      subtotalCents - memberDiscountCents - campaignDiscountCents - couponDiscountCents,
+      subtotalCents
+        - memberDiscountCents
+        - campaignDiscountCents
+        - couponDiscountCents
+        - repurchaseDiscountCents,
     )
     const cart: CartForPoints = {
       subtotal: baseAfterAllOtherDiscounts / 100,
@@ -588,14 +601,6 @@ ordersRouter.post("/preview", optionalAuth, async (req, res) => {
       pointsDiscountCents = Math.round(r.discount * 100)
     }
   }
-
-  // 回購券。排在點數之前算（規格 5.1 的順序：首購折抵 → 回購券 → 公益存款），
-  // 但點數的上限是用「扣掉其他折抵後」的金額算的，所以這裡只是把金額加進總折抵。
-  const repurchase = await resolveRepurchaseCoupon(
-    userId,
-    cartItems as Array<{ product_slug?: string | null; unit_price: number; qty: number }>,
-  )
-  const repurchaseDiscountCents = repurchase ? Math.round(repurchase.discount * 100) : 0
 
   const totalDiscountCents =
     memberDiscountCents +
@@ -1073,6 +1078,14 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
   // Insufficient balance / invalid → silently fall back to 0 (FE PromoWidget
   // gates on /points/apply which would have shown an error already).
   // -------------------------------------------------------------------------
+  // 會員券（回購券、感謝券）。必須算在點數之前 —— 公益存款的 20% 上限是用
+  // 「扣掉其他折抵後」的金額算的，算在後面會以折前金額為基準，比規格寬。
+  const repurchase = await resolveRepurchaseCoupon(
+    userId,
+    cartItems as Array<{ product_slug?: string | null; unit_price: number; qty: number }>,
+  )
+  const repurchaseDiscountCents = repurchase ? Math.round(repurchase.discount * 100) : 0
+
   let pointsUsed = 0
   let pointsDiscountCents = 0
   if (userId && requestedPointsUsed > 0) {
@@ -1086,7 +1099,11 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
       // → base for points = 850, not 1000.
       const baseAfterOtherDiscounts = Math.max(
         0,
-        subtotalCents - memberDiscountCents - campaignDiscountCents - couponDiscountCents,
+        subtotalCents
+          - memberDiscountCents
+          - campaignDiscountCents
+          - couponDiscountCents
+          - repurchaseDiscountCents,
       )
       const cart: CartForPoints = {
         subtotal: baseAfterOtherDiscounts / 100,
@@ -1101,12 +1118,6 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
       }
     }
   }
-
-  const repurchase = await resolveRepurchaseCoupon(
-    userId,
-    cartItems as Array<{ product_slug?: string | null; unit_price: number; qty: number }>,
-  )
-  const repurchaseDiscountCents = repurchase ? Math.round(repurchase.discount * 100) : 0
 
   const totalCents = Math.max(
     0,
