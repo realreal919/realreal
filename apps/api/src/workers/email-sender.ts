@@ -12,6 +12,7 @@ import { renderPaymentReminder } from "../emails/PaymentReminder"
 import { renderTierUpgrade } from "../emails/TierUpgrade"
 import { renderRepurchaseReminder } from "../emails/RepurchaseReminder"
 import { renderFeedbackRequest } from "../emails/FeedbackRequest"
+import { renderMembershipUpdate } from "../emails/MembershipUpdate"
 import { renderTierRenewed } from "../emails/TierRenewed"
 import { renderTierDowngraded } from "../emails/TierDowngraded"
 import { renderSubscriptionBilled } from "../emails/SubscriptionBilled"
@@ -25,6 +26,7 @@ export type EmailJobData =
   | { template: "tier-upgrade"; to: string; data: { newTier: string; discountRate: number; perks: string[] } }
   | { template: "repurchase-reminder"; to: string; data: { customerName: string; couponAmount: number; couponMinOrder: number; couponCode: string; validUntil: string } }
   | { template: "feedback-request"; to: string; data: { customerName: string; referralCode?: string | null; referralMinOrder?: number; referralReward?: number } }
+  | { template: "membership-update"; to: string; data: { customerName: string; couponAmount: number; couponMinOrder: number; couponCode: string; validUntil: string; rebatePercent: number; referralMinOrder: number; referralReward: number; referralCode?: string | null } }
   | { template: "tier-renewed"; to: string; data: { tierName: string; newExpiresAt: string; perks: string[] } }
   | { template: "tier-downgraded"; to: string; data: { fromTier: string; toTier: string; nextRequalifyAmount: number; toPerks: string[] } }
   | { template: "subscription-billed"; to: string; data: { planName: string; amount: string; nextBillingDate: string; orderNumber: string } }
@@ -161,6 +163,10 @@ export async function renderAndSendEmail(jobData: EmailJobData): Promise<void> {
     case "repurchase-reminder":
       subject = "最近蛋白飲還夠喝嗎？附上一張回購折價券"
       html = renderRepurchaseReminder(data as Parameters<typeof renderRepurchaseReminder>[0])
+      break
+    case "membership-update":
+      subject = "會員制度更新，並附上一張老朋友感謝券"
+      html = renderMembershipUpdate(data as Parameters<typeof renderMembershipUpdate>[0])
       break
     case "feedback-request":
       subject = "喝得還習慣嗎？想聽聽您的想法"

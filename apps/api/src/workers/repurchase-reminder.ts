@@ -113,6 +113,16 @@ export const repurchaseReminderWorker = new Worker(
       // 券先發，再寄信。券發不出來就不寄 —— 信上要印優惠碼，寫不出來的信不能寄。
       // 放在 prepare 裡代表失敗時這個人不會被標成「已提醒」，明天還會再試。
       prepare: async (c) => {
+        // 手上還有沒用的券就不再發。老朋友感謝券跟回購券都是滿 1500 折 100，
+        // 一個人同時持有兩張一模一樣的券沒有意義，而且兩封信講的是同一件事。
+        const { count: held } = await supabase
+          .from("member_coupons")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", c.userId)
+          .eq("status", "active")
+          .gt("valid_until", new Date().toISOString())
+        if ((held ?? 0) > 0) throw new Error("手上已有未使用的券")
+
         const validUntil = new Date(now)
         validUntil.setDate(validUntil.getDate() + settings.couponValidDays)
         const code = await issueCoupon(c.userId, c.orderId, settings, validUntil)

@@ -16,6 +16,7 @@ import { shareReportsRouter } from "./routes/share-reports"
 import { adminShareReportsRouter } from "./routes/admin-share-reports"
 import { adminRecallRouter } from "./routes/admin-recall"
 import { referralRouter } from "./routes/referral"
+import { adminBroadcastRouter } from "./routes/admin-broadcast"
 import { categoriesRouter, categoriesAdminRouter } from "./routes/categories"
 import { productsRouter, productsAdminRouter } from "./routes/products"
 import { variantsRouter, variantPricesRouter } from "./routes/variants"
@@ -105,6 +106,7 @@ app.use("/admin/settings", adminSettingsRouter)
 app.use("/admin/share-reports", adminShareReportsRouter)
 app.use("/admin/recall-list", adminRecallRouter)
 app.use("/referral", referralRouter)
+app.use("/admin/broadcast", adminBroadcastRouter)
 app.use("/admin/team", adminTeamRouter)
 app.use("/admin/customers", adminCustomersRouter)
 app.use("/auth/legacy", authLegacyRouter)
