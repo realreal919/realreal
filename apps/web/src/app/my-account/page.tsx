@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { apiClient } from "@/lib/api-client"
@@ -131,6 +132,21 @@ export default async function MyAccountPage({
         expiringSoon={pointsExpiringSoon}
         ledger={pointsLedger}
       />
+
+      {/* 分享回報 —— FAQ 裡叫人「到會員中心的分享回報」，所以這個入口一定要
+          在會員中心找得到，不然那句話就是空的。 */}
+      <section className="mt-8 rounded-lg border border-[#10305a]/15 bg-[#10305a]/5 p-5">
+        <h2 className="mb-1 font-semibold text-[#10305a]">分享回報</h2>
+        <p className="mb-3 text-sm text-[#687279]">
+          分享過誠真的心得或貼文嗎？貼上連結或傳張截圖，我們看過會通知你。
+        </p>
+        <Link
+          href="/share"
+          className="inline-block rounded-full border border-[#10305a] px-5 py-1.5 text-sm font-semibold text-[#10305a] transition-colors hover:bg-[#10305a] hover:text-white"
+        >
+          告訴我們你的分享
+        </Link>
+      </section>
 
       <RecentOrdersSection orders={recentOrders} />
 

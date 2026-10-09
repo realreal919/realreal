@@ -68,6 +68,21 @@ export default function MembershipPage() {
         </p>
       </div>
 
+      {/* 分享回報入口 —— 制度表最下面那排「怎麼走得更近」講的就是這些事，
+          看完想做的人應該在同一個畫面就找得到入口，不用去翻會員中心。 */}
+      <div className="mb-12 rounded-lg border border-[#10305a]/15 bg-[#10305a]/5 p-6 text-center">
+        <p className="mb-1 font-semibold text-[#10305a]">分享過了嗎？</p>
+        <p className="mb-4 text-sm text-[#687279]">
+          貼上連結或傳張截圖就好，我們看過會通知你。
+        </p>
+        <Link
+          href="/share"
+          className="inline-block rounded-full border border-[#10305a] px-6 py-2 font-semibold text-[#10305a] transition-colors hover:bg-[#10305a] hover:text-white"
+        >
+          分享我的心得
+        </Link>
+      </div>
+
       {/* 常見問題 */}
       <section className="space-y-6">
         <h2 className="text-2xl font-bold text-[#10305a] text-center">常見問題</h2>
