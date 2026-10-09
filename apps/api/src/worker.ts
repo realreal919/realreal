@@ -26,6 +26,7 @@ import { expireUnpaidOrdersQueue, expireUnpaidOrdersWorker, UNPAID_GRACE_HOURS }
 import { completeShippedQueue, completeShippedWorker, AUTO_COMPLETE_DAYS } from "./workers/complete-shipped-orders"
 import { delistExpiredQueue, delistExpiredWorker } from "./workers/delist-expired-products"
 import { repurchaseReminderQueue, repurchaseReminderWorker } from "./workers/repurchase-reminder"
+import { feedbackRequestQueue, feedbackRequestWorker } from "./workers/feedback-request"
 
 const logger = pino({
   transport: process.env.NODE_ENV !== "production" ? { target: "pino-pretty" } : undefined,
@@ -86,14 +87,22 @@ async function registerSchedulers() {
     { pattern: "5 * * * *", tz: "Asia/Taipei" },
     { name: "delist", data: {} },
   )
-  // 回購提醒。10:00 而不是半夜 —— 這封信是要人看的，半夜寄進去會沉在
-  // 隔天早上一堆信的最下面。
+  // 回購提醒（出貨後第 30 天）。10:00 而不是半夜 —— 這封信是要人看的，
+  // 半夜寄進去會沉在隔天早上一堆信的最下面。
   await repurchaseReminderQueue.upsertJobScheduler(
     "daily-repurchase-reminder",
     { pattern: "0 10 * * *", tz: "Asia/Taipei" },
     { name: "remind", data: {} },
   )
-  logger.info(`Job schedulers registered (daily-billing 03:00, low-stock-check 09:00, daily-points-expire 03:00, daily-tier-expire 04:00, daily-complete-shipped 05:00 Asia/Taipei, expire-unpaid-orders hourly at :10, delist-expired hourly at :05, repurchase-reminder 10:00, grace ${UNPAID_GRACE_HOURS}h, auto-complete ${AUTO_COMPLETE_DAYS}d)`)
+
+  // 使用回饋信（出貨後第 14 天）。10:30，跟回購提醒錯開半小時，
+  // 花不了什麼成本就能避免同一個人在同一分鐘收到兩封信。
+  await feedbackRequestQueue.upsertJobScheduler(
+    "daily-feedback-request",
+    { pattern: "30 10 * * *", tz: "Asia/Taipei" },
+    { name: "ask", data: {} },
+  )
+  logger.info(`Job schedulers registered (daily-billing 03:00, low-stock-check 09:00, daily-points-expire 03:00, daily-tier-expire 04:00, daily-complete-shipped 05:00 Asia/Taipei, expire-unpaid-orders hourly at :10, delist-expired hourly at :05, repurchase-reminder 10:00, feedback-request 10:30, grace ${UNPAID_GRACE_HOURS}h, auto-complete ${AUTO_COMPLETE_DAYS}d)`)
 }
 
 const workers = [
@@ -106,6 +115,7 @@ const workers = [
   { name: "complete-shipped-orders", worker: completeShippedWorker },
   { name: "delist-expired-products", worker: delistExpiredWorker },
   { name: "repurchase-reminder", worker: repurchaseReminderWorker },
+  { name: "feedback-request", worker: feedbackRequestWorker },
 ]
 
 /**

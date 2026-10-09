@@ -203,6 +203,13 @@ export function PromoWidget({ subtotal }: { subtotal: number }) {
       if (!res.ok) {
         // 不是優惠碼，再試試是不是朋友的推薦碼。先查優惠碼是因為它影響這一單的
         // 金額，而且碼是店主自己建的 —— 搬不動的那一個要優先。
+        // 專屬回購券（信裡的優惠碼）。它本來就會自動帶入，打不打都一樣折得到，
+        // 但信上印了那組碼，客人一定會打 —— 打進去得到「無效的優惠碼」比沒印還糟。
+        const memberMsg = await tryMemberCoupon(code)
+        if (memberMsg !== "") {
+          setState(s => ({ ...s, couponCode: "", couponError: memberMsg }))
+          return
+        }
         const referralMsg = await tryReferralCode(code)
         if (referralMsg === null) {
           setState(s => ({ ...s, referralCode: code, couponCode: "", couponError: "" }))
@@ -277,6 +284,37 @@ export function PromoWidget({ subtotal }: { subtotal: number }) {
       if (!body.valid) return body.reason ?? ""
       writeReferralCookie(body.code ?? code)
       return null
+    } catch {
+      return ""
+    }
+  }
+
+  /**
+   * 這組碼是不是他自己的回購券。
+   *
+   * 回空字串代表「不是」（讓呼叫端繼續往下試），其餘都是要顯示給客人的話。
+   */
+  async function tryMemberCoupon(code: string): Promise<string> {
+    if (!/^[A-Za-z]{2}[0-9A-Za-z]{6}$/.test(code.replace(/[\s\-_]/g, ""))) return ""
+    try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) return ""
+      const res = await fetch(`${API_URL}/referral/member-coupon`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ code }),
+      })
+      const body = await res.json().catch(() => ({})) as
+        { valid?: boolean; amount?: number; min_order?: number; reason?: string }
+      if (!res.ok) return ""
+      if (!body.valid) return body.reason ?? ""
+      return body.min_order
+        ? `✓ 已認到您的回購券：滿 ${body.min_order.toLocaleString()} 元折 ${body.amount} 元，結帳時自動帶入，不必再做任何事。`
+        : `✓ 已認到您的回購券：折 ${body.amount} 元，結帳時自動帶入。`
     } catch {
       return ""
     }

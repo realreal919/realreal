@@ -1,208 +1,134 @@
 /**
- * 回購券。
+ * 會員券。
  *
- * 券是「折夾鏈袋」而不是「折整單」，而且會員手上的券隨時可能已經過期或用過 ——
- * 這三件事如果有一件判斷錯，客人會在結帳頁看到一個折不下去的金額。
+ * 信裡白紙黑字寫了「折 100、滿 1500、優惠碼 XXX、期限 X 月 X 日」，這四件事
+ * 只要有一件跟程式算的不一樣，客人就會照著信上的條件湊單，然後折不下去。
  */
 import { describe, it, expect } from "vitest"
 import {
   applyMemberCoupon,
-  applyRepurchaseCoupon,
-  reminderDueAt,
-  reminderKindFor,
-  zipbagSubtotal,
-  DEFAULT_REMINDER_DAYS,
+  cartSubtotal,
+  dueAfterShip,
+  generateCouponCode,
+  hasAnyItem,
+  normalizeCouponCode,
 } from "../repurchase-coupon"
 
-const ZIP = ["protein-5pack", "vegan-protein-or300"]
-const NOW = new Date("2026-10-09T00:00:00+08:00")
-const coupon = (over: Record<string, unknown> = {}) => ({
+const future = () => new Date(Date.now() + 30 * 86_400_000).toISOString()
+
+const coupon = {
   id: "c1",
-  amount: 50,
-  valid_until: "2026-10-20T00:00:00+08:00",
+  type: "repurchase",
+  amount: 100,
+  min_order: 1500,
+  valid_until: future(),
   status: "active",
-  ...over,
-})
-const item = (slug: string | null, total: number, qty = 1) => ({
-  product_slug: slug,
-  line_total: total,
-  qty,
-})
+  code: "REAB23CD",
+}
 
-describe("zipbagSubtotal", () => {
-  it("只算夾鏈袋品項", () => {
-    expect(zipbagSubtotal([item("protein-5pack", 1650), item("cocoa", 300)], ZIP)).toBe(1650)
-  })
-  it("清單是空的時候回 0，不要變成全部都算", () => {
-    expect(zipbagSubtotal([item("protein-5pack", 1650)], [])).toBe(0)
-  })
-})
-
-describe("applyRepurchaseCoupon", () => {
-  const items = [item("protein-5pack", 1650), item("cocoa", 300)]
-
-  it("有夾鏈袋、券有效 → 折 50", () => {
-    const r = applyRepurchaseCoupon({ coupon: coupon(), items, zipbagSlugs: ZIP, now: NOW })
-    expect(r.applicable).toBe(true)
-    if (r.applicable) expect(r.discount).toBe(50)
+describe("applyMemberCoupon", () => {
+  it("滿門檻就折 100", () => {
+    const r = applyMemberCoupon({ coupon, items: [{ line_total: 1500, qty: 1 }] })
+    expect(r).toEqual({ applicable: true, couponId: "c1", discount: 100 })
   })
 
-  it("★ 購物車只有隨身包 → 不能用，訊息要講清楚為什麼", () => {
-    const r = applyRepurchaseCoupon({
-      coupon: coupon(),
-      items: [item("cocoa", 300)],
-      zipbagSlugs: ZIP,
-      now: NOW,
-    })
-    expect(r.applicable).toBe(false)
-    if (!r.applicable) expect(r.reason).toContain("夾鏈袋")
-  })
-
-  it("★ 過期的券當下就擋 —— 不靠排程改狀態，排程晚跑一天就被用掉了", () => {
-    const r = applyRepurchaseCoupon({
-      coupon: coupon({ valid_until: "2026-10-08T00:00:00+08:00" }),
-      items,
-      zipbagSlugs: ZIP,
-      now: NOW,
-    })
-    expect(r.applicable).toBe(false)
-    if (!r.applicable) expect(r.reason).toContain("過期")
-  })
-
-  it("已使用過的券不能再用", () => {
-    const r = applyRepurchaseCoupon({
-      coupon: coupon({ status: "used" }),
-      items,
-      zipbagSlugs: ZIP,
-      now: NOW,
-    })
-    expect(r.applicable).toBe(false)
-  })
-
-  it("★ 夾鏈袋小計不到券面額時只折到歸零，不溢出去折別的品項", () => {
-    const r = applyRepurchaseCoupon({
-      coupon: coupon(),
-      items: [item("vegan-protein-or300", 30), item("cocoa", 500)],
-      zipbagSlugs: ZIP,
-      now: NOW,
-    })
-    expect(r.applicable).toBe(true)
-    if (r.applicable) expect(r.discount).toBe(30)
-  })
-
-  it("沒有券時安靜回不適用", () => {
-    expect(applyRepurchaseCoupon({ coupon: null, items, zipbagSlugs: ZIP, now: NOW }).applicable).toBe(false)
-  })
-})
-
-describe("reminderKindFor", () => {
-  it("★ 同時買夾鏈袋與隨身包時算夾鏈袋 —— 用隨身包的天數會提醒得太早", () => {
-    expect(reminderKindFor([item("protein-5pack", 1650), item("cocoa", 300)], ZIP)).toBe("jar_new")
-  })
-  it("只有隨身包算 sachet", () => {
-    expect(reminderKindFor([item("cocoa", 300)], ZIP)).toBe("sachet")
-  })
-  it("空購物車回 null", () => {
-    expect(reminderKindFor([], ZIP)).toBeNull()
-  })
-})
-
-describe("reminderDueAt", () => {
-  const days = DEFAULT_REMINDER_DAYS
-  // 用台灣時間比對。toISOString() 會轉成 UTC，+08:00 的凌晨會被切成前一天，
-  // 看起來像少算一天，其實只是時區。
-  const tw = (d: Date | null) =>
-    d ? new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei" }).format(d) : null
-
-  it("★ 沒有到貨日時用出貨日 + 推估天數 —— 這是常態不是例外", () => {
-    const due = reminderDueAt({
-      shippedAt: "2026-10-01T00:00:00+08:00",
-      deliveredAt: null,
-      kind: "jar_new",
-      days,
-      shipToArrivalDays: 3,
-    })
-    // 10/01 出貨 + 3 天到貨 + 6 天 = 10/10
-    expect(tw(due)).toBe("2026-10-10")
-  })
-
-  it("真的有到貨日時以它為準，不再加推估天數", () => {
-    const due = reminderDueAt({
-      shippedAt: "2026-10-01T00:00:00+08:00",
-      deliveredAt: "2026-10-02T00:00:00+08:00",
-      kind: "jar_new",
-      days,
-      shipToArrivalDays: 3,
-    })
-    expect(tw(due)).toBe("2026-10-08")
-  })
-
-  it("舊版夾鏈袋是第 3 天", () => {
-    const due = reminderDueAt({
-      shippedAt: "2026-10-01T00:00:00+08:00",
-      deliveredAt: null,
-      kind: "jar_old",
-      days,
-      shipToArrivalDays: 3,
-    })
-    expect(tw(due)).toBe("2026-10-07")
-  })
-
-  it("連出貨日都沒有時回 null，不要亂猜一個日期", () => {
+  it("剛好等於門檻算達到", () => {
     expect(
-      reminderDueAt({ shippedAt: null, deliveredAt: null, kind: "sachet", days, shipToArrivalDays: 3 }),
-    ).toBeNull()
-  })
-})
-
-describe("applyMemberCoupon — 推薦購物金", () => {
-  const base = {
-    id: "c1",
-    type: "referral",
-    amount: 50,
-    valid_until: new Date(Date.now() + 86_400_000).toISOString(),
-    status: "active",
-  }
-  const zipbagSlugs = ["protein-5pack"]
-
-  it("★ 推薦購物金全站可用 —— 不像回購券限夾鏈袋", () => {
-    const r = applyMemberCoupon({
-      coupon: base,
-      items: [{ product_slug: "measuring-spoon", line_total: 200, qty: 1 }],
-      zipbagSlugs,
-    })
-    expect(r).toMatchObject({ applicable: true, discount: 50 })
+      applyMemberCoupon({ coupon, items: [{ line_total: 1500, qty: 1 }] }).applicable,
+    ).toBe(true)
   })
 
-  it("小計不到面額時只折到歸零，不會折成負的", () => {
-    const r = applyMemberCoupon({
-      coupon: base,
-      items: [{ product_slug: "x", line_total: 30, qty: 1 }],
-      zipbagSlugs,
-    })
-    expect(r).toMatchObject({ applicable: true, discount: 30 })
-  })
-
-  it("過期或已使用都不能折", () => {
-    const expired = { ...base, valid_until: new Date(Date.now() - 1000).toISOString() }
-    expect(
-      applyMemberCoupon({ coupon: expired, items: [{ line_total: 500, qty: 1 }], zipbagSlugs }),
-    ).toMatchObject({ applicable: false })
-    expect(
-      applyMemberCoupon({
-        coupon: { ...base, status: "used" },
-        items: [{ line_total: 500, qty: 1 }],
-        zipbagSlugs,
-      }),
-    ).toMatchObject({ applicable: false })
-  })
-
-  it("★ 回購券的限制不變 —— 沒有夾鏈袋就不能折", () => {
-    const r = applyMemberCoupon({
-      coupon: { ...base, type: "repurchase" },
-      items: [{ product_slug: "measuring-spoon", line_total: 200, qty: 1 }],
-      zipbagSlugs,
-    })
+  it("★ 沒到門檻要講還差多少 —— 只說「不符合條件」的話客人只能自己試", () => {
+    const r = applyMemberCoupon({ coupon, items: [{ line_total: 1400, qty: 1 }] })
     expect(r).toMatchObject({ applicable: false })
+    if (!r.applicable) expect(r.reason).toContain("1500")
+  })
+
+  it("★ 不再限夾鏈袋 —— 信上只寫金額門檻，加了品項限制就是我們自己造的客訴", () => {
+    const r = applyMemberCoupon({
+      coupon,
+      items: [{ product_slug: "measuring-spoon", line_total: 1600, qty: 8 }],
+    })
+    expect(r).toMatchObject({ applicable: true, discount: 100 })
+  })
+
+  it("過期不能用", () => {
+    const expired = { ...coupon, valid_until: new Date(Date.now() - 1000).toISOString() }
+    expect(
+      applyMemberCoupon({ coupon: expired, items: [{ line_total: 2000, qty: 1 }] }),
+    ).toMatchObject({ applicable: false })
+  })
+
+  it("已使用、已作廢都不能用", () => {
+    for (const status of ["used", "expired", "revoked"]) {
+      expect(
+        applyMemberCoupon({ coupon: { ...coupon, status }, items: [{ line_total: 2000, qty: 1 }] }),
+      ).toMatchObject({ applicable: false })
+    }
+  })
+
+  it("★ 折抵不超過小計 —— 不能折到負的去吃掉運費", () => {
+    const noMin = { ...coupon, min_order: 0 }
+    const r = applyMemberCoupon({ coupon: noMin, items: [{ line_total: 60, qty: 1 }] })
+    expect(r).toMatchObject({ applicable: true, discount: 60 })
+  })
+
+  it("沒有券就不折", () => {
+    expect(applyMemberCoupon({ coupon: null, items: [{ line_total: 2000, qty: 1 }] })).toMatchObject(
+      { applicable: false },
+    )
+  })
+})
+
+describe("dueAfterShip", () => {
+  it("回饋信第 14 天、回購提醒第 30 天", () => {
+    const shipped = "2026-10-01T00:00:00Z"
+    expect(dueAfterShip(shipped, 14)?.toISOString().slice(0, 10)).toBe("2026-10-15")
+    expect(dueAfterShip(shipped, 30)?.toISOString().slice(0, 10)).toBe("2026-10-31")
+  })
+  it("★ 沒有出貨日就不寄 —— 寧可不寄，也不要用今天當基準亂算", () => {
+    expect(dueAfterShip(null, 14)).toBeNull()
+    expect(dueAfterShip("not a date", 14)).toBeNull()
+  })
+})
+
+describe("normalizeCouponCode", () => {
+  it("抄錯格式也要認得", () => {
+    expect(normalizeCouponCode("reab23cd")).toBe("REAB23CD")
+    expect(normalizeCouponCode(" RE-AB23CD ")).toBe("REAB23CD")
+  })
+  it("長度或格式不對就當沒輸入", () => {
+    expect(normalizeCouponCode("RE123")).toBeNull()
+    expect(normalizeCouponCode("REAB23CDE")).toBeNull()
+    expect(normalizeCouponCode("")).toBeNull()
+    expect(normalizeCouponCode(null)).toBeNull()
+  })
+})
+
+describe("generateCouponCode", () => {
+  it("RE + 6 碼", () => {
+    expect(generateCouponCode()).toMatch(/^RE[0-9A-Z]{6}$/)
+  })
+  it("★ 不含 0/O/1/I/L —— 這組碼會出現在信裡被抄來抄去", () => {
+    for (let i = 0; i < 200; i++) {
+      expect(generateCouponCode().slice(2)).not.toMatch(/[01OIL]/)
+    }
+  })
+  it("產出的碼一定通得過自己的正規化", () => {
+    for (let i = 0; i < 50; i++) {
+      const c = generateCouponCode()
+      expect(normalizeCouponCode(c)).toBe(c)
+    }
+  })
+})
+
+describe("cartSubtotal / hasAnyItem", () => {
+  it("小計是各列相加", () => {
+    expect(cartSubtotal([{ line_total: 450, qty: 1 }, { line_total: 75, qty: 2 }])).toBe(525)
+  })
+  it("空單不寄信", () => {
+    expect(hasAnyItem([])).toBe(false)
+    expect(hasAnyItem([{ line_total: 0, qty: 0 }])).toBe(false)
+    expect(hasAnyItem([{ line_total: 450, qty: 1 }])).toBe(true)
   })
 })

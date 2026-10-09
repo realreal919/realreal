@@ -11,6 +11,7 @@ import { renderOrderShipped } from "../emails/OrderShipped"
 import { renderPaymentReminder } from "../emails/PaymentReminder"
 import { renderTierUpgrade } from "../emails/TierUpgrade"
 import { renderRepurchaseReminder } from "../emails/RepurchaseReminder"
+import { renderFeedbackRequest } from "../emails/FeedbackRequest"
 import { renderTierRenewed } from "../emails/TierRenewed"
 import { renderTierDowngraded } from "../emails/TierDowngraded"
 import { renderSubscriptionBilled } from "../emails/SubscriptionBilled"
@@ -22,7 +23,8 @@ export type EmailJobData =
   | { template: "order-shipped"; to: string; data: { orderNumber: string; customerName: string; codAmount?: number | null; pickupInfo?: string | null } }
   | { template: "payment-reminder"; to: string; data: { orderNumber: string; customerName: string; amount: string; items: Array<{ name: string; qty: number; price: string }>; pickupInfo: string; repayUrl: string } }
   | { template: "tier-upgrade"; to: string; data: { newTier: string; discountRate: number; perks: string[] } }
-  | { template: "repurchase-reminder"; to: string; data: { customerName: string; couponAmount: number; validDays: number; validUntil: string; referralCode?: string | null; referralMinOrder?: number; referralReward?: number } }
+  | { template: "repurchase-reminder"; to: string; data: { customerName: string; couponAmount: number; couponMinOrder: number; couponCode: string; validUntil: string } }
+  | { template: "feedback-request"; to: string; data: { customerName: string; referralCode?: string | null; referralMinOrder?: number; referralReward?: number } }
   | { template: "tier-renewed"; to: string; data: { tierName: string; newExpiresAt: string; perks: string[] } }
   | { template: "tier-downgraded"; to: string; data: { fromTier: string; toTier: string; nextRequalifyAmount: number; toPerks: string[] } }
   | { template: "subscription-billed"; to: string; data: { planName: string; amount: string; nextBillingDate: string; orderNumber: string } }
@@ -157,8 +159,12 @@ export async function renderAndSendEmail(jobData: EmailJobData): Promise<void> {
       html = renderTierUpgrade(data)
       break
     case "repurchase-reminder":
-      subject = "差不多該補貨了，附一張夾鏈袋折價券"
+      subject = "最近蛋白飲還夠喝嗎？附上一張回購折價券"
       html = renderRepurchaseReminder(data as Parameters<typeof renderRepurchaseReminder>[0])
+      break
+    case "feedback-request":
+      subject = "喝得還習慣嗎？想聽聽您的想法"
+      html = renderFeedbackRequest(data as Parameters<typeof renderFeedbackRequest>[0])
       break
     case "tier-renewed":
       subject = `恭喜續約 ${data.tierName} 等級`

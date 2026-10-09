@@ -8,6 +8,7 @@ import {
   resolveReferrer,
 } from "../lib/referral-service"
 import { normalizeCode } from "../lib/referral"
+import { normalizeCouponCode } from "../lib/repurchase-coupon"
 
 export const referralRouter = Router()
 
@@ -100,4 +101,70 @@ referralRouter.post("/check", requireAuth, async (req, res) => {
 
   const settings = await loadReferralSettings()
   res.json({ valid: true, code, min_order: settings.minOrder, reward: settings.refereeReward })
+})
+
+const couponSchema = z.object({ code: z.string().max(32) })
+
+/**
+ * POST /referral/member-coupon —— 結帳頁驗證「專屬優惠碼」。
+ *
+ * 回購券本來就會自動帶入，不打碼也折得到。但信上白紙黑字印了優惠碼，客人一定
+ * 會打 —— 打進去得到「無效的優惠碼」，比沒印那個碼還糟。這支就是為了讓那個
+ * 動作有正確的回應。
+ *
+ * 掛在 referral 路由底下是因為它跟推薦碼共用結帳頁同一個輸入框的判斷鏈。
+ */
+referralRouter.post("/member-coupon", requireAuth, async (req, res) => {
+  const parsed = couponSchema.safeParse(req.body)
+  if (!parsed.success) {
+    res.status(400).json({ error: "請輸入優惠碼" })
+    return
+  }
+  const userId = res.locals.userId as string
+  const code = normalizeCouponCode(parsed.data.code)
+  if (!code) {
+    res.json({ valid: false })
+    return
+  }
+
+  const { data } = await supabase
+    .from("member_coupons")
+    .select("id, user_id, amount, min_order, valid_until, status")
+    .eq("code", code)
+    .maybeSingle()
+  const row = data as {
+    id: string
+    user_id: string
+    amount: number
+    min_order: number | null
+    valid_until: string
+    status: string
+  } | null
+
+  if (!row) {
+    res.json({ valid: false })
+    return
+  }
+  // 別人的券不告訴他「這張是別人的」—— 那等於確認了這組碼存在
+  if (row.user_id !== userId) {
+    res.json({ valid: false })
+    return
+  }
+  if (row.status !== "active") {
+    res.json({ valid: false, reason: "這張折價券已經使用過了" })
+    return
+  }
+  if (new Date(row.valid_until) < new Date()) {
+    res.json({ valid: false, reason: "這張折價券已過期" })
+    return
+  }
+
+  res.json({
+    valid: true,
+    code,
+    amount: Number(row.amount) || 0,
+    min_order: Number(row.min_order) || 0,
+    // 券是自動帶入的，客人不必做任何事 —— 講清楚才不會有人以為沒生效
+    auto_applied: true,
+  })
 })

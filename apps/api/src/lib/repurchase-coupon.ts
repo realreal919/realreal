@@ -1,13 +1,13 @@
 /**
- * 回購券：隨回購提醒發出的數位券，折夾鏈袋。
+ * 會員券：發給個別會員、不是共用代碼的那一種。
  *
- * 規則（規格 1.6）：
- *   - 金額 $50，發出後 14 天有效，每人一次
- *   - 限購物車含夾鏈袋商品時可用，折在夾鏈袋品項上
+ * 目前兩種：
+ *   repurchase —— 回購券。折 100、消費滿 1500 可用、附專屬優惠碼
+ *   referral   —— 推薦相關（保留，目前推薦獎勵改走公益存款，沒有在發這種券）
  *
- * 「夾鏈袋商品」用的是跟贈勺同一份 slug 清單（membership.scoop_trigger_slugs）。
- * 兩者講的是同一件事，分開維護的話，新增一個夾鏈袋商品只改了一邊，就會變成
- * 「買了會送勺但不能用回購券」這種沒人說得出原因的行為。
+ * 2026-10-09 改版：回購券原本是「折 50、限夾鏈袋、結帳自動帶入」。店主定案的
+ * 信件內容寫的是門檻與優惠碼、完全沒提夾鏈袋 —— 保留品項限制的話，客人照著
+ * 信上的條件湊到 1500 卻折不下去，那是我們自己造的客訴。
  */
 
 export type CouponCartItem = {
@@ -17,159 +17,120 @@ export type CouponCartItem = {
   qty: number
 }
 
-export type RepurchaseCoupon = {
+export type MemberCouponType = "repurchase" | "referral"
+
+export type MemberCoupon = {
   id: string
+  type?: string | null
   amount: number | string
+  /** 使用門檻（元）。0 代表沒有門檻。 */
+  min_order?: number | string | null
   valid_until: string
   status: string
+  code?: string | null
 }
+
+/** 舊名保留，avoid churn in callers/tests。 */
+export type RepurchaseCoupon = MemberCoupon
 
 export type CouponApplication =
   | { applicable: true; couponId: string; discount: number }
   | { applicable: false; reason: string }
 
-/** 購物車裡夾鏈袋品項的小計。折抵不能超過它 —— 券是折夾鏈袋，不是折整單。 */
-export function zipbagSubtotal(items: CouponCartItem[], zipbagSlugs: string[]): number {
-  if (zipbagSlugs.length === 0) return 0
-  return items
-    .filter((i) => i.product_slug != null && zipbagSlugs.includes(i.product_slug))
-    .reduce((sum, i) => sum + (Number(i.line_total) || 0), 0)
+/** 購物車小計。門檻與折抵上限都看它。 */
+export function cartSubtotal(items: CouponCartItem[]): number {
+  return items.reduce((sum, i) => sum + (Number(i.line_total) || 0), 0)
 }
 
 /**
- * 這張券現在能不能用。
+ * 這張券現在能不能用、能折多少。
  *
  * 到期與已使用都在這裡判斷，不靠排程把過期券改狀態 —— 排程晚跑一天，
  * 客人就用到了不該能用的券。狀態欄位只是給後台看的。
  */
-export function applyRepurchaseCoupon({
-  coupon,
-  items,
-  zipbagSlugs,
-  now = new Date(),
-}: {
-  coupon: RepurchaseCoupon | null | undefined
-  items: CouponCartItem[]
-  zipbagSlugs: string[]
-  now?: Date
-}): CouponApplication {
-  if (!coupon) return { applicable: false, reason: "沒有可用的回購券" }
-  if (coupon.status !== "active") return { applicable: false, reason: "這張回購券已經使用過了" }
-
-  const until = new Date(coupon.valid_until)
-  if (Number.isNaN(until.getTime())) return { applicable: false, reason: "回購券的有效期限不正確" }
-  if (until.getTime() < now.getTime()) return { applicable: false, reason: "回購券已過期" }
-
-  const eligible = zipbagSubtotal(items, zipbagSlugs)
-  if (eligible <= 0) {
-    return { applicable: false, reason: "回購券限購買夾鏈袋時使用" }
-  }
-
-  const amount = Number(coupon.amount) || 0
-  if (amount <= 0) return { applicable: false, reason: "回購券金額不正確" }
-
-  // 夾鏈袋小計不到券面額時，只折到剛好歸零，不讓它溢出去折別的品項
-  return { applicable: true, couponId: coupon.id, discount: Math.min(amount, eligible) }
-}
-
-/**
- * 會員券的種類，決定「能折在哪些品項上」。
- *   repurchase —— 回購券，只折夾鏈袋
- *   referral   —— 推薦新朋友的購物金，全站可用
- *
- * 推薦購物金不限品項是刻意的：那 50 元是給新朋友的見面禮，限制品項等於要他
- * 先學會我們的商品分類才用得掉。回購券限夾鏈袋則是因為它的目的就是推回購。
- */
-export type MemberCouponType = "repurchase" | "referral"
-
-/**
- * 這張會員券現在能折多少。到期、已使用、可折範圍都在這裡判斷。
- *
- * 同時握有回購券與推薦購物金時由呼叫端挑一張 —— 兩張一起折會讓一筆 650 元的
- * 單折掉 100，那不是任何一檔活動答應過的事。
- */
 export function applyMemberCoupon({
   coupon,
   items,
-  zipbagSlugs,
   now = new Date(),
 }: {
-  coupon: (RepurchaseCoupon & { type?: string }) | null | undefined
+  coupon: MemberCoupon | null | undefined
   items: CouponCartItem[]
-  zipbagSlugs: string[]
   now?: Date
+  /** 已不再使用。留著是為了不讓舊呼叫端編譯失敗。 */
+  zipbagSlugs?: string[]
 }): CouponApplication {
-  if (coupon?.type === "referral") {
-    if (!coupon) return { applicable: false, reason: "沒有可用的購物金" }
-    if (coupon.status !== "active") return { applicable: false, reason: "這筆購物金已經使用過了" }
-    const until = new Date(coupon.valid_until)
-    if (Number.isNaN(until.getTime())) return { applicable: false, reason: "購物金的有效期限不正確" }
-    if (until.getTime() < now.getTime()) return { applicable: false, reason: "購物金已過期" }
+  if (!coupon) return { applicable: false, reason: "沒有可用的優惠券" }
+  if (coupon.status !== "active") return { applicable: false, reason: "這張券已經使用過了" }
 
-    const subtotal = items.reduce((s, i) => s + (Number(i.line_total) || 0), 0)
-    if (subtotal <= 0) return { applicable: false, reason: "購物車是空的" }
-    const amount = Number(coupon.amount) || 0
-    if (amount <= 0) return { applicable: false, reason: "購物金金額不正確" }
-    // 折不到負的：小計不到面額時只折到歸零
-    return { applicable: true, couponId: coupon.id, discount: Math.min(amount, subtotal) }
+  const until = new Date(coupon.valid_until)
+  if (Number.isNaN(until.getTime())) return { applicable: false, reason: "優惠券的有效期限不正確" }
+  if (until.getTime() < now.getTime()) return { applicable: false, reason: "優惠券已過期" }
+
+  const amount = Number(coupon.amount) || 0
+  if (amount <= 0) return { applicable: false, reason: "優惠券金額不正確" }
+
+  const subtotal = cartSubtotal(items)
+  const minOrder = Number(coupon.min_order) || 0
+  if (minOrder > 0 && subtotal < minOrder) {
+    // 差多少要講出來 —— 只說「不符合條件」的話，客人只能自己試
+    return {
+      applicable: false,
+      reason: `消費滿 ${minOrder} 元才能使用（目前 ${Math.round(subtotal)} 元）`,
+    }
   }
-  return applyRepurchaseCoupon({ coupon, items, zipbagSlugs, now })
-}
+  if (subtotal <= 0) return { applicable: false, reason: "購物車是空的" }
 
-/** 提醒天數：依首購的主要品項決定。 */
-export type ReminderKind = "sachet" | "jar_old" | "jar_new"
-
-export type ReminderDays = Record<ReminderKind, number>
-
-export const DEFAULT_REMINDER_DAYS: ReminderDays = {
-  sachet: 6,
-  jar_old: 3,
-  jar_new: 6,
+  // 小計不到面額時只折到歸零，不讓它溢出去折運費
+  return { applicable: true, couponId: coupon.id, discount: Math.min(amount, subtotal) }
 }
 
 /**
- * 這張訂單的主要品項是哪一種，決定隔幾天提醒。
+ * 專屬優惠碼。會員看得懂、唸得出來，而且不會跟共用優惠碼長得一樣。
  *
- * 判斷順序刻意先看夾鏈袋：同時買了夾鏈袋與隨身包的人，手上撐比較久的是
- * 夾鏈袋，用隨身包的天數去提醒會太早。
+ * 前綴 RE（回購）讓客服一眼看得出這是哪一種券；後面 6 碼去掉 0/O/1/I/L，
+ * 因為這組碼會出現在信裡被抄來抄去。
  */
-export function reminderKindFor(
-  items: CouponCartItem[],
-  zipbagSlugs: string[],
-): ReminderKind | null {
-  const hasZipbag = items.some(
-    (i) => i.product_slug != null && zipbagSlugs.includes(i.product_slug) && i.qty > 0,
-  )
-  if (hasZipbag) return "jar_new"
-  const hasAnything = items.some((i) => i.qty > 0)
-  return hasAnything ? "sachet" : null
+const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+
+export function generateCouponCode(
+  prefix = "RE",
+  random: () => number = Math.random,
+): string {
+  let out = ""
+  for (let i = 0; i < 6; i++) out += CODE_ALPHABET[Math.floor(random() * CODE_ALPHABET.length)]
+  return `${prefix}${out}`
+}
+
+/** 使用者抄進來的碼正規化。大小寫、空白、破折號都吃掉。 */
+export function normalizeCouponCode(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const cleaned = raw.toUpperCase().replace(/[\s\-_]/g, "")
+  return /^[A-Z]{2}[0-9A-Z]{6}$/.test(cleaned) ? cleaned : null
 }
 
 /**
- * 什麼時候該提醒。
+ * 信要在出貨後第幾天寄。
  *
- * 到貨日多數時候拿不到 —— 7-11 走交貨便批次上傳，不經站上的綠界物流整合，
- * 所以綠界的取貨回報永遠不會回來。因此一律以「出貨日 + shipToArrivalDays」
- * 推估到貨，再加上品項的提醒天數。真有到貨日時當然優先用。
+ * 2026-10-09 改版：原本依品項算「到貨推估日 + N 天」。店主定案改成固定天數
+ * ——回饋信第 14 天、回購提醒第 30 天。固定天數講得清楚、對得了帳，而且到貨日
+ * 本來就多數拿不到（7-11 交貨便批次上傳，不經綠界物流，取貨回報永遠不會回來）。
  */
-export function reminderDueAt({
-  shippedAt,
-  deliveredAt,
-  kind,
-  days,
-  shipToArrivalDays,
-}: {
-  shippedAt: string | null
-  deliveredAt: string | null
-  kind: ReminderKind
-  days: ReminderDays
-  shipToArrivalDays: number
-}): Date | null {
-  const base = deliveredAt ? new Date(deliveredAt) : shippedAt ? new Date(shippedAt) : null
-  if (!base || Number.isNaN(base.getTime())) return null
-  const arrival = new Date(base)
-  if (!deliveredAt) arrival.setDate(arrival.getDate() + shipToArrivalDays)
-  const due = new Date(arrival)
-  due.setDate(due.getDate() + days[kind])
+export function dueAfterShip(shippedAt: string | null, days: number): Date | null {
+  if (!shippedAt) return null
+  const base = new Date(shippedAt)
+  if (Number.isNaN(base.getTime())) return null
+  const due = new Date(base)
+  due.setDate(due.getDate() + days)
   return due
+}
+
+export const DEFAULT_FEEDBACK_DAYS = 14
+export const DEFAULT_REPURCHASE_DAYS = 30
+export const DEFAULT_COUPON_AMOUNT = 100
+export const DEFAULT_COUPON_MIN_ORDER = 1500
+export const DEFAULT_COUPON_VALID_DAYS = 30
+
+/** 這張訂單有沒有東西可以提醒。空單不寄。 */
+export function hasAnyItem(items: CouponCartItem[]): boolean {
+  return items.some((i) => i.qty > 0)
 }

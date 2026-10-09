@@ -65,7 +65,7 @@ async function resolveRepurchaseCoupon(
     // 回購券跟推薦購物金都是「發給個人、不用輸入代碼」的會員券，一次全拿出來比。
     const { data } = await supabase
       .from("member_coupons")
-      .select("id, type, amount, valid_until, status")
+      .select("id, type, amount, min_order, valid_until, status, code")
       .eq("user_id", userId)
       .eq("status", "active")
       .order("valid_until", { ascending: true })
@@ -74,23 +74,24 @@ async function resolveRepurchaseCoupon(
       id: string
       type: string
       amount: number
+      min_order: number | null
       valid_until: string
       status: string
+      code: string | null
     }>
     if (rows.length === 0) return null
 
-    const cfg = await loadScoopGiftConfig(getSetting)
     const items: CouponCartItem[] = cartItems.map((i) => ({
       product_slug: i.product_slug ?? null,
       line_total: i.unit_price * i.qty,
       qty: i.qty,
     }))
 
-    // 一次只用一張，折最多的那張。兩張一起折會讓一筆 650 元的單折掉 100，
-    // 那不是任何一檔活動答應過的事。沒用到的那張留著，下一單還在。
+    // 一次只用一張，折最多的那張。兩張一起折不是任何一檔活動答應過的事。
+    // 沒用到的那張留著，下一單還在。
     let best: { couponId: string; discount: number } | null = null
     for (const row of rows) {
-      const r = applyMemberCoupon({ coupon: row, items, zipbagSlugs: cfg.triggerSlugs })
+      const r = applyMemberCoupon({ coupon: row, items })
       if (r.applicable && (!best || r.discount > best.discount)) {
         best = { couponId: r.couponId, discount: r.discount }
       }

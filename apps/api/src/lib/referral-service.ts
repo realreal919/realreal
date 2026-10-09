@@ -277,22 +277,22 @@ export async function settleReferralForOrder(orderId: string): Promise<
     return { granted: false, reason: `回饋金寫入失敗：${pointsErr.message}` }
   }
 
-  // 3) 新朋友的購物金。下一單才能用 —— 當下就折會跟首購折 50 疊在同一張單上
-  const validUntil = new Date()
-  validUntil.setDate(validUntil.getDate() + 90)
-  const { error: couponErr } = await supabase.from("member_coupons").insert({
+  // 3) 新朋友的 50 元。跟推薦人一樣記入公益存款 —— 信裡寫的是
+  // 「您與朋友都能各獲得 50 元公益存款，可於下次消費時折抵使用」，
+  // 發券的話兩邊拿到的東西不同類，客服要解釋兩次。
+  // 公益存款本來就可以下一單折抵，效果跟購物金一樣。
+  const { error: couponErr } = await supabase.from("points_ledger").insert({
     user_id: order.user_id,
-    type: "referral",
-    amount: settings.refereeReward,
-    valid_until: validUntil.toISOString(),
-    source_order_id: order.id,
-    note: "推薦新朋友購物金",
+    delta: settings.refereeReward,
+    source: "referral",
+    source_ref_id: `${order.id}:referee`,
+    note: `推薦回饋（首購訂單 ${order.order_number}）`,
   })
-  if (couponErr) {
-    // 購物金發不出去不撤回整筆 —— 推薦人的回饋金已經進帳，撤回會把他的錢
-    // 也一起拿掉。記下來人工補發，這是兩害相權。
+  if (couponErr && !String(couponErr.message).includes("duplicate")) {
+    // 新朋友那筆發不出去不撤回整筆 —— 推薦人的回饋金已經進帳，撤回會把
+    // 他的錢也一起拿掉。記下來人工補發，這是兩害相權。
     console.error(
-      `[referral] 新朋友購物金發放失敗，需人工補發 order=${order.order_number} user=${order.user_id}:`,
+      `[referral] 新朋友的回饋金發放失敗，需人工補發 order=${order.order_number} user=${order.user_id}:`,
       couponErr,
     )
   }

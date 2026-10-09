@@ -1,36 +1,38 @@
 /**
- * 回購提醒信。
+ * 回購提醒信。出貨後第 30 天。
  *
- * 語氣是「想起你差不多該喝完了」而不是促銷 —— 這封信是在客人還沒想到要買的
- * 時候出現的，講得像廣告只會被略過。券的期限講清楚，但不加催促。
+ * 文案是店主 2026-10-09 定稿的。語氣刻意不催 —— 最後那句「如果手邊還有存貨，
+ * 也不用急著補貨」是整封信的重點，拿掉它這封就變成一般的促銷信。
+ *
+ * 券的四個欄位（金額、門檻、優惠碼、期限）必須跟資料庫裡那張券完全一致：
+ * 客人會照著信上的條件湊單。
  */
 export function renderRepurchaseReminder(data: {
   customerName: string
   couponAmount: number
-  validDays: number
+  couponMinOrder: number
+  couponCode: string
   validUntil: string
-  /** 推薦碼。配不到碼時省略整段，不要留一句按不下去的邀請。 */
-  referralCode?: string | null
-  referralMinOrder?: number
-  referralReward?: number
 }): string {
   const hi = data.customerName ? `${data.customerName} 您好，` : "您好，"
-
-  // 只加一行。這封信只有一個任務——讓人下第二張單；再加「給我們回饋」
-  // 「你有這些權益」就是一封信四個請求，通常一個都不會做。
-  const referralBlock = data.referralCode
-    ? `<p style="background:#f6f8fa;border-radius:10px;padding:14px 16px;font-size:14px;color:#10305a">
-         順手一提：把你的推薦碼 <strong>${data.referralCode}</strong> 給朋友，
-         他第一次購物折扣前滿 ${data.referralMinOrder ?? 650} 元，
-         他得 ${data.referralReward ?? 50} 元購物金，你得 ${data.referralReward ?? 50} 元公益存款回饋金。
-       </p>`
-    : ""
   return `
   <div style="font-family:-apple-system,'PingFang TC','Noto Sans TC',sans-serif;line-height:1.9;color:#10305a;max-width:560px;margin:0 auto;padding:24px">
     <p>${hi}</p>
-    <p>算一算，上次的份量差不多該喝完了。</p>
-    <p>附上一張 <strong>${data.couponAmount} 元</strong> 的夾鏈袋折價券，
-       ${data.validDays} 天內（${data.validUntil} 前）結帳時會自動帶入，不需要輸入代碼。</p>
+    <p>最近蛋白飲還夠喝嗎？</p>
+    <p>無論是忙碌的早晨、運動後，或想作為日常飲食補充蛋白質，
+       希望誠真生活都能成為您方便又安心的選擇。</p>
+    <p>如果您最近剛好需要補貨，我們準備了一份回購小禮，謝謝您曾經選擇誠真生活。</p>
+
+    <div style="background:#f6f8fa;border-radius:10px;padding:18px 20px;margin:24px 0">
+      <p style="margin:0 0 12px"><strong>🎁 您的專屬回購折價券</strong></p>
+      <table style="font-size:15px;line-height:2;border-collapse:collapse">
+        <tr><td style="padding-right:16px;color:#687279">折抵金額</td><td><strong>NT$${data.couponAmount}</strong></td></tr>
+        <tr><td style="padding-right:16px;color:#687279">使用門檻</td><td>消費滿 NT$${data.couponMinOrder.toLocaleString()}</td></tr>
+        <tr><td style="padding-right:16px;color:#687279">優惠碼</td><td><strong style="letter-spacing:.15em">${data.couponCode}</strong></td></tr>
+        <tr><td style="padding-right:16px;color:#687279">使用期限</td><td>${data.validUntil}</td></tr>
+      </table>
+    </div>
+
     <p style="margin:28px 0">
       <a href="https://realreal.cc/shop"
          style="display:inline-block;background:#10305a;color:#fff;text-decoration:none;
@@ -38,11 +40,14 @@ export function renderRepurchaseReminder(data: {
         去逛逛
       </a>
     </p>
-${referralBlock}
-    <p style="color:#687279;font-size:14px">
-      如果這陣子還不需要，忽略這封信就好。不想再收到這類提醒的話，
-      到會員中心把行銷訊息關掉，我們就不會再寄。
+
+    <p>如果手邊還有存貨，也不用急著補貨。按照自己的步調，找到適合的飲食方式就好。</p>
+    <p>謝謝您讓誠真生活走進日常。</p>
+    <p style="margin-top:24px">讓身心輕盈，讓生活誠真。</p>
+    <p>誠真生活</p>
+
+    <p style="color:#687279;font-size:13px;margin-top:28px">
+      不想再收到這類提醒的話，到會員中心把行銷訊息關掉，我們就不會再寄。
     </p>
-    <p style="color:#687279;font-size:14px">誠真生活 RealReal</p>
   </div>`
 }

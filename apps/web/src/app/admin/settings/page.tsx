@@ -171,18 +171,12 @@ const FIELD_META: Record<
     placeholder: "30",
     hint: "且需已有至少一張完成訂單。生日公益存款沒有效期，沒用掉會繼續累積",
   },
-  // 回購提醒與回購券
-  "repurchase.coupon_amount": { label: "回購券金額 NT$", placeholder: "50", hint: "限購物車含夾鏈袋時可用" },
-  "repurchase.coupon_valid_days": { label: "回購券有效天數", placeholder: "14" },
-  "repurchase.ship_to_arrival_days": {
-    label: "出貨到貨推估天數",
-    placeholder: "3",
-    hint: "7-11 走交貨便批次上傳，拿不到綠界的到貨回報，提醒一律用「出貨日 + 這個天數」起算",
-  },
-  "repurchase.reminder_days_sachet": { label: "提醒天數：隨身包 10 包", placeholder: "6", hint: "到貨推估日之後第幾天" },
-  "repurchase.reminder_days_jar_old": { label: "提醒天數：舊版夾鏈袋", placeholder: "3" },
-  "repurchase.reminder_days_jar_new": { label: "提醒天數：新版夾鏈袋 450g", placeholder: "6" },
-  // 推薦好友
+  // 兩封自動信（回饋信第 14 天、回購提醒第 30 天）與回購券
+  "feedback.days_after_ship": { label: "回饋信：出貨後第幾天", placeholder: "14", hint: "只寄給首購的人，每人一次" },
+  "repurchase.days_after_ship": { label: "回購提醒：出貨後第幾天", placeholder: "30", hint: "只寄給首購、且還沒有第二張單的人" },
+  "repurchase.coupon_amount": { label: "回購券金額 NT$", placeholder: "100" },
+  "repurchase.coupon_min_order": { label: "回購券使用門檻 NT$", placeholder: "1500", hint: "改這裡會跟信上印的條件一起變" },
+  "repurchase.coupon_valid_days": { label: "回購券有效天數", placeholder: "30" },
   "referral.min_order": { label: "推薦成立門檻 NT$", placeholder: "650", hint: "新朋友首購的「折扣前」金額" },
   "referral.reward": { label: "推薦獎勵 NT$", placeholder: "50", hint: "雙方各得：新朋友得購物金（下一單可折），推薦人得公益存款" },
   "referral.points": { label: "推薦互動點數", placeholder: "5", hint: "知心升等用的點數，跟上面的 50 元獎勵無關" },
