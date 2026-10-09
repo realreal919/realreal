@@ -24,6 +24,7 @@ export function AddToCartSection({
   userQualifies = true,
   memberOnly = false,
   variantNote,
+  showScoopGift = false,
 }: {
   productName: string
   variants: Variant[]
@@ -33,6 +34,8 @@ export function AddToCartSection({
   /** 門檻 0 的等級：任何註冊會員都能買，提示改說「登入會員」而不是等級名稱。 */
   memberOnly?: boolean
   variantNote?: string
+  /** 夾鏈袋商品：價格下方那行要一併講送量匙。由頁面比對贈勺 slug 清單後傳入。 */
+  showScoopGift?: boolean
 }) {
   const [selectedVariantId, setSelectedVariantId] = useState<string>(
     variants[0]?.id ?? ""
@@ -66,7 +69,11 @@ export function AddToCartSection({
   const minVariantPrice = variants.length
     ? Math.min(...variants.map((v) => Number(v.sale_price ?? v.price)))
     : undefined
-  const firstPurchaseLine = firstPurchaseProductMessage(firstPurchase, minVariantPrice)
+  const firstPurchaseLine = firstPurchaseProductMessage(
+    firstPurchase,
+    minVariantPrice,
+    showScoopGift,
+  )
   const addItem = useCart((s) => s.addItem)
   const updatePrice = useCart((s) => s.updatePrice)
   const cartItems = useCart((s) => s.items)

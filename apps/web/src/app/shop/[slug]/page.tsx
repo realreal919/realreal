@@ -252,6 +252,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                 userQualifies={userQualifies}
                 memberOnly={memberOnly}
                 variantNote={variantNote}
+                showScoopGift={showScoopPrompt}
               />
             </div>
 

@@ -132,4 +132,19 @@ describe("firstPurchaseProductMessage", () => {
     expect(firstPurchaseProductMessage(null, 1650)).toBeNull()
     expect(firstPurchaseProductMessage({ discount: 0, minOrder: 300 }, 1650)).toBeNull()
   })
+  it("夾鏈袋頁一併講送量匙", () => {
+    expect(firstPurchaseProductMessage({ discount: 50, minOrder: 300 }, 1650, true)).toBe(
+      "加入會員，首次購買結帳自動折 50元，並送不鏽鋼量匙 1支",
+    )
+  })
+  it("★ 沒傳旗標就不講量匙 —— 隨身包不送勺，講了就是承諾不會發生的事", () => {
+    expect(firstPurchaseProductMessage({ discount: 50, minOrder: 300 }, 75)).toBe(
+      "加入會員，首次購買滿 300元結帳自動折 50元",
+    )
+  })
+  it("達不到折扣門檻的夾鏈袋：兩個條件都要講清楚", () => {
+    expect(firstPurchaseProductMessage({ discount: 50, minOrder: 300 }, 75, true)).toBe(
+      "加入會員，首次購買滿 300元結帳自動折 50元，並送不鏽鋼量匙 1支",
+    )
+  })
 })

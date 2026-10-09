@@ -49,16 +49,21 @@ export function firstPurchaseMessage(fp: FirstPurchase | null | undefined): stri
  * 才要把門檻講出來，不然客人會在結帳頁才發現折不了。
  *
  * minPrice 是這個商品最便宜的規格，傳 undefined 代表不知道價格，一律講門檻。
+ *
+ * withScoop 只有夾鏈袋商品頁會傳 true（由伺服器端比對贈勺的 slug 清單決定）。
+ * 隨身包不送勺，在隨身包頁講會變成講不出理由的差別待遇。
  */
 export function firstPurchaseProductMessage(
   fp: FirstPurchase | null | undefined,
   minPrice?: number,
+  withScoop = false,
 ): string | null {
   if (!fp || fp.discount <= 0) return null
   const reachable = fp.minOrder <= 0 || (minPrice != null && minPrice >= fp.minOrder)
-  return reachable
+  const base = reachable
     ? `加入會員，首次購買結帳自動折 ${fp.discount}元`
     : `加入會員，首次購買滿 ${fp.minOrder}元結帳自動折 ${fp.discount}元`
+  return withScoop ? `${base}，並送不鏽鋼量匙 1支` : base
 }
 
 export type SpendThreshold = { minAmount: number; discount: number }
