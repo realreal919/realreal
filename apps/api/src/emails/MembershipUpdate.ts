@@ -35,9 +35,9 @@ export function renderMembershipUpdate(data: {
     </div>
 
     <div style="background:#f6f8fa;border-radius:10px;padding:16px 18px;margin:20px 0">
-      <p style="margin:0"><strong>🥄 第一次購買夾鏈袋，送不鏽鋼量匙</strong></p>
+      <p style="margin:0"><strong>🥄 第一次購買夾鏈袋，送 1 支不鏽鋼量匙</strong></p>
       <p style="margin:8px 0 0">夾鏈袋裝本身沒有附量匙。如果您還沒拿過，下次購買夾鏈袋時我們會主動一起寄出；
-         如果您需要多根，也可以再加購。</p>
+         如果您需要多根，可以選擇再加購。</p>
     </div>
 
     <div style="background:#f6f8fa;border-radius:10px;padding:16px 18px;margin:20px 0">
