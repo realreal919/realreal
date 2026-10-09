@@ -36,6 +36,7 @@ import {
 } from "../lib/addon-pricing"
 import { isHiddenVariant } from "../lib/variant-order"
 import { loadScoopGiftConfig, scoopGiftApplies } from "../lib/scoop-gift"
+import { applyRepurchaseCoupon, type CouponCartItem } from "../lib/repurchase-coupon"
 import { getSetting } from "../lib/settings"
 
 export const ordersRouter = Router()
@@ -46,6 +47,49 @@ export const ordersRouter = Router()
  * 贈品跟著活動的 free_items 走，所以出貨單、訂單明細、後台都已經看得到，不用
  * 另外接。價格固定 0 —— 它是贈品，不是加購。
  */
+/**
+ * 這位會員目前可用的回購券能折多少。
+ *
+ * 券是「折夾鏈袋」不是「折整單」，所以要帶購物車進來算。夾鏈袋的清單跟贈勺
+ * 共用同一個設定 —— 兩者講的是同一件事，分開維護的話，新增一個夾鏈袋商品
+ * 只改了一邊，就會變成「買了會送勺但不能用回購券」。
+ */
+async function resolveRepurchaseCoupon(
+  userId: string | undefined,
+  cartItems: Array<{ product_slug?: string | null; unit_price: number; qty: number }>,
+): Promise<{ couponId: string; discount: number } | null> {
+  if (!userId) return null
+  try {
+    const { data } = await supabase
+      .from("member_coupons")
+      .select("id, amount, valid_until, status")
+      .eq("user_id", userId)
+      .eq("type", "repurchase")
+      .eq("status", "active")
+      .order("valid_until", { ascending: true })
+      .limit(1)
+      .maybeSingle()
+    if (!data) return null
+
+    const cfg = await loadScoopGiftConfig(getSetting)
+    const items: CouponCartItem[] = cartItems.map((i) => ({
+      product_slug: i.product_slug ?? null,
+      line_total: i.unit_price * i.qty,
+      qty: i.qty,
+    }))
+    const r = applyRepurchaseCoupon({
+      coupon: data as { id: string; amount: number; valid_until: string; status: string },
+      items,
+      zipbagSlugs: cfg.triggerSlugs,
+    })
+    return r.applicable ? { couponId: r.couponId, discount: r.discount } : null
+  } catch (err) {
+    // 券算不出來不該擋住結帳 —— 少折 50 元客人會問，訂單下不了更嚴重。
+    console.warn("[repurchase-coupon] 判斷失敗（不影響結帳）:", err)
+    return null
+  }
+}
+
 async function resolveScoopGift(
   userId: string | undefined,
   cartItems: Array<{ product_slug?: string | null; qty: number }>,
@@ -530,8 +574,20 @@ ordersRouter.post("/preview", optionalAuth, async (req, res) => {
     }
   }
 
+  // 回購券。排在點數之前算（規格 5.1 的順序：首購折抵 → 回購券 → 公益存款），
+  // 但點數的上限是用「扣掉其他折抵後」的金額算的，所以這裡只是把金額加進總折抵。
+  const repurchase = await resolveRepurchaseCoupon(
+    userId,
+    cartItems as Array<{ product_slug?: string | null; unit_price: number; qty: number }>,
+  )
+  const repurchaseDiscountCents = repurchase ? Math.round(repurchase.discount * 100) : 0
+
   const totalDiscountCents =
-    memberDiscountCents + campaignDiscountCents + couponDiscountCents + pointsDiscountCents
+    memberDiscountCents +
+    campaignDiscountCents +
+    couponDiscountCents +
+    repurchaseDiscountCents +
+    pointsDiscountCents
   const totalCents = Math.max(0, subtotalCents + shippingFeeCents - totalDiscountCents)
   res.json({
     data: {
@@ -542,6 +598,7 @@ ordersRouter.post("/preview", optionalAuth, async (req, res) => {
       campaign_discount: campaignDiscountCents / 100,
       coupon_discount: couponDiscountCents / 100,
       coupon: couponPreviewInfo,
+      repurchase_coupon_discount: repurchaseDiscountCents / 100,
       discount_total: totalDiscountCents / 100,
       discounts,
       free_items: freeItems,
@@ -1010,17 +1067,28 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
     }
   }
 
+  const repurchase = await resolveRepurchaseCoupon(
+    userId,
+    cartItems as Array<{ product_slug?: string | null; unit_price: number; qty: number }>,
+  )
+  const repurchaseDiscountCents = repurchase ? Math.round(repurchase.discount * 100) : 0
+
   const totalCents = Math.max(
     0,
     subtotalCents
       - memberDiscountCents
       - campaignDiscountCents
       - couponDiscountCents
+      - repurchaseDiscountCents
       - pointsDiscountCents
       + shippingFeeCents,
   )
   const totalDiscount =
-    memberDiscountCents + campaignDiscountCents + couponDiscountCents + pointsDiscountCents
+    memberDiscountCents +
+    campaignDiscountCents +
+    couponDiscountCents +
+    repurchaseDiscountCents +
+    pointsDiscountCents
 
   // Atomically deduct stock BEFORE creating the order — single RPC that
   // locks all variants and either succeeds or rejects with insufficient_stock.
@@ -1123,6 +1191,20 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
       .insert({ coupon_id: appliedCouponId, user_id: userId ?? null, order_id: order.id })
     if (couponUseError) {
       console.error("[orders] insert coupon_uses failed (non-fatal):", couponUseError)
+    }
+  }
+
+  // 回購券一人一張、用過就沒了，所以在訂單成立後把它標記為已使用。
+  // 條件帶上 status='active'：同一張券同時被兩筆結帳用到時，只有一筆會更新到，
+  // 另一筆的折抵雖然已經算進金額，至少不會讓券被重複消耗而查不出來。
+  if (repurchase) {
+    const { error: couponErr } = await supabase
+      .from("member_coupons")
+      .update({ status: "used", used_order_id: order.id })
+      .eq("id", repurchase.couponId)
+      .eq("status", "active")
+    if (couponErr) {
+      console.error("[orders] 回購券標記已使用失敗（非致命）:", couponErr)
     }
   }
 

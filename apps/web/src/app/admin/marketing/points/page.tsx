@@ -36,6 +36,7 @@ const MARKETING_TABS = [
   { href: "/admin/marketing/tiers", label: "會員等級" },
   { href: "/admin/marketing/points", label: "點數規則" },
   { href: "/admin/marketing/share-reports", label: "分享回報" },
+  { href: "/admin/marketing/recall", label: "召回名單" },
 ]
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"

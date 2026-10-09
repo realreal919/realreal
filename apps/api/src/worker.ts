@@ -25,6 +25,7 @@ import { tierExpireQueue, tierExpireWorker } from "./workers/tier-expire"
 import { expireUnpaidOrdersQueue, expireUnpaidOrdersWorker, UNPAID_GRACE_HOURS } from "./workers/expire-unpaid-orders"
 import { completeShippedQueue, completeShippedWorker, AUTO_COMPLETE_DAYS } from "./workers/complete-shipped-orders"
 import { delistExpiredQueue, delistExpiredWorker } from "./workers/delist-expired-products"
+import { repurchaseReminderQueue, repurchaseReminderWorker } from "./workers/repurchase-reminder"
 
 const logger = pino({
   transport: process.env.NODE_ENV !== "production" ? { target: "pino-pretty" } : undefined,
@@ -85,7 +86,14 @@ async function registerSchedulers() {
     { pattern: "5 * * * *", tz: "Asia/Taipei" },
     { name: "delist", data: {} },
   )
-  logger.info(`Job schedulers registered (daily-billing 03:00, low-stock-check 09:00, daily-points-expire 03:00, daily-tier-expire 04:00, daily-complete-shipped 05:00 Asia/Taipei, expire-unpaid-orders hourly at :10, delist-expired hourly at :05, grace ${UNPAID_GRACE_HOURS}h, auto-complete ${AUTO_COMPLETE_DAYS}d)`)
+  // 回購提醒。10:00 而不是半夜 —— 這封信是要人看的，半夜寄進去會沉在
+  // 隔天早上一堆信的最下面。
+  await repurchaseReminderQueue.upsertJobScheduler(
+    "daily-repurchase-reminder",
+    { pattern: "0 10 * * *", tz: "Asia/Taipei" },
+    { name: "remind", data: {} },
+  )
+  logger.info(`Job schedulers registered (daily-billing 03:00, low-stock-check 09:00, daily-points-expire 03:00, daily-tier-expire 04:00, daily-complete-shipped 05:00 Asia/Taipei, expire-unpaid-orders hourly at :10, delist-expired hourly at :05, repurchase-reminder 10:00, grace ${UNPAID_GRACE_HOURS}h, auto-complete ${AUTO_COMPLETE_DAYS}d)`)
 }
 
 const workers = [
@@ -97,6 +105,7 @@ const workers = [
   { name: "expire-unpaid-orders", worker: expireUnpaidOrdersWorker },
   { name: "complete-shipped-orders", worker: completeShippedWorker },
   { name: "delist-expired-products", worker: delistExpiredWorker },
+  { name: "repurchase-reminder", worker: repurchaseReminderWorker },
 ]
 
 /**

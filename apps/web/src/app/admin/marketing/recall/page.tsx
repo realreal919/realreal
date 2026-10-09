@@ -1,5 +1,5 @@
 import { AdminTabs } from "../../_components/AdminTabs"
-import { ShareReportsClient } from "./_client"
+import { RecallClient } from "./_client"
 
 const MARKETING_TABS = [
   { href: "/admin/campaigns", label: "行銷活動" },
@@ -10,19 +10,20 @@ const MARKETING_TABS = [
   { href: "/admin/marketing/recall", label: "召回名單" },
 ]
 
-export const metadata = { title: "分享回報 | Admin" }
+export const metadata = { title: "召回名單 | Admin" }
 
-export default function AdminShareReportsPage() {
+export default function AdminRecallPage() {
   return (
     <div className="space-y-4">
       <AdminTabs tabs={MARKETING_TABS} />
       <div>
-        <h1 className="text-2xl font-bold text-[#10305a]">分享回報</h1>
+        <h1 className="text-2xl font-bold text-[#10305a]">召回名單（一次性）</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          會員回報的分享。點開連結或截圖確認後選類型，點數、每月上限與升等資格都自動算。
+          只買過一次、首購距今 15–90 天的會員。這裡只產名單，<strong>不會自動寄信</strong>
+          ——寄出後再按「標記為已寄出」，名單才會把他們移除。首購 14 天內的人不在這裡，自動回購提醒會接手。
         </p>
       </div>
-      <ShareReportsClient />
+      <RecallClient />
     </div>
   )
 }
