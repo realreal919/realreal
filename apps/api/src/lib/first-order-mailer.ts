@@ -32,11 +32,12 @@ export type SweepResult = { sent: number; skipped: number }
  *
  * send() 失敗不會中斷整批 —— 一個人的信寄不出去，不該讓後面的人也收不到。
  */
-export async function sweepFirstOrderMail({
+export async function sweepFirstOrderMail<T = void>({
   days,
   reminderType,
   lookbackDays = 120,
   now = new Date(),
+  prepare,
   send,
   label,
 }: {
@@ -47,7 +48,15 @@ export async function sweepFirstOrderMail({
   lookbackDays?: number
   now?: Date
   label: string
-  send: (c: FirstOrderCandidate) => Promise<void>
+  /**
+   * 寄信前要先準備的東西（例如發一張帶碼的回購券）。
+   *
+   * 刻意跑在寫 reminders 之前：它一旦失敗，這個人就跳過，而且沒有被
+   * 標記成「已提醒」—— 下次再跑還會被挑到。寫在後面的話，券發不出來
+   * 的人會永遠失去這封信，而且沒有任何地方看得出來。
+   */
+  prepare?: (c: FirstOrderCandidate) => Promise<T>
+  send: (c: FirstOrderCandidate, prepared: T) => Promise<void>
 }): Promise<SweepResult> {
   const since = new Date(now)
   since.setDate(since.getDate() - lookbackDays)
@@ -123,8 +132,28 @@ export async function sweepFirstOrderMail({
       continue
     }
 
-    // 先記 reminders 再寄信：唯一索引是唯一能擋「同一天跑兩次就寄兩封」的東西。
-    // 寄完才記的話，寄信成功但寫入失敗就會重寄，而客人已經收到了。
+    const candidate: FirstOrderCandidate = {
+      userId,
+      orderId: order.id,
+      orderNumber: order.order_number,
+      displayName: (profile as { display_name?: string } | null)?.display_name ?? "",
+      email,
+      dueAt,
+    }
+
+    // 先把要寄的東西準備好。失敗就跳過這個人，不寫 reminders ——
+    // 下次再跑時他還在名單上。
+    let prepared: T
+    try {
+      prepared = (prepare ? await prepare(candidate) : (undefined as T))
+    } catch (err) {
+      console.warn(`[${label}] 準備失敗，跳過且不標記 user=${userId}:`, err)
+      skipped++
+      continue
+    }
+
+    // 再記 reminders，最後寄信：唯一索引是唯一能擋「同一天跑兩次就寄兩封」
+    // 的東西。寄完才記的話，寄信成功但寫入失敗就會重寄，而客人已經收到了。
     const { error: remErr } = await supabase.from("reminders").insert({
       user_id: userId,
       source_order_id: order.id,
@@ -140,14 +169,7 @@ export async function sweepFirstOrderMail({
     }
 
     try {
-      await send({
-        userId,
-        orderId: order.id,
-        orderNumber: order.order_number,
-        displayName: (profile as { display_name?: string } | null)?.display_name ?? "",
-        email,
-        dueAt,
-      })
+      await send(candidate, prepared)
       sent++
     } catch (err) {
       console.warn(`[${label}] 寄信失敗 user=${userId}:`, err)

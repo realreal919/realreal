@@ -105,14 +105,16 @@ export const repurchaseReminderWorker = new Worker(
       reminderType: "auto",
       label: "repurchase-reminder",
       now,
-      send: async (c) => {
+      // 券先發，再寄信。券發不出來就不寄 —— 信上要印優惠碼，寫不出來的信不能寄。
+      // 放在 prepare 裡代表失敗時這個人不會被標成「已提醒」，明天還會再試。
+      prepare: async (c) => {
         const validUntil = new Date(now)
         validUntil.setDate(validUntil.getDate() + settings.couponValidDays)
-
         const code = await issueCoupon(c.userId, c.orderId, settings, validUntil)
-        // 券發不出來就不寄信 —— 信上要寫優惠碼，寫不出來的信不能寄
         if (!code) throw new Error("回購券發放失敗")
-
+        return { code, validUntil }
+      },
+      send: async (c, { code, validUntil }) => {
         await renderAndSendEmail({
           template: "repurchase-reminder",
           to: c.email,

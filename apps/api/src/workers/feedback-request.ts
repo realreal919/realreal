@@ -33,9 +33,9 @@ export const feedbackRequestWorker = new Worker(
       days,
       reminderType: "feedback",
       label: "feedback-request",
-      send: async (c) => {
-        // 配不到推薦碼時信裡只留「登入領取」的連結，不印一個空白的碼
-        const referralCode = await ensureReferralCode(c.userId).catch(() => null)
+      // 配不到推薦碼不是失敗：信裡只留「登入領取」的連結，照寄。
+      prepare: async (c) => ensureReferralCode(c.userId).catch(() => null),
+      send: async (c, referralCode) => {
         await renderAndSendEmail({
           template: "feedback-request",
           to: c.email,
