@@ -214,7 +214,7 @@ export const repurchaseReminderWorker = new Worker(
         // 不要寄一句按不下去的邀請出去
         const referralCode = await ensureReferralCode(userId).catch(() => null)
         await renderAndSendEmail({
-          template: "repurchase-reminder" as never,
+          template: "repurchase-reminder",
           to: email,
           data: {
             customerName: (profile as { display_name?: string } | null)?.display_name ?? "",
@@ -224,7 +224,7 @@ export const repurchaseReminderWorker = new Worker(
             referralCode,
             referralMinOrder: referral.minOrder,
             referralReward: referral.refereeReward,
-          } as never,
+          },
         })
         sent++
       } catch (err) {

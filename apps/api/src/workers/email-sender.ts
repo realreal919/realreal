@@ -22,7 +22,7 @@ export type EmailJobData =
   | { template: "order-shipped"; to: string; data: { orderNumber: string; customerName: string; codAmount?: number | null; pickupInfo?: string | null } }
   | { template: "payment-reminder"; to: string; data: { orderNumber: string; customerName: string; amount: string; items: Array<{ name: string; qty: number; price: string }>; pickupInfo: string; repayUrl: string } }
   | { template: "tier-upgrade"; to: string; data: { newTier: string; discountRate: number; perks: string[] } }
-  | { template: "repurchase-reminder"; to: string; data: { customerName: string; couponAmount: number; validDays: number; validUntil: string } }
+  | { template: "repurchase-reminder"; to: string; data: { customerName: string; couponAmount: number; validDays: number; validUntil: string; referralCode?: string | null; referralMinOrder?: number; referralReward?: number } }
   | { template: "tier-renewed"; to: string; data: { tierName: string; newExpiresAt: string; perks: string[] } }
   | { template: "tier-downgraded"; to: string; data: { fromTier: string; toTier: string; nextRequalifyAmount: number; toPerks: string[] } }
   | { template: "subscription-billed"; to: string; data: { planName: string; amount: string; nextBillingDate: string; orderNumber: string } }
@@ -158,7 +158,7 @@ export async function renderAndSendEmail(jobData: EmailJobData): Promise<void> {
       break
     case "repurchase-reminder":
       subject = "差不多該補貨了，附一張夾鏈袋折價券"
-      html = renderRepurchaseReminder(data as never)
+      html = renderRepurchaseReminder(data as Parameters<typeof renderRepurchaseReminder>[0])
       break
     case "tier-renewed":
       subject = `恭喜續約 ${data.tierName} 等級`
