@@ -19,6 +19,7 @@ const MARKETING_TABS = [
   { href: "/admin/coupons", label: "優惠券" },
   { href: "/admin/marketing/tiers", label: "會員等級" },
   { href: "/admin/marketing/points", label: "點數規則" },
+  { href: "/admin/marketing/share-reports", label: "分享回報" },
 ]
 
 /* ------------------------------------------------------------------ */

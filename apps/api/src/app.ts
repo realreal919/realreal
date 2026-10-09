@@ -13,6 +13,7 @@ import healthRouter from "./routes/health"
 import { contactRouter } from "./routes/contact"
 import { configRouter } from "./routes/config"
 import { shareReportsRouter } from "./routes/share-reports"
+import { adminShareReportsRouter } from "./routes/admin-share-reports"
 import { categoriesRouter, categoriesAdminRouter } from "./routes/categories"
 import { productsRouter, productsAdminRouter } from "./routes/products"
 import { variantsRouter, variantPricesRouter } from "./routes/variants"
@@ -99,6 +100,7 @@ app.use("/webhooks/amego", amegoWebhookRouter)
 app.use("/admin/orders", adminOrdersRouter)
 app.use("/admin/wholesale", adminWholesaleRouter)
 app.use("/admin/settings", adminSettingsRouter)
+app.use("/admin/share-reports", adminShareReportsRouter)
 app.use("/admin/team", adminTeamRouter)
 app.use("/admin/customers", adminCustomersRouter)
 app.use("/auth/legacy", authLegacyRouter)
