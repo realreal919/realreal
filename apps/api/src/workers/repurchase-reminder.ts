@@ -23,6 +23,7 @@ import {
   type ReminderDays,
 } from "../lib/repurchase-coupon"
 import { renderAndSendEmail } from "./email-sender"
+import { ensureReferralCode, loadReferralSettings } from "../lib/referral-service"
 
 const connection = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379", {
   maxRetriesPerRequest: null,
@@ -80,6 +81,7 @@ export const repurchaseReminderWorker = new Worker(
 
     const now = new Date()
     const settings = await loadReminderSettings()
+    const referral = await loadReferralSettings()
     const { triggerSlugs } = await loadScoopGiftConfig(getSetting)
 
     // 只看最近 60 天的已出貨／已完成訂單。再早的不是首購提醒的對象，
@@ -208,6 +210,9 @@ export const repurchaseReminderWorker = new Worker(
           skipped++
           continue
         }
+        // 推薦碼配不到時留 null，信裡那段會整段不出現 ——
+        // 不要寄一句按不下去的邀請出去
+        const referralCode = await ensureReferralCode(userId).catch(() => null)
         await renderAndSendEmail({
           template: "repurchase-reminder" as never,
           to: email,
@@ -216,6 +221,9 @@ export const repurchaseReminderWorker = new Worker(
             couponAmount: settings.couponAmount,
             validDays: settings.couponValidDays,
             validUntil: validUntil.toISOString().slice(0, 10),
+            referralCode,
+            referralMinOrder: referral.minOrder,
+            referralReward: referral.refereeReward,
           } as never,
         })
         sent++

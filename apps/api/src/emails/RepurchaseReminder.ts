@@ -9,8 +9,22 @@ export function renderRepurchaseReminder(data: {
   couponAmount: number
   validDays: number
   validUntil: string
+  /** 推薦碼。配不到碼時省略整段，不要留一句按不下去的邀請。 */
+  referralCode?: string | null
+  referralMinOrder?: number
+  referralReward?: number
 }): string {
   const hi = data.customerName ? `${data.customerName} 您好，` : "您好，"
+
+  // 只加一行。這封信只有一個任務——讓人下第二張單；再加「給我們回饋」
+  // 「你有這些權益」就是一封信四個請求，通常一個都不會做。
+  const referralBlock = data.referralCode
+    ? `<p style="background:#f6f8fa;border-radius:10px;padding:14px 16px;font-size:14px;color:#10305a">
+         順手一提：把你的推薦碼 <strong>${data.referralCode}</strong> 給朋友，
+         他第一次購物折扣前滿 ${data.referralMinOrder ?? 650} 元，
+         他得 ${data.referralReward ?? 50} 元購物金，你得 ${data.referralReward ?? 50} 元公益存款回饋金。
+       </p>`
+    : ""
   return `
   <div style="font-family:-apple-system,'PingFang TC','Noto Sans TC',sans-serif;line-height:1.9;color:#10305a;max-width:560px;margin:0 auto;padding:24px">
     <p>${hi}</p>
@@ -24,6 +38,7 @@ export function renderRepurchaseReminder(data: {
         去逛逛
       </a>
     </p>
+${referralBlock}
     <p style="color:#687279;font-size:14px">
       如果這陣子還不需要，忽略這封信就好。不想再收到這類提醒的話，
       到會員中心把行銷訊息關掉，我們就不會再寄。

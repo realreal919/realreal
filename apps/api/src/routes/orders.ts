@@ -36,7 +36,9 @@ import {
 } from "../lib/addon-pricing"
 import { isHiddenVariant } from "../lib/variant-order"
 import { loadScoopGiftConfig, scoopGiftApplies } from "../lib/scoop-gift"
-import { applyRepurchaseCoupon, type CouponCartItem } from "../lib/repurchase-coupon"
+import { applyMemberCoupon, type CouponCartItem } from "../lib/repurchase-coupon"
+import { normalizeCode } from "../lib/referral"
+import { resolveReferrer } from "../lib/referral-service"
 import { getSetting } from "../lib/settings"
 
 export const ordersRouter = Router()
@@ -60,16 +62,22 @@ async function resolveRepurchaseCoupon(
 ): Promise<{ couponId: string; discount: number } | null> {
   if (!userId) return null
   try {
+    // 回購券跟推薦購物金都是「發給個人、不用輸入代碼」的會員券，一次全拿出來比。
     const { data } = await supabase
       .from("member_coupons")
-      .select("id, amount, valid_until, status")
+      .select("id, type, amount, valid_until, status")
       .eq("user_id", userId)
-      .eq("type", "repurchase")
       .eq("status", "active")
       .order("valid_until", { ascending: true })
-      .limit(1)
-      .maybeSingle()
-    if (!data) return null
+      .limit(10)
+    const rows = (data ?? []) as Array<{
+      id: string
+      type: string
+      amount: number
+      valid_until: string
+      status: string
+    }>
+    if (rows.length === 0) return null
 
     const cfg = await loadScoopGiftConfig(getSetting)
     const items: CouponCartItem[] = cartItems.map((i) => ({
@@ -77,15 +85,20 @@ async function resolveRepurchaseCoupon(
       line_total: i.unit_price * i.qty,
       qty: i.qty,
     }))
-    const r = applyRepurchaseCoupon({
-      coupon: data as { id: string; amount: number; valid_until: string; status: string },
-      items,
-      zipbagSlugs: cfg.triggerSlugs,
-    })
-    return r.applicable ? { couponId: r.couponId, discount: r.discount } : null
+
+    // 一次只用一張，折最多的那張。兩張一起折會讓一筆 650 元的單折掉 100，
+    // 那不是任何一檔活動答應過的事。沒用到的那張留著，下一單還在。
+    let best: { couponId: string; discount: number } | null = null
+    for (const row of rows) {
+      const r = applyMemberCoupon({ coupon: row, items, zipbagSlugs: cfg.triggerSlugs })
+      if (r.applicable && (!best || r.discount > best.discount)) {
+        best = { couponId: r.couponId, discount: r.discount }
+      }
+    }
+    return best
   } catch (err) {
     // 券算不出來不該擋住結帳 —— 少折 50 元客人會問，訂單下不了更嚴重。
-    console.warn("[repurchase-coupon] 判斷失敗（不影響結帳）:", err)
+    console.warn("[member-coupon] 判斷失敗（不影響結帳）:", err)
     return null
   }
 }
@@ -275,6 +288,7 @@ const createOrderSchema = z.object({
   points_used: z.number().int().min(0).optional(),
   invoice: invoiceSchema.optional(),
   notes: z.string().max(500).optional().nullable(),
+  referralCode: z.string().max(32).optional().nullable(),
 })
 
 // POST /orders/preview — price-only preview (subtotal + campaigns + total).
@@ -624,6 +638,7 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
   const { items, address, shippingMethod, paymentMethod, guestEmail, invoice, notes } = parsed.data
   let { couponCode } = parsed.data
 
+
   // 收件人姓名須為完整真實姓名（與證件相同），非超商取貨規則之外的業務要求，
   // 目的是避免超商取貨到店因姓名與證件不符被拒領。適用所有配送方式。
   const realNameErr = validateRealName(address.name)
@@ -652,6 +667,25 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
     })
     if (matchedId) {
       userId = matchedId as string
+    }
+  }
+
+  // 推薦碼→推薦人。只存「誰推薦的」，成不成立、發不發獎勵等付款後再算。
+  // 訪客不記 —— 獎勵要發到帳號裡，沒帳號就沒有收件人。
+  // 自己填自己的碼在這裡就不記，不要讓訂單帶著一個永遠不會成立的推薦。
+  let referralCodeUsed: string | null = null
+  let referredBy: string | null = null
+  if (userId && parsed.data.referralCode) {
+    try {
+      const code = normalizeCode(parsed.data.referralCode)
+      const who = code ? await resolveReferrer(code) : null
+      if (code && who && who !== userId) {
+        referralCodeUsed = code
+        referredBy = who
+      }
+    } catch (err) {
+      // 推薦碼查不出來不該擋住結帳
+      console.warn("[referral] 訂單建立時解析推薦碼失敗（不影響結帳）:", err)
     }
   }
 
@@ -1126,6 +1160,11 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
       points_used: pointsUsed,
       attributed_kol_id: attributedKolId,
       attributed_kol_slug: attributedKolSlug,
+      referral_code_used: referralCodeUsed,
+      referred_by: referredBy,
+      // pending = 「帶了推薦碼，還沒結算」。真正的資格判斷在付款後做 ——
+      // 下單當下就發獎勵的話，沒付款的單也會發
+      referral_status: referredBy ? "pending" : null,
       notes: notes ?? null,
       metadata: (couponCode || invoice)
         ? {

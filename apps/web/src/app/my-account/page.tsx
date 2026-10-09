@@ -11,6 +11,7 @@ import {
   type SubscriptionRow,
 } from "./_components/SubscriptionsSection"
 import { AccountSettingsSection } from "./_components/AccountSettingsSection"
+import { ReferralCard } from "./_components/ReferralCard"
 
 export const metadata = { title: "我的帳戶 | 誠真生活 RealReal" }
 
@@ -147,6 +148,8 @@ export default async function MyAccountPage({
           告訴我們你的分享
         </Link>
       </section>
+
+      <ReferralCard />
 
       <RecentOrdersSection orders={recentOrders} />
 

@@ -3,6 +3,7 @@ import { Suspense } from "react"
 import { Toaster } from "@/components/ui/sonner"
 import { StorefrontShell } from "@/components/layout/StorefrontShell"
 import { KolRefCapture } from "@/components/KolRefCapture"
+import { ReferralCapture } from "@/components/ReferralCapture"
 import { Analytics } from "@/components/Analytics"
 import { getCategories } from "@/lib/catalog"
 import { createClient } from "@/lib/supabase/server"
@@ -84,6 +85,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Analytics />
         <Suspense fallback={null}>
           <KolRefCapture />
+          <ReferralCapture />
         </Suspense>
         <StorefrontShell categories={categories} headerUser={headerUser}>
           {children}

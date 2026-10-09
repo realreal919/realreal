@@ -5,6 +5,7 @@ import { incrementSpendAndUpgrade } from "./tier"
 import { inventoryQueue, invoiceQueue } from "./queue"
 import { getSetting } from "./settings"
 import { grantPoints, redeemPoints } from "./points"
+import { settleReferralForOrder } from "./referral-service"
 import { renderMembershipCta } from "../emails/membership-cta"
 
 /** Escape customer-supplied values before interpolating them into admin email HTML. */
@@ -420,6 +421,16 @@ export async function enqueuePostPaymentJobs(
       }
     } catch (err) {
       console.warn("[post-payment] points grant/redeem failed (non-fatal):", err)
+    }
+
+    // 推薦獎勵。跟消費累積、公益存款同一個時間點 —— 不是因為這裡最安全，
+    // 而是因為這是站上「這筆錢算數了」唯一的定義。改到到貨才發會跟其他部分的時間
+    // 基準對不上，對帳時沒人說得出哪個才對。
+    try {
+      const r = await settleReferralForOrder(orderId)
+      if (r.granted) console.log(`[post-payment] 推薦獎勵已發放 order=${orderId}`)
+    } catch (err) {
+      console.warn("[post-payment] 推薦獎勵結算失敗（不影響訂單）:", err)
     }
   }
 }

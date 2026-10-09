@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { readReferralCookie } from "@/lib/referral-code"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
@@ -454,6 +455,8 @@ export default function PaymentPage() {
           couponCode: couponApplied ? couponCode : undefined,
           points_used: pointsUsed,
           notes: checkoutData.notes || undefined,
+          // 朋友的邀請碼（?invite=）。後端會再驗一次，這裡只負責帶過去。
+          referralCode: readReferralCookie() ?? undefined,
         }),
       })
 

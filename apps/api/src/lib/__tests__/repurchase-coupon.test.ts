@@ -6,6 +6,7 @@
  */
 import { describe, it, expect } from "vitest"
 import {
+  applyMemberCoupon,
   applyRepurchaseCoupon,
   reminderDueAt,
   reminderKindFor,
@@ -151,5 +152,57 @@ describe("reminderDueAt", () => {
     expect(
       reminderDueAt({ shippedAt: null, deliveredAt: null, kind: "sachet", days, shipToArrivalDays: 3 }),
     ).toBeNull()
+  })
+})
+
+describe("applyMemberCoupon — 推薦購物金", () => {
+  const base = {
+    id: "c1",
+    type: "referral",
+    amount: 50,
+    valid_until: new Date(Date.now() + 86_400_000).toISOString(),
+    status: "active",
+  }
+  const zipbagSlugs = ["protein-5pack"]
+
+  it("★ 推薦購物金全站可用 —— 不像回購券限夾鏈袋", () => {
+    const r = applyMemberCoupon({
+      coupon: base,
+      items: [{ product_slug: "measuring-spoon", line_total: 200, qty: 1 }],
+      zipbagSlugs,
+    })
+    expect(r).toMatchObject({ applicable: true, discount: 50 })
+  })
+
+  it("小計不到面額時只折到歸零，不會折成負的", () => {
+    const r = applyMemberCoupon({
+      coupon: base,
+      items: [{ product_slug: "x", line_total: 30, qty: 1 }],
+      zipbagSlugs,
+    })
+    expect(r).toMatchObject({ applicable: true, discount: 30 })
+  })
+
+  it("過期或已使用都不能折", () => {
+    const expired = { ...base, valid_until: new Date(Date.now() - 1000).toISOString() }
+    expect(
+      applyMemberCoupon({ coupon: expired, items: [{ line_total: 500, qty: 1 }], zipbagSlugs }),
+    ).toMatchObject({ applicable: false })
+    expect(
+      applyMemberCoupon({
+        coupon: { ...base, status: "used" },
+        items: [{ line_total: 500, qty: 1 }],
+        zipbagSlugs,
+      }),
+    ).toMatchObject({ applicable: false })
+  })
+
+  it("★ 回購券的限制不變 —— 沒有夾鏈袋就不能折", () => {
+    const r = applyMemberCoupon({
+      coupon: { ...base, type: "repurchase" },
+      items: [{ product_slug: "measuring-spoon", line_total: 200, qty: 1 }],
+      zipbagSlugs,
+    })
+    expect(r).toMatchObject({ applicable: false })
   })
 })

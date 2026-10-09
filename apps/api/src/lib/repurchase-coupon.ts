@@ -72,6 +72,50 @@ export function applyRepurchaseCoupon({
   return { applicable: true, couponId: coupon.id, discount: Math.min(amount, eligible) }
 }
 
+/**
+ * 會員券的種類，決定「能折在哪些品項上」。
+ *   repurchase —— 回購券，只折夾鏈袋
+ *   referral   —— 推薦新朋友的購物金，全站可用
+ *
+ * 推薦購物金不限品項是刻意的：那 50 元是給新朋友的見面禮，限制品項等於要他
+ * 先學會我們的商品分類才用得掉。回購券限夾鏈袋則是因為它的目的就是推回購。
+ */
+export type MemberCouponType = "repurchase" | "referral"
+
+/**
+ * 這張會員券現在能折多少。到期、已使用、可折範圍都在這裡判斷。
+ *
+ * 同時握有回購券與推薦購物金時由呼叫端挑一張 —— 兩張一起折會讓一筆 650 元的
+ * 單折掉 100，那不是任何一檔活動答應過的事。
+ */
+export function applyMemberCoupon({
+  coupon,
+  items,
+  zipbagSlugs,
+  now = new Date(),
+}: {
+  coupon: (RepurchaseCoupon & { type?: string }) | null | undefined
+  items: CouponCartItem[]
+  zipbagSlugs: string[]
+  now?: Date
+}): CouponApplication {
+  if (coupon?.type === "referral") {
+    if (!coupon) return { applicable: false, reason: "沒有可用的購物金" }
+    if (coupon.status !== "active") return { applicable: false, reason: "這筆購物金已經使用過了" }
+    const until = new Date(coupon.valid_until)
+    if (Number.isNaN(until.getTime())) return { applicable: false, reason: "購物金的有效期限不正確" }
+    if (until.getTime() < now.getTime()) return { applicable: false, reason: "購物金已過期" }
+
+    const subtotal = items.reduce((s, i) => s + (Number(i.line_total) || 0), 0)
+    if (subtotal <= 0) return { applicable: false, reason: "購物車是空的" }
+    const amount = Number(coupon.amount) || 0
+    if (amount <= 0) return { applicable: false, reason: "購物金金額不正確" }
+    // 折不到負的：小計不到面額時只折到歸零
+    return { applicable: true, couponId: coupon.id, discount: Math.min(amount, subtotal) }
+  }
+  return applyRepurchaseCoupon({ coupon, items, zipbagSlugs, now })
+}
+
 /** 提醒天數：依首購的主要品項決定。 */
 export type ReminderKind = "sachet" | "jar_old" | "jar_new"
 
