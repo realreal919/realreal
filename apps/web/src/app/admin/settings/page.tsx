@@ -183,10 +183,10 @@ const FIELD_META: Record<
   "repurchase.reminder_days_jar_old": { label: "提醒天數：舊版夾鏈袋", placeholder: "3" },
   "repurchase.reminder_days_jar_new": { label: "提醒天數：新版夾鏈袋 450g", placeholder: "6" },
   // 推薦好友
-  "referral.min_order": { label: "推薦成立門檻 NT$", placeholder: "600", hint: "被推薦人首購的折前金額" },
-  "referral.reward": { label: "推薦獎勵 NT$", placeholder: "50", hint: "雙方各得，記入公益存款" },
-  "referral.points": { label: "推薦互動點數", placeholder: "5", hint: "只記在後台，不顯示給會員" },
-  "referral.monthly_budget": { label: "推薦獎勵每月預算 NT$", placeholder: "2000", hint: "超過的留在待確認佇列，順延下月" },
+  "referral.min_order": { label: "推薦成立門檻 NT$", placeholder: "650", hint: "新朋友首購的「折扣前」金額" },
+  "referral.reward": { label: "推薦獎勵 NT$", placeholder: "50", hint: "雙方各得：新朋友得購物金（下一單可折），推薦人得公益存款" },
+  "referral.points": { label: "推薦互動點數", placeholder: "5", hint: "知心升等用的點數，跟上面的 50 元獎勵無關" },
+  "referral.monthly_budget": { label: "推薦獎勵每月上限（組）", placeholder: "0", hint: "每月最多成立幾組。填 0 代表不限" },
   // Contact
   "contact.email": { label: "客服 Email", placeholder: "love@realreal.cc" },
 }

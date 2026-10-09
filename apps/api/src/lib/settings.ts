@@ -288,7 +288,7 @@ export const SECTIONS: Record<string, { label: string; keys: string[] }> = {
     ],
   },
   referral: {
-    label: "推薦好友（功能尚未上線）",
+    label: "推薦好友",
     keys: [
       "referral.min_order",
       "referral.reward",

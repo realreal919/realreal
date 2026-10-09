@@ -18,16 +18,19 @@ function num(raw: string | null, fallback: number): number {
 }
 
 export async function loadReferralSettings(): Promise<ReferralSettings> {
-  const [minOrder, reward, points, budget] = await Promise.all([
+  const [minOrder, reward, budget] = await Promise.all([
     getSetting("referral.min_order"),
     getSetting("referral.reward"),
-    getSetting("referral.points"),
     getSetting("referral.monthly_budget"),
   ])
+  // 雙方同額，所以兩邊讀同一個設定。刻意不用 referral.points —— 那一個是
+  // 知心升等用的互動點數（interactions.ts 裡的 referral: 5 點），跟這裡的
+  // 「50 元公益存款」是兩件事，共用一個設定會讓店主改一邊動到另一邊。
+  const amount = num(reward, DEFAULT_REFERRAL_SETTINGS.refereeReward)
   return {
     minOrder: num(minOrder, DEFAULT_REFERRAL_SETTINGS.minOrder),
-    refereeReward: num(reward, DEFAULT_REFERRAL_SETTINGS.refereeReward),
-    referrerPoints: num(points, DEFAULT_REFERRAL_SETTINGS.referrerPoints),
+    refereeReward: amount,
+    referrerPoints: amount,
     monthlyBudget: num(budget, DEFAULT_REFERRAL_SETTINGS.monthlyBudget),
   }
 }
