@@ -154,13 +154,14 @@ export const repurchaseReminderWorker = new Worker(
         continue
       }
 
-      // 唯一索引擋重複，但先查一次可以少打一次失敗的 insert
+      // 唯一索引擋重複，但先查一次可以少打一次失敗的 insert。
+      // 不限 type：一次性召回名單（manual_batch）寄過的人也要跳過，
+      // 否則店主剛手動寄完，隔天這支又自動寄一封。
       const { count: already } = await supabase
         .from("reminders")
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId)
         .eq("source_order_id", order.id)
-        .eq("type", "auto")
       if ((already ?? 0) > 0) {
         skipped++
         continue

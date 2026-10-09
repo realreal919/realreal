@@ -75,12 +75,9 @@ async function buildList(now: Date): Promise<RecallCandidate[]> {
       .from("user_profiles")
       .select("user_id, display_name, marketing_opt_out")
       .in("user_id", userIds),
-    // 已經寄過這次召回的人不再出現在名單上 —— 每人只發一次，之後走正常提醒
-    supabase
-      .from("reminders")
-      .select("user_id")
-      .eq("type", "manual_batch")
-      .in("user_id", userIds),
+    // 提醒過的人不再出現在名單上 —— 每人只發一次，之後走正常提醒流程。
+    // 不限 type：自動提醒已經寄出的人也不該再收到召回信，那是同一件事講兩次。
+    supabase.from("reminders").select("user_id").in("user_id", userIds),
   ])
 
   const profile = new Map(
