@@ -19,6 +19,27 @@ const THANKS_VALID_DAYS = 60
 type Recipient = { userId: string; email: string; displayName: string }
 
 /**
+ * 寄送服務的每日額度。超過之後它會照收 API 請求（回 200）卻不投遞 ——
+ * 程式這邊看起來都是成功，券照發，而收件人什麼都沒收到。
+ * 所以額度要在我們這邊擋，不能依賴對方回錯。留 10 封給訂單確認、發票等
+ * 交易信 —— 行銷信把額度吃光的話，客人付完款收不到確認信。
+ */
+const DAILY_SEND_CAP = 90
+
+/** 今天（台灣時間）已經發出幾封廣播信。感謝券的建立時間就是記錄。 */
+async function sentToday(): Promise<number> {
+  const tw = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei" }).format(new Date())
+  // 台灣時間的今日 00:00 = UTC 前一天 16:00
+  const start = new Date(`${tw}T00:00:00+08:00`)
+  const { count } = await supabase
+    .from("member_coupons")
+    .select("id", { count: "exact", head: true })
+    .eq("type", "thanks")
+    .gte("created_at", start.toISOString())
+  return count ?? 0
+}
+
+/**
  * 會員制度更新通知信的收件名單。
  *
  * 寄給「有帳號、沒退訂行銷、還沒拿過感謝券」的人。不限有沒有買過 ——
@@ -59,6 +80,38 @@ async function buildRecipients(): Promise<{ list: Recipient[]; alreadySent: numb
   return { list, alreadySent: sent.size }
 }
 
+/**
+ * 補寄的對象：這些 email 對應的會員，而且已經有感謝券。
+ *
+ * 寄送服務超額時會回 200 卻不投遞，所以會出現「有券、沒收到信」的人。
+ * 他們已經不在待寄名單上（券就是寄過的憑據），所以要一條別的路。
+ */
+async function resendTargets(emails: string[]): Promise<Recipient[]> {
+  const wanted = new Set(emails.map((e) => e.toLowerCase()))
+  const { data: authList } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 })
+  const byId = new Map<string, string>()
+  for (const u of authList?.users ?? []) {
+    if (u.email && wanted.has(u.email.toLowerCase())) byId.set(u.id, u.email)
+  }
+  if (byId.size === 0) return []
+
+  const ids = [...byId.keys()]
+  const [{ data: coupons }, { data: profiles }] = await Promise.all([
+    supabase.from("member_coupons").select("user_id").eq("type", "thanks").in("user_id", ids),
+    supabase.from("user_profiles").select("user_id, display_name").in("user_id", ids),
+  ])
+  const hasCoupon = new Set(((coupons ?? []) as Array<{ user_id: string }>).map((c) => c.user_id))
+  const names = new Map(
+    ((profiles ?? []) as Array<{ user_id: string; display_name: string | null }>).map((p) => [
+      p.user_id,
+      p.display_name ?? "",
+    ]),
+  )
+  return ids
+    .filter((id) => hasCoupon.has(id))
+    .map((id) => ({ userId: id, email: byId.get(id) as string, displayName: names.get(id) ?? "" }))
+}
+
 async function issueThanksCoupon(userId: string, validUntil: Date): Promise<string | null> {
   for (let attempt = 0; attempt < 8; attempt++) {
     const code = generateCouponCode("TK")
@@ -87,9 +140,13 @@ async function issueThanksCoupon(userId: string, validUntil: Date): Promise<stri
 adminBroadcastRouter.get("/membership-update", async (_req, res) => {
   try {
     const { list, alreadySent } = await buildRecipients()
+    const today = await sentToday()
     res.json({
       pending: list.length,
       already_sent: alreadySent,
+      sent_today: today,
+      daily_cap: DAILY_SEND_CAP,
+      remaining_today: Math.max(0, DAILY_SEND_CAP - today),
       coupon: {
         amount: THANKS_AMOUNT,
         min_order: THANKS_MIN_ORDER,
@@ -108,6 +165,11 @@ const sendSchema = z.object({
   only: z.array(z.string().email()).max(20).optional(),
   /** 這一批最多寄幾封。分批寄，寄件聲譽比較穩。 */
   limit: z.number().int().min(1).max(500).optional(),
+  /**
+   * 補寄。搭配 only 使用：對「已經有券、但沒收到信」的人重寄一次。
+   * 會沿用他原本那張券，不發第二張。
+   */
+  resend: z.boolean().optional(),
   /** 必須明確帶 true 才會真的寄。 */
   confirm: z.literal(true),
 })
@@ -124,18 +186,45 @@ adminBroadcastRouter.post("/membership-update", async (req, res) => {
     res.status(400).json({ error: "請確認寄送參數（需要 confirm: true）" })
     return
   }
-  const { only, limit = 50 } = parsed.data
+  const { only, limit = 50, resend } = parsed.data
+
+  if (resend && !only) {
+    res.status(400).json({ error: "補寄必須指定收件人（only）" })
+    return
+  }
 
   try {
-    const { list } = await buildRecipients()
-    const targets = only
-      ? list.filter((r) => only.includes(r.email.toLowerCase()))
-      : list.slice(0, limit)
-
-    if (only && targets.length === 0) {
-      res.status(400).json({ error: "指定的 email 不在待寄名單上（可能已經寄過或已退訂）" })
+    // 每日額度擋在我們這邊。寄送服務超額時會照收請求卻不投遞，
+    // 程式看起來全部成功、券照發，而收件人什麼都沒收到。
+    const used = await sentToday()
+    const budget = Math.max(0, DAILY_SEND_CAP - used)
+    if (budget === 0) {
+      res.status(429).json({
+        error: `今日寄送額度已用完（已寄 ${used} 封，上限 ${DAILY_SEND_CAP}），明天再繼續。`,
+        sent_today: used,
+      })
       return
     }
+
+    const { list } = await buildRecipients()
+    let targets: Recipient[]
+    if (resend) {
+      targets = await resendTargets(only ?? [])
+      if (targets.length === 0) {
+        res.status(400).json({ error: "這些 email 沒有找到已發出的感謝券，沒有可補寄的對象" })
+        return
+      }
+    } else if (only) {
+      targets = list.filter((r) => only.includes(r.email.toLowerCase()))
+      if (targets.length === 0) {
+        res.status(400).json({ error: "指定的 email 不在待寄名單上（可能已經寄過或已退訂）" })
+        return
+      }
+    } else {
+      targets = list.slice(0, limit)
+    }
+
+    if (targets.length > budget) targets = targets.slice(0, budget)
 
     const rebate = Number(await getSetting("membership.rebate_percent")) || 3
     const referral = await loadReferralSettings()
@@ -143,11 +232,25 @@ adminBroadcastRouter.post("/membership-update", async (req, res) => {
     let sent = 0
     const failed: string[] = []
     for (const r of targets) {
-      const validUntil = new Date()
-      validUntil.setDate(validUntil.getDate() + THANKS_VALID_DAYS)
-
-      // 先發券。發不出來就不寄 —— 信上要印優惠碼，也代表這個人已經寄過了。
-      const code = await issueThanksCoupon(r.userId, validUntil)
+      let code: string | null
+      let validUntil: Date
+      if (resend) {
+        // 補寄沿用原本那張券，不發第二張 —— 人沒收到信，不代表券沒發
+        const { data: existing } = await supabase
+          .from("member_coupons")
+          .select("code, valid_until")
+          .eq("user_id", r.userId)
+          .eq("type", "thanks")
+          .maybeSingle()
+        const row = existing as { code: string | null; valid_until: string } | null
+        code = row?.code ?? null
+        validUntil = row ? new Date(row.valid_until) : new Date()
+      } else {
+        validUntil = new Date()
+        validUntil.setDate(validUntil.getDate() + THANKS_VALID_DAYS)
+        // 先發券。發不出來就不寄 —— 信上要印優惠碼，也代表這個人已經寄過了。
+        code = await issueThanksCoupon(r.userId, validUntil)
+      }
       if (!code) {
         failed.push(r.email)
         continue
@@ -177,13 +280,16 @@ adminBroadcastRouter.post("/membership-update", async (req, res) => {
         // 券是「這個人寄過了」的憑據，信沒寄成就要把它收回來，
         // 否則這個人永遠不會再被名單挑到 —— 手上有券、卻沒收過信，
         // 而且沒有任何地方看得出來。收回之後下一批會自動重試。
-        console.error(`[broadcast] 寄信失敗，收回感謝券後繼續 ${r.email}:`, err)
-        await supabase
-          .from("member_coupons")
-          .delete()
-          .eq("user_id", r.userId)
-          .eq("type", "thanks")
-          .eq("status", "active")
+        console.error(`[broadcast] 寄信失敗 ${r.email}:`, err)
+        // 補寄失敗不動券 —— 那張券本來就存在，跟這次寄不寄得成無關
+        if (!resend) {
+          await supabase
+            .from("member_coupons")
+            .delete()
+            .eq("user_id", r.userId)
+            .eq("type", "thanks")
+            .eq("status", "active")
+        }
         failed.push(r.email)
       }
 
@@ -192,7 +298,14 @@ adminBroadcastRouter.post("/membership-update", async (req, res) => {
     }
 
     const { list: rest } = await buildRecipients()
-    res.json({ sent, failed, remaining: rest.length })
+    const after = await sentToday()
+    res.json({
+      sent,
+      failed,
+      remaining: rest.length,
+      sent_today: after,
+      remaining_today: Math.max(0, DAILY_SEND_CAP - after),
+    })
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : "寄送失敗" })
   }
