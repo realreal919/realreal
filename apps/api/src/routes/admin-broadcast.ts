@@ -28,6 +28,15 @@ type Recipient = { userId: string; email: string; displayName: string }
  * 通知、出貨通知約 3 封；單日新註冊最多 6 人。最忙的一天大約要 40 封，
  * 所以留 40 封。升級付費方案後可以在後台把這個數字調高。
  */
+/**
+ * 「已寄過更正信」記在感謝券的 note 上，後面接台灣日期。
+ *
+ * 廣播沒有訂單可挂，reminders.source_order_id 又是 not null，而這 151 個人
+ * 每人本來就有一張感謝券 —— 與其為了一次性的更正另外建表（又要請店主跑一次
+ * SQL），不如在既有的那一列上做記號。帶日期是為了讓每日用量數得到它。
+ */
+const CORRECTION_MARK = "｜已寄更正信"
+
 const DEFAULT_DAILY_SEND_CAP = 60
 
 async function dailySendCap(): Promise<number> {
@@ -38,16 +47,34 @@ async function dailySendCap(): Promise<number> {
 }
 
 /** 今天（台灣時間）已經發出幾封廣播信。感謝券的建立時間就是記錄。 */
+function twToday(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei" }).format(new Date())
+}
+
+/**
+ * 今天（台灣時間）已經發出幾封廣播信。
+ *
+ * 兩種都要算：通知信（會建一張感謝券）與更正信（不建券，只在券的
+ * note 上記日期）。只數券的話，寄完 60 封更正信後計數器還是 0，
+ * 系統會放你再寄 60 封通知信 —— 加起來超過寄送服務的每日上限，
+ * 而被撠掉的會是排在後面的訂單確認信。
+ */
 async function sentToday(): Promise<number> {
-  const tw = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei" }).format(new Date())
-  // 台灣時間的今日 00:00 = UTC 前一天 16:00
-  const start = new Date(`${tw}T00:00:00+08:00`)
-  const { count } = await supabase
-    .from("member_coupons")
-    .select("id", { count: "exact", head: true })
-    .eq("type", "thanks")
-    .gte("created_at", start.toISOString())
-  return count ?? 0
+  const today = twToday()
+  const start = new Date(`${today}T00:00:00+08:00`)
+  const [{ count: issued }, { count: corrected }] = await Promise.all([
+    supabase
+      .from("member_coupons")
+      .select("id", { count: "exact", head: true })
+      .eq("type", "thanks")
+      .gte("created_at", start.toISOString()),
+    supabase
+      .from("member_coupons")
+      .select("id", { count: "exact", head: true })
+      .eq("type", "thanks")
+      .like("note", `%${CORRECTION_MARK} ${today}%`),
+  ])
+  return (issued ?? 0) + (corrected ?? 0)
 }
 
 /**
@@ -329,15 +356,6 @@ adminBroadcastRouter.post("/membership-update", async (req, res) => {
 /** 原信寄出的日期，印在更正信裡。 */
 const CORRECTION_ORIGINAL_SENT_ON = "10/9"
 
-/**
- * 「已寄過更正信」記在感謝券的 note 上。
- *
- * 廣播沒有訂單可掛，reminders.source_order_id 又是 not null，而這 151 個人
- * 每人本來就有一張感謝券 —— 與其為了一次性的更正另外建表（又要請店主跑一次
- * SQL），不如在既有的那一列上做記號。只有這一次會用到。
- */
-const CORRECTION_MARK = "｜已寄更正信"
-
 type CorrectionTarget = Recipient & { couponId: string; note: string }
 
 async function correctionTargets(exclude: string[] = []): Promise<{
@@ -461,7 +479,7 @@ adminBroadcastRouter.post("/correction", async (req, res) => {
         // 重寄的代價只是再收一封，比「寄失敗卻被記成已寄」小得多。
         await supabase
           .from("member_coupons")
-          .update({ note: `${t.note}${CORRECTION_MARK}` })
+          .update({ note: `${t.note}${CORRECTION_MARK} ${twToday()}` })
           .eq("id", t.couponId)
         sent++
       } catch (err) {
