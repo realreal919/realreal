@@ -9,16 +9,18 @@ export const metadata: Metadata = {
     "了解誠真生活 RealReal 會員制度，從初心之友到同心之友，享受專屬折扣、公益存款與生日禮遇。",
 }
 
+// 2026-10-10 換成新版兩張。順序是先「為什麼」再「比什麼」——旅程圖講制度的
+// 用意與三個階段，比較表才是細節；反過來放的話，一打開就是一張密密麻麻的表。
 const membershipImages = [
   {
-    src: "https://fornopjdqwtexqfedhqv.supabase.co/storage/v1/object/public/product-images/membership/675b76e81af03e313ae5e5cd98fe2ed6.jpg",
-    alt: "會員制度表",
+    src: "https://fornopjdqwtexqfedhqv.supabase.co/storage/v1/object/public/product-images/membership/journey-1791615415819.png",
+    alt: "誠真生活會員旅程：加入初心之友、成為知心之友、受邀成為同心之友",
     width: 1800,
     height: 1350,
   },
   {
-    src: "/brand/membership-table.png",
-    alt: "會員制度表",
+    src: "https://fornopjdqwtexqfedhqv.supabase.co/storage/v1/object/public/product-images/membership/compare-1791615415819.png",
+    alt: "會員等級比較：初心之友、知心之友、同心之友的專屬禮遇與加入方式",
     width: 1800,
     height: 1350,
   },
