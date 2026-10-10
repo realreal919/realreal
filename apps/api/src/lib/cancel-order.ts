@@ -138,6 +138,49 @@ export async function releaseFirstPurchaseClaim(orderId: string): Promise<void> 
   }
 }
 
+/**
+ * 取消時收回推薦獎勵。
+ *
+ * 推薦是在付款後結算的，所以訂單一旦被取消，那筆「成立的首購」就不存在了；
+ * 選掉的話，只要下單→取消重複做，兩個帳號就能一直領 50 點。
+ *
+ * 連 referrals 那一列一起刪掉，不是改成 rejected —— 「一位新朋友一輩子只能被
+ * 推薦成功一次」是靠 (referee_id) 的唯一索引擋的，留著會讓這位新朋友之後
+ * 真的被推薦時永遠算不成。
+ *
+ * 非致命：收不回不該擋住取消。
+ */
+export async function reverseReferralRewards(orderId: string): Promise<void> {
+  try {
+    const { data } = await supabase
+      .from("referrals")
+      .select("id, status")
+      .eq("order_id", orderId)
+      .maybeSingle()
+    const row = data as { id: string; status: string } | null
+    if (!row) return
+
+    // 兩筆公益存款：推薦人的 source_ref_id 是訂單 id，新朋友的是「訂單 id:referee」
+    const { error: ptsErr } = await supabase
+      .from("points_ledger")
+      .delete()
+      .eq("source", "referral")
+      .in("source_ref_id", [orderId, `${orderId}:referee`])
+    if (ptsErr) {
+      console.warn(`[cancel-order] 推薦回饋金收回失敗 ${orderId} (non-fatal):`, ptsErr.message)
+    }
+
+    const { error: refErr } = await supabase.from("referrals").delete().eq("id", row.id)
+    if (refErr) {
+      console.warn(`[cancel-order] 推薦紀錄刪除失敗 ${orderId} (non-fatal):`, refErr.message)
+    }
+
+    await supabase.from("orders").update({ referral_status: "rejected" }).eq("id", orderId)
+  } catch (err) {
+    console.warn(`[cancel-order] reverseReferralRewards threw for ${orderId} (non-fatal):`, err)
+  }
+}
+
 type OrderRow = {
   id: string
   user_id: string | null
@@ -192,6 +235,7 @@ export async function settleFailedPayment(orderId: string): Promise<void> {
   await restoreOrderStock(orderId)
   await refundCouponUsage(orderId)
   await releaseFirstPurchaseClaim(orderId)
+  await reverseReferralRewards(orderId)
 }
 
 export async function cancelOrderById(
@@ -368,6 +412,7 @@ export async function cancelOrderById(
     } catch (err) {
       console.warn(`[cancel-order] releaseFirstPurchaseClaim threw for ${orderId} (non-fatal):`, err)
     }
+    await reverseReferralRewards(orderId)
   }
 
   return {

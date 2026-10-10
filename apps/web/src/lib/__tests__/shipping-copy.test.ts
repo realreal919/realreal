@@ -195,3 +195,36 @@ describe("cartFreeShippingHint", () => {
     expect(cartFreeShippingHint(null, 800)).toBeNull()
   })
 })
+
+describe("兩種超商取貨同門檻時合併標籤", () => {
+  const cfg = {
+    cvs: { fee: 80, free_threshold: 666 },
+    cvsCod: { fee: 80, free_threshold: 666 },
+    home: { fee: 150, free_threshold: 999 },
+  }
+
+  it("★ 寫「超商取貨滿666元免運」，不要並列成兩個方式", () => {
+    expect(marqueeShippingMessages(cfg)).toEqual([
+      "超商取貨滿666元免運",
+      "宅配滿999元免運",
+    ])
+  })
+
+  it("★ 兩種超商門檻不同時不能合併 —— 合併就是對客人講錯條件", () => {
+    const split = { ...cfg, cvsCod: { fee: 80, free_threshold: 999 } }
+    expect(marqueeShippingMessages(split)).toEqual([
+      "超商取貨滿666元免運",
+      // 取貨付款與宅配同為 999，按門檻分組本來就該並列
+      "超商取貨付款、宅配滿999元免運",
+    ])
+  })
+
+  it("三種都同門檻時講「全站」", () => {
+    const same = {
+      cvs: { fee: 80, free_threshold: 999 },
+      cvsCod: { fee: 80, free_threshold: 999 },
+      home: { fee: 150, free_threshold: 999 },
+    }
+    expect(marqueeShippingMessages(same)).toEqual(["全站消費滿999元免運"])
+  })
+})

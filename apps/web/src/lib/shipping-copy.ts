@@ -63,9 +63,21 @@ export function freeShippingGroups(s: ShippingConfig | null): FreeShippingGroup[
 
   return Array.from(groups.entries()).map(([threshold, labels]) => ({
     threshold,
-    labels,
+    labels: collapseCvsLabels(labels),
     coversEveryMethod: labels.length === methods.length,
   }))
+}
+
+/**
+ * 兩種超商取貨同門檻時，寫成「超商取貨」就好。
+ *
+ * 並列成「超商取貨、超商取貨付款滿666元免運」讀起來像是兩個不同的條件，
+ * 而且在跑馬燈那種一瘩而過的介面上特別容易讓人以為「只有取貨付款才算」。
+ * 活動文案（bucketLabels）本來就是這樣合併的，這裡跟上。
+ */
+function collapseCvsLabels(labels: string[]): string[] {
+  if (!labels.includes("超商取貨") || !labels.includes("超商取貨付款")) return labels
+  return ["超商取貨", ...labels.filter((l) => l !== "超商取貨" && l !== "超商取貨付款")]
 }
 
 /** 跑馬燈用：短句，口語的「元」。 */

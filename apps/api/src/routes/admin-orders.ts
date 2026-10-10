@@ -7,7 +7,12 @@ import { enqueuePostPaymentJobs } from "../lib/enqueue-post-payment"
 import { inventoryQueue } from "../lib/queue"
 import { refundOrderPoints } from "../lib/points"
 import { decrementSpendOnRefund } from "../lib/tier"
-import { restoreOrderStock, refundCouponUsage, cancelOrderById } from "../lib/cancel-order"
+import {
+  restoreOrderStock,
+  refundCouponUsage,
+  cancelOrderById,
+  reverseReferralRewards,
+} from "../lib/cancel-order"
 import { renderAndSendEmail } from "../workers/email-sender"
 
 export const adminOrdersRouter = Router()
@@ -124,6 +129,8 @@ adminOrdersRouter.patch("/:id/status", async (req, res) => {
   if (newStatus === "cancelled" && order.status !== "cancelled") {
     await restoreOrderStock(orderId)
     await refundCouponUsage(orderId)
+    // 推薦獎勵也要收回 —— 不收的話，下單→取消重複做就能一直領 50 點
+    await reverseReferralRewards(orderId)
   }
 
   res.json({ data: updated })
@@ -209,6 +216,7 @@ adminOrdersRouter.post("/bulk-status", async (req, res) => {
     for (const o of (toRestore ?? []) as { id: string }[]) {
       await restoreOrderStock(o.id)
       await refundCouponUsage(o.id)
+      await reverseReferralRewards(o.id)
     }
   } else {
     const update: Record<string, string> = { status: newStatus, updated_at: new Date().toISOString() }
