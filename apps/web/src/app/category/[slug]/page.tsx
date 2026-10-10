@@ -5,6 +5,11 @@ import { FeatureBlocks, type FeatureBlock } from "@/components/category/FeatureB
 import { RelatedPosts, type RelatedPost } from "@/components/category/RelatedPosts"
 import { ProductGrid } from "@/components/catalog/ProductGrid"
 import { getProducts, getCategories } from "@/lib/catalog"
+import {
+  PROTEIN_SERIES_META,
+  PROTEIN_SERIES_ORDER,
+  classifyProteinProduct,
+} from "@/lib/protein-series"
 
 const FRUIT_SLIDES = [
   {
@@ -67,35 +72,6 @@ const PROTEIN_SLIDES = [
 
 // 植物蛋白粉分類頁的商品分組 — 風味軸（純粹／果實）+ 使用情境軸（穩定補給／多日體驗）。
 // 穩定補給／入門推薦 是既有商品名稱前綴，直接對應「組合包」；其餘單一口味商品
-// 依風味關鍵字分類。四組彼此互斥、涵蓋所有現行商品，無需另外標記資料庫欄位。
-type ProteinSeries = "pure" | "fruit" | "steady" | "trial"
-
-function classifyProteinProduct(name: string): ProteinSeries {
-  if (name.startsWith("穩定補給") || name.startsWith("任選口味")) return "steady"
-  // 2026-10-06 的 3 袋組改掛「習慣養成」前綴，它一樣是自己配口味的組合包。
-  // 不加這行會掉到最後的 fallback，被歸到「果實系列」跟單一口味擺在一起。
-  if (name.startsWith("習慣養成")) return "steady"
-  // 10 天組 2026-09 由「任選口味」改名「多種選擇」，名稱沒有口味字，不加這行會被歸到果實系列。
-  if (name.startsWith("多種選擇") || name.startsWith("多種搭配") || name.startsWith("任選組合")) return "steady"
-  // 隨身包混搭 10 入組 2026-10 由「任選組合」改名「探索誠真」。又是改名把分組弄錯的
-  // 同一類問題——名稱一換就掉到最後的 fallback，被歸到「果實系列」跟單一口味擺在一起。
-  if (name.startsWith("探索誠真")) return "steady"
-  // 同口味 2 入組沒有名稱前綴，而且「同口味」不含「原味」，不加這行會被歸到果實系列。
-  if (name.startsWith("同口味")) return "steady"
-  if (name.startsWith("入門推薦")) return "trial"
-  // 蛋白粉盲盒（10 入口味隨機）是嘗鮮用的組合，放「多日體驗」；不加這行會被歸到果實系列。
-  if (name.startsWith("蛋白粉盲盒")) return "trial"
-  if (name.includes("原味") || name.includes("可可")) return "pure"
-  return "fruit"
-}
-
-const PROTEIN_SERIES_META: Record<ProteinSeries, { title: string; subtitle: string }> = {
-  pure: { title: "純粹系列", subtitle: "原味、可可——簡單純粹的日常之選" },
-  fruit: { title: "果實系列", subtitle: "草莓、杏仁火龍果、芝麻藍莓——真實水果的自然風味" },
-  steady: { title: "自由搭配", subtitle: "依喜好選口味、配份量的組合" },
-  trial: { title: "多日體驗", subtitle: "初次嘗試的天數體驗組合" },
-}
-const PROTEIN_SERIES_ORDER: ProteinSeries[] = ["pure", "fruit", "steady", "trial"]
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
 
@@ -169,7 +145,7 @@ export default async function CategoryLandingPage({
           <>
             {PROTEIN_SERIES_ORDER.map((series) => {
               const group = (products ?? []).filter(
-                (p) => classifyProteinProduct(p.name) === series
+                (p) => classifyProteinProduct(p) === series
               )
               if (group.length === 0) return null
               const meta = PROTEIN_SERIES_META[series]

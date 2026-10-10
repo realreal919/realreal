@@ -1,8 +1,10 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
 
 export type Category = { id: string; name: string; slug: string; parent_id: string | null; sort_order: number; product_count?: number; children?: Category[] }
-export type ProductVariant = { id: string; name: string; price: string; sale_price: string | null; stock_qty: number; sku: string | null; weight?: number | null; attributes: Record<string, string | number> | null }
-export type Product = { id: string; name: string; slug: string; description: string | null; excerpt: string | null; images: string[] | null; is_active: boolean; is_featured: boolean; is_addon: boolean; display_priority: number; category_id: string | null; created_at: string; min_price?: number; max_price?: number; min_sale_price?: number | null; per_pack_min_price?: number | null; total_stock?: number; sales_count?: number; min_tier_id?: string | null; min_tier?: { id: string; name: string; min_spend: number } | null; badge_text?: string | null; delist_at?: string | null }
+export type ProductVariant = { id: string; name: string; price: string; sale_price: string | null; stock_qty: number; sku: string | null; weight?: number | null; attributes: Record<string, unknown> | null }
+export type Product = { id: string; name: string; slug: string; description: string | null; excerpt: string | null; images: string[] | null; is_active: boolean; is_featured: boolean; is_addon: boolean; display_priority: number; category_id: string | null; created_at: string; min_price?: number; max_price?: number; min_sale_price?: number | null; per_pack_min_price?: number | null; total_stock?: number; sales_count?: number; min_tier_id?: string | null; min_tier?: { id: string; name: string; min_spend: number } | null; badge_text?: string | null; delist_at?: string | null;
+  /** 列表 API 會一併回傳規格（含 attributes）—— 分類頁的系列分組靠它判斷。 */
+  variants?: ProductVariant[] | null }
 
 export type SortOption = "featured" | "newest" | "price_asc" | "price_desc" | "best_selling"
 
