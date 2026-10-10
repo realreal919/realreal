@@ -76,7 +76,7 @@ export default async function IdeaPage() {
             </blockquote>
             <p>因此，我們設計了「公益存款」。</p>
             <p>
-              每一次消費，誠真生活都會提撥 <strong className="text-[#10305a]">2%～3%</strong> 的金額存入你的公益存款帳戶。
+              每一次消費，誠真生活都會提撥 <strong className="text-[#10305a]">3%</strong> 的金額存入你的公益存款帳戶。
               你可以選擇將它折抵未來消費，也可以讓這份善意持續累積，支持未來的公益行動。
             </p>
 
