@@ -34,15 +34,27 @@ import { sendEmail, parseRecipients } from "./email"
  * beforeSend) must be able to fire-and-forget it without wrapping it.
  */
 
-const DEDUPE_WINDOW_MS = 15 * 60 * 1000
-const GLOBAL_WINDOW_MS = 60 * 60 * 1000
-const GLOBAL_MAX_PER_WINDOW = 10
+/**
+ * 2026-10-11 店主指定：錯誤通知最多 6 小時一封。
+ *
+ * 原本是「同一錯誤 15 分鐘一次、全域每小時 10 封」，最糟一天 240 封。
+ * 寄信服務每天只有 100 封，而且是跟訂單確認、出貨通知共用的 —— 一次錯誤風暴
+ * 就會把額度吃光，變成「監控壞掉順便讓客人收不到訂單確認信」。
+ *
+ * 壓到 6 小時一封之後，被擋掉的錯誤不會消失：它們記在 suppressed 裡，
+ * 下一封信會把「這段期間另外發生了幾次、哪些」一起帶出來。完整列表仍看 Sentry。
+ */
+const DEDUPE_WINDOW_MS = 6 * 60 * 60 * 1000
+const GLOBAL_WINDOW_MS = 6 * 60 * 60 * 1000
+const GLOBAL_MAX_PER_WINDOW = 1
 /** Hard ceiling on one alert's total work, so a hung dependency can't wedge it. */
 const SEND_TIMEOUT_MS = 20_000
 /** Prune threshold for the dedupe map; entries older than the window are dead. */
 const MAX_TRACKED_KEYS = 500
 
 const lastSentByKey = new Map<string, number>()
+/** 這個視窗內被擋掉的錯誤，下一封信會一併報出來。key = dedupeKey，value = 次數。 */
+const suppressed = new Map<string, number>()
 const inAlertSend = new AsyncLocalStorage<true>()
 let globalWindowStart = 0
 let globalCount = 0
@@ -51,6 +63,7 @@ let capWarned = false
 /** Test seam: reset throttle state. Not used in production code paths. */
 export function __resetAlertThrottle(): void {
   lastSentByKey.clear()
+  suppressed.clear()
   globalWindowStart = 0
   globalCount = 0
   capWarned = false
@@ -63,22 +76,42 @@ function prune(now: number): void {
   }
 }
 
+function note(dedupeKey: string): void {
+  suppressed.set(dedupeKey, (suppressed.get(dedupeKey) ?? 0) + 1)
+}
+
+/** 這個視窗內被擋掉的錯誤摘要，寫進下一封信。取完就清空。 */
+function drainSuppressed(): string {
+  if (suppressed.size === 0) return ""
+  const total = [...suppressed.values()].reduce((a, b) => a + b, 0)
+  const lines = [...suppressed.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([k, n]) => `  ×${n}  ${k}`)
+  suppressed.clear()
+  return `\n\n—— 這段期間另外被擋下的錯誤（共 ${total} 次）——\n${lines.join("\n")}`
+}
+
 function shouldSend(dedupeKey: string, now: number): boolean {
   // 1) per-fingerprint cooldown
   const last = lastSentByKey.get(dedupeKey)
-  if (last !== undefined && now - last < DEDUPE_WINDOW_MS) return false
+  if (last !== undefined && now - last < DEDUPE_WINDOW_MS) {
+    note(dedupeKey)
+    return false
+  }
 
-  // 2) global hourly cap
+  // 2) global cap
   if (now - globalWindowStart >= GLOBAL_WINDOW_MS) {
     globalWindowStart = now
     globalCount = 0
     capWarned = false
   }
   if (globalCount >= GLOBAL_MAX_PER_WINDOW) {
+    note(dedupeKey)
     if (!capWarned) {
       capWarned = true
       console.warn(
-        `[alert] hourly cap (${GLOBAL_MAX_PER_WINDOW}) reached — suppressing further alert emails until the window resets. Check Sentry directly.`,
+        `[alert] cap (${GLOBAL_MAX_PER_WINDOW} / ${GLOBAL_WINDOW_MS / 3_600_000}h) reached — suppressing further alert emails until the window resets. Check Sentry directly.`,
       )
     }
     return false
@@ -111,10 +144,10 @@ async function deliver(title: string, body: string): Promise<void> {
   const html = `
       <div style="font-family:-apple-system,sans-serif;max-width:600px">
         <h2 style="color:#b91c1c;margin:0 0 8px">🚨 ${escapeHtml(title)}</h2>
-        <pre style="white-space:pre-wrap;word-break:break-word;background:#f4f4f5;padding:12px;border-radius:6px;font-size:13px;color:#27272a">${escapeHtml(body)}</pre>
+        <pre style="white-space:pre-wrap;word-break:break-word;background:#f4f4f5;padding:12px;border-radius:6px;font-size:13px;color:#27272a">${escapeHtml(body + drainSuppressed())}</pre>
         <p style="margin:16px 0 0;font-size:12px;color:#687279">
-          本信由系統自動送出。同一錯誤 15 分鐘內只寄一次，每小時最多 ${GLOBAL_MAX_PER_WINDOW} 封；
-          完整錯誤列表請看 Sentry。
+          本信由系統自動送出，最多 ${GLOBAL_WINDOW_MS / 3_600_000} 小時一封。
+          這段期間的其他錯誤已摘要在上方；完整列表請看 Sentry。
         </p>
       </div>
     `
