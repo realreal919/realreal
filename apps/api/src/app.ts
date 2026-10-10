@@ -17,6 +17,7 @@ import { adminShareReportsRouter } from "./routes/admin-share-reports"
 import { adminRecallRouter } from "./routes/admin-recall"
 import { referralRouter } from "./routes/referral"
 import { adminBroadcastRouter } from "./routes/admin-broadcast"
+import { authEmailRouter } from "./routes/auth-email"
 import { categoriesRouter, categoriesAdminRouter } from "./routes/categories"
 import { productsRouter, productsAdminRouter } from "./routes/products"
 import { variantsRouter, variantPricesRouter } from "./routes/variants"
@@ -110,6 +111,7 @@ app.use("/admin/broadcast", adminBroadcastRouter)
 app.use("/admin/team", adminTeamRouter)
 app.use("/admin/customers", adminCustomersRouter)
 app.use("/auth/legacy", authLegacyRouter)
+app.use("/auth", authEmailRouter)
 app.use("/orders", ordersRouter)
 app.use("/webhooks/pchomepay", pchomepayWebhookRouter)
 app.use("/webhooks/linepay", linepayWebhookRouter)

@@ -131,6 +131,29 @@ export async function forgotPasswordAction(_prev: unknown, formData: FormData) {
   if (!parsed.success) return { error: "請輸入有效的 Email" }
   const email = parsed.data.email
 
+  // 先問後端這個信箱有沒有帳號。
+  //
+  // Supabase 對不存在的帳號不回傳 error（防止有人拿忘記密碼當工具去試探
+  // 誰是會員），所以光看它的回應永遠是成功。沒註冊過的人會一直等一封不存在
+  // 的信，而且不知道下一步該做什麼 —— 店主自己就踩過。
+  //
+  // 2026-10-10 店主決定誠實告知。代價是「帳號列舉」變得可行，所以那支端點
+  // 有頻率限制（同一 IP 每分鐘 10 次）。查不出來時不猜，繼續走原本的流程。
+  try {
+    const res = await fetch(`${process.env.RAILWAY_API_URL}/auth/email-exists`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+      cache: "no-store",
+    })
+    if (res.ok) {
+      const { exists } = (await res.json()) as { exists?: boolean }
+      if (exists === false) return { notRegistered: true as const }
+    }
+  } catch {
+    // 查詢失敗不要擋住重設流程，往下走就是原本的行為
+  }
+
   const supabase = await createClient()
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     // Point recovery at the device-independent token-hash handler so the reset
@@ -149,7 +172,14 @@ export async function forgotPasswordAction(_prev: unknown, formData: FormData) {
   })
   if (error) return { error: error.message }
 
-  return { success: "重設密碼連結已寄出，請檢查您的信箱" }
+  // 措辭刻意是「如果…就已寄出」而不是「已寄出」。
+  //
+  // Supabase 對不存在的帳號不回傳 error（防止有人拿忘記密碼當工具，一個一個試出
+  // 哪些 email 是會員），所以這裡永遠走到成功分支。斷言「已寄出」的話，沒註冊過
+  // 的人會一直等一封不存在的信，而且會以為是系統壞了 —— 店主自己就踩過這個坑。
+  return {
+    success: "如果這個信箱已經註冊過，重設連結已經寄出，請檢查信箱（含垃圾郵件匣）。",
+  }
 }
 
 export async function resetPasswordAction(_prev: unknown, formData: FormData) {

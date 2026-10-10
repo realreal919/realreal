@@ -25,6 +25,7 @@
  * back gracefully (silently skip the coupon).
  */
 
+import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { API_URL } from "@/lib/api-url"
@@ -37,6 +38,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+
+/**
+ * 「要先有帳號」的哨兵值。用旗標而不是現成的句子，是因為這個情況要附一個
+ * 可以按的連結 —— 只丟一行紅字「要先登入會員才能使用」是死路，
+ * 新客人看完不知道該往哪裡去。
+ */
+const NEEDS_ACCOUNT = "__needs_account__"
 
 export const PROMO_KEY = "realreal-checkout-promo"
 export const PROMO_EVENT = "realreal-promo-change"
@@ -242,6 +250,11 @@ export function PromoWidget({ subtotal }: { subtotal: number }) {
           return
         }
         const referralMsg = await tryReferralCode(code)
+        if (referralMsg === NEEDS_ACCOUNT) {
+          setCodeInput("")
+          setState(s => ({ ...s, referralNote: NEEDS_ACCOUNT, couponError: "" }))
+          return
+        }
         if (referralMsg === null) {
           setCodeInput("")
           setState(s => ({ ...s, referralCode: code, couponError: "", referralNote: "" }))
@@ -303,7 +316,7 @@ export function PromoWidget({ subtotal }: { subtotal: number }) {
     try {
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) return "推薦碼要先登入會員才能使用"
+      if (!session?.access_token) return NEEDS_ACCOUNT
       const res = await fetch(`${API_URL}/referral/check`, {
         method: "POST",
         headers: {
@@ -468,11 +481,32 @@ export function PromoWidget({ subtotal }: { subtotal: number }) {
           </div>
         )}
 
-        {state.referralNote && (
+        {state.referralNote === NEEDS_ACCOUNT ? (
+          <div className="rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+            <p className="mb-2">
+              推薦碼要有會員帳號才能使用——回饋是記在帳號裡的。
+              免費加入後回來再輸入一次就行。
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/auth/register"
+                className="font-semibold text-[#10305a] underline underline-offset-2"
+              >
+                免費加入會員 →
+              </Link>
+              <Link
+                href="/auth/login"
+                className="font-semibold text-[#10305a] underline underline-offset-2"
+              >
+                已經有帳號，登入
+              </Link>
+            </div>
+          </div>
+        ) : state.referralNote ? (
           <p className="rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
             {state.referralNote}
           </p>
-        )}
+        ) : null}
         {state.couponApplied && (
           <div className="flex items-center justify-between rounded bg-emerald-50 border border-emerald-200 p-3 text-sm">
             <span>

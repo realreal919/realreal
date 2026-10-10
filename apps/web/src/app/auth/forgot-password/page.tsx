@@ -26,6 +26,8 @@ export default function ForgotPasswordPage() {
   useEffect(() => {
     if (state?.success) {
       toast.success("密碼重設郵件已寄出")
+    } else if (state?.notRegistered) {
+      toast.error("這個信箱尚未註冊")
     } else if (state?.error) {
       toast.error(state.error)
     }
@@ -74,6 +76,20 @@ export default function ForgotPasswordPage() {
               )}
               {state?.success && (
                 <p className="text-sm text-green-600">{state.success}</p>
+              )}
+              {/* 沒註冊過的人要有出路。只說「已寄出」的話，他會一直等一封
+                  不存在的信，而且會以為是系統壞了。 */}
+              {state?.notRegistered && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  <p className="mb-2">這個信箱尚未註冊。</p>
+                  <Link
+                    href="/auth/register"
+                    className="font-semibold underline underline-offset-2"
+                    style={{ color: "#10305a" }}
+                  >
+                    前往註冊 →
+                  </Link>
+                </div>
               )}
               <Button type="submit" className="w-full rounded-[10px]" style={{ backgroundColor: "#10305a", color: "#fff" }} disabled={isPending}>
                 {isPending ? "寄送中…" : "寄送重設連結"}
