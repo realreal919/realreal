@@ -19,12 +19,23 @@ const THANKS_VALID_DAYS = 60
 type Recipient = { userId: string; email: string; displayName: string }
 
 /**
- * 寄送服務的每日額度。超過之後它會照收 API 請求（回 200）卻不投遞 ——
- * 程式這邊看起來都是成功，券照發，而收件人什麼都沒收到。
- * 所以額度要在我們這邊擋，不能依賴對方回錯。留 10 封給訂單確認、發票等
- * 交易信 —— 行銷信把額度吃光的話，客人付完款收不到確認信。
+ * 一天最多寄幾封廣播信。
+ *
+ * Resend 免費方案每日 100 封，而這 100 封是所有信共用的。交易信必須優先 ——
+ * 行銷信把額度吃光的話，客人付完款收不到確認信、註冊收不到驗證信。
+ *
+ * 60 是算出來的：近 30 天單日訂單最多 10 筆，每筆會觸發付款成功、管理員
+ * 通知、出貨通知約 3 封；單日新註冊最多 6 人。最忙的一天大約要 40 封，
+ * 所以留 40 封。升級付費方案後可以在後台把這個數字調高。
  */
-const DAILY_SEND_CAP = 90
+const DEFAULT_DAILY_SEND_CAP = 60
+
+async function dailySendCap(): Promise<number> {
+  const raw = await getSetting("broadcast.daily_cap")
+  if (raw == null || raw.trim() === "") return DEFAULT_DAILY_SEND_CAP
+  const n = Number(raw)
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_DAILY_SEND_CAP
+}
 
 /** 今天（台灣時間）已經發出幾封廣播信。感謝券的建立時間就是記錄。 */
 async function sentToday(): Promise<number> {
@@ -140,13 +151,13 @@ async function issueThanksCoupon(userId: string, validUntil: Date): Promise<stri
 adminBroadcastRouter.get("/membership-update", async (_req, res) => {
   try {
     const { list, alreadySent } = await buildRecipients()
-    const today = await sentToday()
+    const [today, cap] = await Promise.all([sentToday(), dailySendCap()])
     res.json({
       pending: list.length,
       already_sent: alreadySent,
       sent_today: today,
-      daily_cap: DAILY_SEND_CAP,
-      remaining_today: Math.max(0, DAILY_SEND_CAP - today),
+      daily_cap: cap,
+      remaining_today: Math.max(0, cap - today),
       coupon: {
         amount: THANKS_AMOUNT,
         min_order: THANKS_MIN_ORDER,
@@ -196,11 +207,11 @@ adminBroadcastRouter.post("/membership-update", async (req, res) => {
   try {
     // 每日額度擋在我們這邊。寄送服務超額時會照收請求卻不投遞，
     // 程式看起來全部成功、券照發，而收件人什麼都沒收到。
-    const used = await sentToday()
-    const budget = Math.max(0, DAILY_SEND_CAP - used)
+    const [used, cap] = await Promise.all([sentToday(), dailySendCap()])
+    const budget = Math.max(0, cap - used)
     if (budget === 0) {
       res.status(429).json({
-        error: `今日寄送額度已用完（已寄 ${used} 封，上限 ${DAILY_SEND_CAP}），明天再繼續。`,
+        error: `今日寄送額度已用完（已寄 ${used} 封，上限 ${cap}），明天再繼續。`,
         sent_today: used,
       })
       return
@@ -304,7 +315,7 @@ adminBroadcastRouter.post("/membership-update", async (req, res) => {
       failed,
       remaining: rest.length,
       sent_today: after,
-      remaining_today: Math.max(0, DAILY_SEND_CAP - after),
+      remaining_today: Math.max(0, cap - after),
     })
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : "寄送失敗" })
