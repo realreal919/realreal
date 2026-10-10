@@ -16,6 +16,8 @@ interface AddonProduct {
   addonPrice: number | null
   stockQty: number
   imageUrl?: string
+  /** 加購區的排序依據。見下方 fetchAddons 的說明。 */
+  priority: number
 }
 
 type ApiVariant = {
@@ -30,6 +32,7 @@ interface ApiProduct {
   id: string
   name: string
   slug: string
+  display_priority?: number | null
   images?: string[] | null
   default_variant?: ApiVariant | null
   variants?: Array<ApiVariant>
@@ -78,10 +81,17 @@ async function fetchAddons(
           addonPrice,
           stockQty: stock,
           imageUrl: p.images?.[0],
+          priority: Number(p.display_priority ?? 0),
         })
-        if (out.length >= limit) break
       }
-      if (out.length > 0) return out
+      // 自己按 display_priority 排，不用 API 的預設順序。
+      //
+      // API 的排序是 is_featured → display_priority → created_at，而 is_featured
+      // 同時決定首頁置頂區要顯示什麼。兩件事綁在同一個欄位上，就會變成
+      // 「想把某個商品放進首頁」跟「加購區要怎麼排」互相牙後。
+      // 加購區只看 display_priority，首頁置頂只看 is_featured，兩邊各自調。
+      out.sort((a, b) => b.priority - a.priority)
+      if (out.length > 0) return out.slice(0, limit)
     } catch {
       continue
     }
