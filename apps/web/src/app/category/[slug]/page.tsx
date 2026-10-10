@@ -77,6 +77,9 @@ function classifyProteinProduct(name: string): ProteinSeries {
   if (name.startsWith("習慣養成")) return "steady"
   // 10 天組 2026-09 由「任選口味」改名「多種選擇」，名稱沒有口味字，不加這行會被歸到果實系列。
   if (name.startsWith("多種選擇") || name.startsWith("多種搭配") || name.startsWith("任選組合")) return "steady"
+  // 隨身包混搭 10 入組 2026-10 由「任選組合」改名「探索誠真」。又是改名把分組弄錯的
+  // 同一類問題——名稱一換就掉到最後的 fallback，被歸到「果實系列」跟單一口味擺在一起。
+  if (name.startsWith("探索誠真")) return "steady"
   // 同口味 2 入組沒有名稱前綴，而且「同口味」不含「原味」，不加這行會被歸到果實系列。
   if (name.startsWith("同口味")) return "steady"
   if (name.startsWith("入門推薦")) return "trial"
