@@ -57,6 +57,8 @@ export type PromoState = {
   allowCouponStack: boolean
   /** 認出來的推薦碼。跟優惠碼共用一個輸入框，但不互斥——見下方 applyPromoCode 的說明。 */
   referralCode: string
+  /** 推薦碼被擋下來的理由（例：自己的碼、已經買過）。 */
+  referralNote: string
   memberDiscountRate: number // 0..1
   tierName: string | null
   subtotalAtApply: number
@@ -77,6 +79,7 @@ const DEFAULT_PROMO: PromoState = {
   pointsRatio: 1,
   allowCouponStack: true,
   referralCode: "",
+  referralNote: "",
   memberDiscountRate: 0,
   tierName: null,
   subtotalAtApply: 0,
@@ -123,6 +126,9 @@ export function PromoWidget({ subtotal }: { subtotal: number }) {
   const [hydrated, setHydrated] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [couponLoading, setCouponLoading] = useState(false)
+  // 輸入框的值跟「已套用的碼」分開。共用一個欄位的話，套用完成後框裡還留著
+  // 那組碼，客人要再打推薦碼得先手動清掉。
+  const [codeInput, setCodeInput] = useState("")
   const lastSubtotalRef = useRef(0)
 
   // Restore from localStorage on mount
@@ -134,6 +140,30 @@ export function PromoWidget({ subtotal }: { subtotal: number }) {
     setState(fromLink && !restored.referralCode ? { ...restored, referralCode: fromLink } : restored)
     setHydrated(true)
   }, [])
+
+  // 帶進來的推薦碼要先驗過才能承諾獎勵。
+  //
+  // 自己點自己的邀請連結、或已經買過的人，下單時後端會擋下來，
+  // 但結帳頁還是寫著「雙方各得 50 元」—— 那筆錢不會發，等於在最後一步騙人。
+  useEffect(() => {
+    if (!hydrated || !state.referralCode) return
+    let cancelled = false
+    ;(async () => {
+      const reason = await tryReferralCode(state.referralCode)
+      if (cancelled || reason === null) return
+      // 不成立：清掉 cookie 並把理由講出來，不要默默消失
+      clearReferralCookie()
+      setState(s => ({
+        ...s,
+        referralCode: "",
+        referralNote: reason || "這組推薦碼無法用於這筆訂單",
+      }))
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, state.referralCode])
 
   // Persist on every state change (after hydration so we don't clobber stored state on mount)
   useEffect(() => {
@@ -207,12 +237,14 @@ export function PromoWidget({ subtotal }: { subtotal: number }) {
         // 但信上印了那組碼，客人一定會打 —— 打進去得到「無效的優惠碼」比沒印還糟。
         const memberMsg = await tryMemberCoupon(code)
         if (memberMsg !== "") {
-          setState(s => ({ ...s, couponCode: "", couponError: memberMsg }))
+          setCodeInput("")
+          setState(s => ({ ...s, couponError: memberMsg }))
           return
         }
         const referralMsg = await tryReferralCode(code)
         if (referralMsg === null) {
-          setState(s => ({ ...s, referralCode: code, couponCode: "", couponError: "" }))
+          setCodeInput("")
+          setState(s => ({ ...s, referralCode: code, couponError: "", referralNote: "" }))
           return
         }
         const body = await res.json().catch(() => ({ error: "無效的優惠碼" }))
@@ -227,6 +259,7 @@ export function PromoWidget({ subtotal }: { subtotal: number }) {
       }
       const body = await res.json() as { data?: { discount?: number } }
       const discountAmount = body?.data?.discount ?? 0
+      setCodeInput("")
       setState(s => ({
         ...s,
         couponCode: code,
@@ -414,14 +447,16 @@ export function PromoWidget({ subtotal }: { subtotal: number }) {
       <div className="space-y-1.5">
         <div className="flex items-center gap-2">
           <Label className="text-sm font-medium">🎟 優惠碼／推薦碼</Label>
-          <span className="text-xs text-zinc-500">優惠碼區分大小寫</span>
+          <span className="text-xs text-zinc-500">優惠碼區分大小寫，推薦碼不分</span>
         </div>
 
+        {/* 這張籤講的是「介紹您來的人的碼」，不是會員自己的。原本寫「推薦碼 XXX」，
+            客人會誤以為是自己的碼拿去分享。 */}
         {state.referralCode && (
           <div className="flex items-center justify-between rounded border border-[#10305a]/20 bg-[#10305a]/5 p-3 text-sm">
             <span>
-              推薦碼 <strong>{state.referralCode}</strong>
-              <span className="ml-2 text-[#687279]">朋友介紹，完成首購後雙方各得 50 元</span>
+              已套用<strong>朋友的推薦碼</strong> <strong>{state.referralCode}</strong>
+              <span className="ml-2 text-[#687279]">完成首購後，您與朋友各得 50 元公益存款</span>
             </span>
             <button
               type="button"
@@ -432,7 +467,13 @@ export function PromoWidget({ subtotal }: { subtotal: number }) {
             </button>
           </div>
         )}
-        {state.couponApplied ? (
+
+        {state.referralNote && (
+          <p className="rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+            {state.referralNote}
+          </p>
+        )}
+        {state.couponApplied && (
           <div className="flex items-center justify-between rounded bg-emerald-50 border border-emerald-200 p-3 text-sm">
             <span>
               <strong>{state.couponCode}</strong>
@@ -449,29 +490,35 @@ export function PromoWidget({ subtotal }: { subtotal: number }) {
               </button>
             </div>
           </div>
-        ) : (
-          <div className="flex gap-2">
-            <Input
-              value={state.couponCode}
-              onChange={(e) => setState(s => ({ ...s, couponCode: e.target.value, couponError: "" }))}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault()
-                  void applyCouponCore(state.couponCode, subtotal)
-                }
-              }}
-              placeholder="輸入優惠碼或推薦碼"
-              className="flex-1"
-            />
-            <Button
-              type="button"
-              onClick={() => void applyCouponCore(state.couponCode, subtotal)}
-              disabled={couponLoading || !state.couponCode.trim()}
-            >
-              {couponLoading ? "驗證中…" : "套用"}
-            </Button>
-          </div>
         )}
+        {/* 優惠碼套用後輸入框不收起來 —— 兩種碼可以並存，
+            收起來的話想再打推薦碼就得先把優惠碼移除。 */}
+        <div className="flex gap-2">
+          <Input
+            value={codeInput}
+            onChange={(e) => {
+              setCodeInput(e.target.value)
+              if (state.couponError || state.referralNote) {
+                setState(s => ({ ...s, couponError: "", referralNote: "" }))
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                void applyCouponCore(codeInput, subtotal)
+              }
+            }}
+            placeholder="輸入優惠碼或推薦碼"
+            className="flex-1"
+          />
+          <Button
+            type="button"
+            onClick={() => void applyCouponCore(codeInput, subtotal)}
+            disabled={couponLoading || !codeInput.trim()}
+          >
+            {couponLoading ? "驗證中…" : "套用"}
+          </Button>
+        </div>
         {state.couponError && <p className="text-xs text-red-600">{state.couponError}</p>}
       </div>
 
