@@ -19,7 +19,7 @@ const membershipImages = [
     height: 1350,
   },
   {
-    src: "https://fornopjdqwtexqfedhqv.supabase.co/storage/v1/object/public/product-images/membership/compare-1791615415819.png",
+    src: "https://fornopjdqwtexqfedhqv.supabase.co/storage/v1/object/public/product-images/membership/compare-1791616510359.png",
     alt: "會員等級比較：初心之友、知心之友、同心之友的專屬禮遇與加入方式",
     width: 1800,
     height: 1350,
