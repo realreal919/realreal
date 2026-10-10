@@ -321,3 +321,165 @@ adminBroadcastRouter.post("/membership-update", async (req, res) => {
     res.status(500).json({ error: err instanceof Error ? err.message : "寄送失敗" })
   }
 })
+
+// ---------------------------------------------------------------------------
+// 更正信：2026-10-09 寄出的那批，推薦回饋金額印成 0 元
+// ---------------------------------------------------------------------------
+
+/** 原信寄出的日期，印在更正信裡。 */
+const CORRECTION_ORIGINAL_SENT_ON = "10/9"
+
+/**
+ * 「已寄過更正信」記在感謝券的 note 上。
+ *
+ * 廣播沒有訂單可掛，reminders.source_order_id 又是 not null，而這 151 個人
+ * 每人本來就有一張感謝券 —— 與其為了一次性的更正另外建表（又要請店主跑一次
+ * SQL），不如在既有的那一列上做記號。只有這一次會用到。
+ */
+const CORRECTION_MARK = "｜已寄更正信"
+
+type CorrectionTarget = Recipient & { couponId: string; note: string }
+
+async function correctionTargets(exclude: string[] = []): Promise<{
+  pending: CorrectionTarget[]
+  alreadySent: number
+}> {
+  const { data: coupons } = await supabase
+    .from("member_coupons")
+    .select("id, user_id, note")
+    .eq("type", "thanks")
+    .order("created_at", { ascending: true })
+  const rows = (coupons ?? []) as Array<{ id: string; user_id: string; note: string | null }>
+
+  const alreadySent = rows.filter((r) => (r.note ?? "").includes(CORRECTION_MARK)).length
+  const todo = rows.filter((r) => !(r.note ?? "").includes(CORRECTION_MARK))
+  if (todo.length === 0) return { pending: [], alreadySent }
+
+  const emails = new Map<string, string>()
+  const { data: authList } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 })
+  for (const u of authList?.users ?? []) if (u.email) emails.set(u.id, u.email)
+
+  const ids = todo.map((r) => r.user_id)
+  const { data: profiles } = await supabase
+    .from("user_profiles")
+    .select("user_id, display_name, marketing_opt_out")
+    .in("user_id", ids)
+  const prof = new Map(
+    ((profiles ?? []) as Array<{
+      user_id: string
+      display_name: string | null
+      marketing_opt_out: boolean | null
+    }>).map((p) => [p.user_id, p]),
+  )
+
+  const skip = new Set(exclude.map((e) => e.toLowerCase().trim()))
+  const pending: CorrectionTarget[] = []
+  for (const r of todo) {
+    const email = emails.get(r.user_id)
+    if (!email || skip.has(email.toLowerCase())) continue
+    if (prof.get(r.user_id)?.marketing_opt_out) continue
+    pending.push({
+      userId: r.user_id,
+      email,
+      displayName: prof.get(r.user_id)?.display_name ?? "",
+      couponId: r.id,
+      note: r.note ?? "",
+    })
+  }
+  return { pending, alreadySent }
+}
+
+const correctionQuery = z.object({ exclude: z.array(z.string()).max(50).optional() })
+
+// GET /admin/broadcast/correction —— 試算
+adminBroadcastRouter.get("/correction", async (req, res) => {
+  try {
+    const exclude =
+      typeof req.query.exclude === "string" ? req.query.exclude.split(/[\s,;]+/).filter(Boolean) : []
+    const [{ pending, alreadySent }, today, cap] = await Promise.all([
+      correctionTargets(exclude),
+      sentToday(),
+      dailySendCap(),
+    ])
+    res.json({
+      pending: pending.length,
+      already_sent: alreadySent,
+      excluded: exclude.length,
+      sent_today: today,
+      daily_cap: cap,
+      remaining_today: Math.max(0, cap - today),
+      sample: pending.slice(0, 10).map((p) => ({ email: p.email, name: p.displayName })),
+    })
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "名單產生失敗" })
+  }
+})
+
+const correctionSendSchema = correctionQuery.extend({
+  limit: z.number().int().min(1).max(500).optional(),
+  confirm: z.literal(true),
+})
+
+// POST /admin/broadcast/correction —— 真的寄
+adminBroadcastRouter.post("/correction", async (req, res) => {
+  const parsed = correctionSendSchema.safeParse(req.body)
+  if (!parsed.success) {
+    res.status(400).json({ error: "請確認寄送參數（需要 confirm: true）" })
+    return
+  }
+  const { limit = 60, exclude = [] } = parsed.data
+
+  try {
+    const [used, cap] = await Promise.all([sentToday(), dailySendCap()])
+    const budget = Math.max(0, cap - used)
+    if (budget === 0) {
+      res.status(429).json({ error: `今日寄送額度已用完（上限 ${cap}），明天再繼續。` })
+      return
+    }
+
+    const { pending } = await correctionTargets(exclude)
+    const targets = pending.slice(0, Math.min(limit, budget))
+    const referral = await loadReferralSettings()
+
+    let sent = 0
+    const failed: string[] = []
+    for (const t of targets) {
+      try {
+        const referralCode = await ensureReferralCode(t.userId).catch(() => null)
+        await renderAndSendEmail({
+          template: "membership-update-correction",
+          to: t.email,
+          data: {
+            customerName: t.displayName,
+            originalSentOn: CORRECTION_ORIGINAL_SENT_ON,
+            referralMinOrder: referral.minOrder,
+            referralReward: referral.refereeReward,
+            referralCode,
+          },
+        })
+        // 寄成功才記號。順序跟感謝券那邊相反是刻意的：這封沒有要發任何東西，
+        // 重寄的代價只是再收一封，比「寄失敗卻被記成已寄」小得多。
+        await supabase
+          .from("member_coupons")
+          .update({ note: `${t.note}${CORRECTION_MARK}` })
+          .eq("id", t.couponId)
+        sent++
+      } catch (err) {
+        console.error(`[broadcast] 更正信寄送失敗 ${t.email}:`, err)
+        failed.push(t.email)
+      }
+      await new Promise((resolve) => setTimeout(resolve, 150))
+    }
+
+    const [{ pending: rest }, after] = await Promise.all([correctionTargets(exclude), sentToday()])
+    res.json({
+      sent,
+      failed,
+      remaining: rest.length,
+      sent_today: after,
+      remaining_today: Math.max(0, cap - after),
+    })
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "寄送失敗" })
+  }
+})

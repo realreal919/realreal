@@ -33,18 +33,51 @@ async function callApi<T>(path: string, init: RequestInit = {}): Promise<T> {
   return json as T
 }
 
+/** 10/9 那批不寄更正信的人（店主指定：自己的測試帳號與重複帳號）。 */
+const DEFAULT_CORRECTION_EXCLUDE = [
+  "yinhsin.c@gmail.com",
+  "chinchang9083@gmail.com",
+  "karso11188@gmail.com",
+  "karso1122@yahoo.com.tw",
+].join("\n")
+
+type Correction = {
+  pending: number
+  already_sent: number
+  excluded: number
+  remaining_today: number
+  daily_cap: number
+  sent_today: number
+}
+
 export function BroadcastClient() {
   const [status, setStatus] = useState<Status | null>(null)
   const [testEmail, setTestEmail] = useState("")
   const [batch, setBatch] = useState("50")
   const [resendList, setResendList] = useState("")
+  const [correction, setCorrection] = useState<Correction | null>(null)
+  const [excludeList, setExcludeList] = useState(DEFAULT_CORRECTION_EXCLUDE)
+  const [corrBatch, setCorrBatch] = useState("60")
   const [loading, setLoading] = useState(true)
   const [isPending, startTransition] = useTransition()
+
+  const excludeParam = () =>
+    excludeList
+      .split(/[\s,;]+/)
+      .map((x) => x.trim().toLowerCase())
+      .filter((x) => x.includes("@"))
 
   async function load() {
     setLoading(true)
     try {
-      setStatus(await callApi<Status>("/admin/broadcast/membership-update"))
+      const [s, c] = await Promise.all([
+        callApi<Status>("/admin/broadcast/membership-update"),
+        callApi<Correction>(
+          `/admin/broadcast/correction?exclude=${encodeURIComponent(excludeParam().join(","))}`,
+        ).catch(() => null),
+      ])
+      setCorrection(c)
+      setStatus(s)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "載入失敗")
     } finally {
@@ -80,11 +113,83 @@ export function BroadcastClient() {
     })
   }
 
+  function sendCorrection(limit: number) {
+    startTransition(async () => {
+      try {
+        const r = await callApi<{
+          sent: number
+          failed: string[]
+          remaining: number
+          remaining_today: number
+        }>("/admin/broadcast/correction", {
+          method: "POST",
+          body: JSON.stringify({ limit, exclude: excludeParam(), confirm: true }),
+        })
+        toast.success(`更正信：已寄出 ${r.sent} 封`, {
+          description:
+            (r.failed.length ? `${r.failed.length} 封失敗。` : "") +
+            `還剩 ${r.remaining} 人，今日還能寄 ${r.remaining_today} 封。`,
+        })
+        await load()
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "寄送失敗")
+      }
+    })
+  }
+
   if (loading) return <p className="text-sm text-zinc-500">載入中…</p>
   if (!status) return null
 
   return (
     <div className="space-y-6">
+      {correction && correction.pending + correction.already_sent > 0 && (
+        <div className="rounded-lg border-2 border-[#10305a] p-4">
+          <p className="mb-1 font-semibold text-[#10305a]">
+            更正信（10/9 那批的推薦金額誤植為 0 元）
+          </p>
+          <p className="mb-3 text-sm text-zinc-500">
+            待寄 <strong>{correction.pending}</strong> 人 ・ 已寄 {correction.already_sent} 人 ・
+            排除 {correction.excluded} 人 ・ 今日還能寄 {correction.remaining_today} 封
+          </p>
+          <p className="mb-1 text-xs text-zinc-500">不寄給這些信箱（一行一個）</p>
+          <textarea
+            value={excludeList}
+            onChange={(e) => setExcludeList(e.target.value)}
+            rows={4}
+            className="mb-2 w-full rounded border px-3 py-2 text-sm"
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => void load()}>
+              重算名單
+            </Button>
+            <Input
+              type="number"
+              min={1}
+              max={500}
+              value={corrBatch}
+              onChange={(e) => setCorrBatch(e.target.value)}
+              className="w-24"
+            />
+            <span className="text-sm">封</span>
+            <Button
+              disabled={isPending || correction.pending === 0}
+              onClick={() => {
+                const n = Number(corrBatch)
+                if (!Number.isFinite(n) || n < 1) {
+                  toast.error("請填寫正確的數量")
+                  return
+                }
+                const willSend = Math.min(n, correction.pending, correction.remaining_today)
+                if (!confirm(`確定要寄出 ${willSend} 封更正信？寄出後無法收回。`)) return
+                sendCorrection(n)
+              }}
+            >
+              寄出更正信
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-4">
         <div className="rounded-lg border p-4">
           <p className="text-xs text-zinc-500">待寄送</p>
