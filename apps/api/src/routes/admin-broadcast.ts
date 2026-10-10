@@ -12,8 +12,17 @@ export const adminBroadcastRouter = Router()
 
 adminBroadcastRouter.use(requireAuth, requireAdmin)
 
-const THANKS_AMOUNT = 100
-const THANKS_MIN_ORDER = 1500
+/**
+ * 隨通知信發的感謝券。一次兩張，面額不同。
+ *
+ * 兩張的理由：滿 1500 對輕量購買的人太遠，只給那一張等於只對大單客有意義。
+ * 滿 600 那張是給其他人的。資料庫的唯一索引是 (user_id, amount)，所以同一個
+ * 面額一人仍然只會有一張。
+ */
+const THANKS_COUPONS = [
+  { amount: 100, minOrder: 1500, prefix: "TK" },
+  { amount: 50, minOrder: 600, prefix: "TS" },
+] as const
 const THANKS_VALID_DAYS = 60
 
 type Recipient = { userId: string; email: string; displayName: string }
@@ -150,28 +159,54 @@ async function resendTargets(emails: string[]): Promise<Recipient[]> {
     .map((id) => ({ userId: id, email: byId.get(id) as string, displayName: names.get(id) ?? "" }))
 }
 
-async function issueThanksCoupon(userId: string, validUntil: Date): Promise<string | null> {
+type IssuedCoupon = { amount: number; minOrder: number; code: string }
+
+/** 發一張指定面額的感謝券。已經有同面額的就回 null。 */
+async function issueOneThanksCoupon(
+  userId: string,
+  spec: (typeof THANKS_COUPONS)[number],
+  validUntil: Date,
+): Promise<string | null> {
   for (let attempt = 0; attempt < 8; attempt++) {
-    const code = generateCouponCode("TK")
+    const code = generateCouponCode(spec.prefix)
     const { error } = await supabase.from("member_coupons").insert({
       user_id: userId,
       type: "thanks",
-      amount: THANKS_AMOUNT,
-      min_order: THANKS_MIN_ORDER,
+      amount: spec.amount,
+      min_order: spec.minOrder,
       code,
       valid_until: validUntil.toISOString(),
       note: "老朋友感謝券（會員制度更新通知）",
     })
     if (!error) return code
     const msg = String(error.message)
-    // user_id 的唯一索引撞到 = 這個人已經有券了，不是碼撞號
+    // (user_id, amount) 的唯一索引撞到 = 這個面額已經發過，不是碼撞號
     if (msg.includes("idx_member_coupons_thanks_once")) return null
     if (!msg.includes("duplicate")) {
-      console.warn(`[broadcast] 感謝券建立失敗 user=${userId}:`, error)
+      console.warn(`[broadcast] 感謝券建立失敗 user=${userId} amount=${spec.amount}:`, error)
       return null
     }
   }
   return null
+}
+
+/**
+ * 發齊兩張感謝券。
+ *
+ * 任一張發不出來就回 null，呼叫端會跳過不寄 —— 信上兩張券的碼都要印出來，
+ * 少一張的信寄出去會讓客人以為系統出錯。已經插進去的那張留著，下一批會補齊。
+ */
+async function issueThanksCoupons(
+  userId: string,
+  validUntil: Date,
+): Promise<IssuedCoupon[] | null> {
+  const out: IssuedCoupon[] = []
+  for (const spec of THANKS_COUPONS) {
+    const code = await issueOneThanksCoupon(userId, spec, validUntil)
+    if (!code) return null
+    out.push({ amount: spec.amount, minOrder: spec.minOrder, code })
+  }
+  return out
 }
 
 // GET /admin/broadcast/membership-update —— 試算，不寄任何東西
@@ -185,11 +220,8 @@ adminBroadcastRouter.get("/membership-update", async (_req, res) => {
       sent_today: today,
       daily_cap: cap,
       remaining_today: Math.max(0, cap - today),
-      coupon: {
-        amount: THANKS_AMOUNT,
-        min_order: THANKS_MIN_ORDER,
-        valid_days: THANKS_VALID_DAYS,
-      },
+      coupons: THANKS_COUPONS.map((c) => ({ amount: c.amount, min_order: c.minOrder })),
+      coupon_valid_days: THANKS_VALID_DAYS,
       // 名單前 10 筆給管理者確認長相，不把 227 個 email 全倒出來
       sample: list.slice(0, 10).map((r) => ({ email: r.email, name: r.displayName })),
     })
@@ -270,26 +302,40 @@ adminBroadcastRouter.post("/membership-update", async (req, res) => {
     let sent = 0
     const failed: string[] = []
     for (const r of targets) {
-      let code: string | null
+      let coupons: IssuedCoupon[] | null
       let validUntil: Date
       if (resend) {
-        // 補寄沿用原本那張券，不發第二張 —— 人沒收到信，不代表券沒發
+        // 補寄沿用原本那幾張券，不再發新的 —— 人沒收到信，不代表券沒發
         const { data: existing } = await supabase
           .from("member_coupons")
-          .select("code, valid_until")
+          .select("code, amount, min_order, valid_until")
           .eq("user_id", r.userId)
           .eq("type", "thanks")
-          .maybeSingle()
-        const row = existing as { code: string | null; valid_until: string } | null
-        code = row?.code ?? null
-        validUntil = row ? new Date(row.valid_until) : new Date()
+          .order("amount", { ascending: false })
+        const rows = (existing ?? []) as Array<{
+          code: string | null
+          amount: number | string
+          min_order: number | string | null
+          valid_until: string
+        }>
+        coupons = rows.length
+          ? rows
+              .filter((x) => x.code)
+              .map((x) => ({
+                amount: Number(x.amount),
+                minOrder: Number(x.min_order) || 0,
+                code: x.code as string,
+              }))
+          : null
+        validUntil = rows[0] ? new Date(rows[0].valid_until) : new Date()
       } else {
         validUntil = new Date()
         validUntil.setDate(validUntil.getDate() + THANKS_VALID_DAYS)
-        // 先發券。發不出來就不寄 —— 信上要印優惠碼，也代表這個人已經寄過了。
-        code = await issueThanksCoupon(r.userId, validUntil)
+        // 先發券。發不齊就不寄 —— 信上兩張券的碼都要印，而且發出去了
+        // 也代表這個人已經寄過。
+        coupons = await issueThanksCoupons(r.userId, validUntil)
       }
-      if (!code) {
+      if (!coupons || coupons.length === 0) {
         failed.push(r.email)
         continue
       }
@@ -301,9 +347,7 @@ adminBroadcastRouter.post("/membership-update", async (req, res) => {
           to: r.email,
           data: {
             customerName: r.displayName,
-            couponAmount: THANKS_AMOUNT,
-            couponMinOrder: THANKS_MIN_ORDER,
-            couponCode: code,
+            coupons,
             validUntil: new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei" }).format(
               validUntil,
             ),

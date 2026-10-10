@@ -28,7 +28,7 @@ export type EmailJobData =
   | { template: "repurchase-reminder"; to: string; data: { customerName: string; couponAmount: number; couponMinOrder: number; couponCode: string; validUntil: string } }
   | { template: "feedback-request"; to: string; data: { customerName: string; referralCode?: string | null; referralMinOrder?: number; referralReward?: number } }
   | { template: "membership-update-correction"; to: string; data: { customerName: string; originalSentOn: string; referralMinOrder: number; referralReward: number; referralCode?: string | null } }
-  | { template: "membership-update"; to: string; data: { customerName: string; couponAmount: number; couponMinOrder: number; couponCode: string; validUntil: string; rebatePercent: number; referralMinOrder: number; referralReward: number; referralCode?: string | null } }
+  | { template: "membership-update"; to: string; data: { customerName: string; coupons: Array<{ amount: number; minOrder: number; code: string }>; validUntil: string; rebatePercent: number; referralMinOrder: number; referralReward: number; referralCode?: string | null } }
   | { template: "tier-renewed"; to: string; data: { tierName: string; newExpiresAt: string; perks: string[] } }
   | { template: "tier-downgraded"; to: string; data: { fromTier: string; toTier: string; nextRequalifyAmount: number; toPerks: string[] } }
   | { template: "subscription-billed"; to: string; data: { planName: string; amount: string; nextBillingDate: string; orderNumber: string } }

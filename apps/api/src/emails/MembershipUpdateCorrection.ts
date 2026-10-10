@@ -29,7 +29,7 @@ export function renderMembershipUpdateCorrection(data: {
 
     <div style="background:#f6f8fa;border-radius:10px;padding:16px 18px;margin:20px 0">
       <p style="margin:0"><strong>正確的內容是：</strong></p>
-      <p style="margin:8px 0 0">推薦朋友首次消費滿 ${data.referralMinOrder.toLocaleString()} 元（折扣前），
+      <p style="margin:8px 0 0">推薦朋友首次消費滿 ${data.referralMinOrder.toLocaleString()} 元，
          您與朋友各獲得 <strong>${data.referralReward} 元</strong>公益存款，
          可選擇下次購物折抵，或留存累積，讓善意持續發生。</p>
       ${codeLine}

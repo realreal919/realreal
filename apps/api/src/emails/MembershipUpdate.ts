@@ -8,9 +8,8 @@
  */
 export function renderMembershipUpdate(data: {
   customerName: string
-  couponAmount: number
-  couponMinOrder: number
-  couponCode: string
+  /** 隨信發的感謝券，一次多張。面額大的排前面。 */
+  coupons: Array<{ amount: number; minOrder: number; code: string }>
   validUntil: string
   rebatePercent: number
   referralMinOrder: number
@@ -18,6 +17,19 @@ export function renderMembershipUpdate(data: {
   referralCode?: string | null
 }): string {
   const hi = data.customerName ? `${data.customerName} 您好，` : "您好，"
+  // 一張券一個區塊。兩張並列在同一個表格裡的話，哪個門檻配哪個碼很容易看錯。
+  const couponRows = data.coupons
+    .map(
+      (c, i) => `
+      <div style="${i > 0 ? "margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.2)" : ""}">
+        <p style="margin:0;font-size:17px"><strong>滿 NT$${c.minOrder.toLocaleString()} 折 NT$${c.amount}</strong></p>
+        <p style="margin:4px 0 0;font-size:14px;opacity:.85">
+          優惠碼：<strong style="letter-spacing:.15em">${c.code}</strong>
+        </p>
+      </div>`,
+    )
+    .join("")
+
   const codeLine = data.referralCode
     ? `<p style="margin:8px 0 0">您的專屬推薦碼：<strong style="letter-spacing:.15em">${data.referralCode}</strong></p>`
     : ""
@@ -42,7 +54,7 @@ export function renderMembershipUpdate(data: {
 
     <div style="background:#f6f8fa;border-radius:10px;padding:16px 18px;margin:20px 0">
       <p style="margin:0"><strong>🤍 推薦朋友，雙方都有回饋</strong></p>
-      <p style="margin:8px 0 0">推薦朋友首次消費滿 ${data.referralMinOrder.toLocaleString()} 元（折扣前），
+      <p style="margin:8px 0 0">推薦朋友首次消費滿 ${data.referralMinOrder.toLocaleString()} 元，
          您與朋友各獲得 ${data.referralReward} 元公益存款，
          可選擇下次購物折抵，或留存累積，讓善意持續發生。</p>
       ${codeLine}
@@ -63,14 +75,11 @@ export function renderMembershipUpdate(data: {
     <p style="margin-top:28px">另外，想謝謝您這一路的支持，準備了一份小禮：</p>
 
     <div style="background:#10305a;color:#fff;border-radius:10px;padding:18px 20px;margin:16px 0">
-      <p style="margin:0 0 12px"><strong>🎁 老朋友感謝券</strong></p>
-      <table style="font-size:15px;line-height:2;border-collapse:collapse;color:#fff">
-        <tr><td style="padding-right:16px;opacity:.75">折抵金額</td><td><strong>NT$${data.couponAmount}</strong></td></tr>
-        <tr><td style="padding-right:16px;opacity:.75">使用門檻</td><td>消費滿 NT$${data.couponMinOrder.toLocaleString()}</td></tr>
-        <tr><td style="padding-right:16px;opacity:.75">優惠碼</td><td><strong style="letter-spacing:.15em">${data.couponCode}</strong></td></tr>
-        <tr><td style="padding-right:16px;opacity:.75">使用期限</td><td>${data.validUntil}</td></tr>
-      </table>
-      <p style="margin:12px 0 0;font-size:13px;opacity:.75">優惠可併用</p>
+      <p style="margin:0 0 12px"><strong>🎁 老朋友感謝券${data.coupons.length > 1 ? ` ${data.coupons.length} 張` : ""}</strong></p>
+      ${couponRows}
+      <p style="margin:14px 0 0;font-size:13px;opacity:.75">
+        使用期限：${data.validUntil}｜優惠可併用
+      </p>
     </div>
 
     <p style="margin:28px 0">

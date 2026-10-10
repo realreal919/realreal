@@ -67,7 +67,7 @@ export default function MembershipPage() {
           覺得誠真喝得不錯？歡迎分享給親友，讓彼此都多一份回饋。
         </p>
         <p className="mb-5 text-center text-sm leading-7 text-[#687279]">
-          朋友首次消費滿 $650（折扣前），
+          朋友首次消費滿 $650，
           <strong className="text-[#10305a]">您與朋友各獲得 $50 公益存款</strong>，
           可折抵下次購物，也能繼續累積，讓善意延續。
         </p>

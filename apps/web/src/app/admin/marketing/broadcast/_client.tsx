@@ -14,7 +14,8 @@ type Status = {
   sent_today: number
   daily_cap: number
   remaining_today: number
-  coupon: { amount: number; min_order: number; valid_days: number }
+  coupons: Array<{ amount: number; min_order: number }>
+  coupon_valid_days: number
   sample: Array<{ email: string; name: string }>
 }
 
@@ -208,10 +209,12 @@ export function BroadcastClient() {
         </div>
         <div className="rounded-lg border p-4">
           <p className="text-xs text-zinc-500">隨信附的券</p>
-          <p className="text-sm font-medium text-[#10305a]">
-            滿 {status.coupon.min_order.toLocaleString()} 折 {status.coupon.amount}
-          </p>
-          <p className="text-xs text-zinc-500">{status.coupon.valid_days} 天有效</p>
+          {status.coupons.map((c) => (
+            <p key={c.amount} className="text-sm font-medium text-[#10305a]">
+              滿 {c.min_order.toLocaleString()} 折 {c.amount}
+            </p>
+          ))}
+          <p className="text-xs text-zinc-500">{status.coupon_valid_days} 天有效</p>
         </div>
       </div>
 

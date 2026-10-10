@@ -51,7 +51,7 @@ export function renderFeedbackRequest(data: {
     <div style="background:#f6f8fa;border-radius:10px;padding:16px 18px;margin:20px 0">
       <p style="margin:0"><strong>🤍 推薦給朋友，彼此都能獲得回饋</strong></p>
       <p style="margin:8px 0 0">如果您覺得誠真生活的植物蛋白喝得順口，也歡迎分享給身邊的朋友。</p>
-      <p style="margin:8px 0 0">推薦朋友首次消費滿 ${minOrder} 元（折扣前），您與朋友各獲得 ${reward} 元公益存款，
+      <p style="margin:8px 0 0">推薦朋友首次消費滿 ${minOrder} 元，您與朋友各獲得 ${reward} 元公益存款，
          可選擇下次購物折抵，或留存累積，讓善意持續發生。</p>
       ${codeLine}
       <p style="margin:12px 0 0">

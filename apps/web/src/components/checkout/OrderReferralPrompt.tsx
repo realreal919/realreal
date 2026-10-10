@@ -59,7 +59,7 @@ export function OrderReferralPrompt() {
     <div className="mb-6 rounded-lg border border-[#10305a]/15 bg-[#10305a]/5 p-5 text-left">
       <p className="mb-1 font-semibold text-[#10305a]">順手分享給朋友？</p>
       <p className="mb-4 text-sm leading-6 text-[#687279]">
-        朋友首次消費滿 {info.rules.min_order.toLocaleString()} 元（折扣前），
+        朋友首次消費滿 {info.rules.min_order.toLocaleString()} 元，
         您與朋友各獲得 {info.rules.referee_reward} 元公益存款，
         可選擇下次購物折抵，或留存累積，讓善意持續發生。
       </p>
