@@ -63,10 +63,10 @@ export default function MembershipPage() {
           推薦碼是每人不同的，所以這裡只能引到會員中心，不能直接印出來。 */}
       <div className="mb-12 rounded-lg border border-[#10305a]/15 bg-[#10305a]/5 p-6">
         <h2 className="mb-2 text-center text-xl font-bold text-[#10305a]">把喜歡的，分享給在乎的人</h2>
-        <p className="mb-2 text-sm leading-7 text-[#687279]">
+        <p className="mb-2 text-center text-sm leading-7 text-[#687279]">
           覺得誠真喝得不錯？歡迎分享給親友，讓彼此都多一份回饋。
         </p>
-        <p className="mb-5 text-sm leading-7 text-[#687279]">
+        <p className="mb-5 text-center text-sm leading-7 text-[#687279]">
           朋友首次消費滿 $650（折扣前），
           <strong className="text-[#10305a]">您與朋友各獲得 $50 公益存款</strong>，
           可折抵下次購物，也能繼續累積，讓善意延續。
