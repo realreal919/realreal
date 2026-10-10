@@ -58,18 +58,6 @@ export default function MembershipPage() {
         </Link>
       </div>
 
-      {/* Notes */}
-      <div className="mb-12 text-sm text-[#687279] space-y-1">
-        <p>
-          <strong className="text-[#10305a]">*</strong>{" "}
-          公益存款按實際消費金額扣除運費後計算
-        </p>
-        <p>
-          <strong className="text-[#10305a]">*</strong>{" "}
-          記得於會員資料中填寫生日，才能收到專屬生日禮喔
-        </p>
-      </div>
-
       {/* 推薦朋友 —— 放在分享回報之前。兩件事的動機強度差很多：推薦是
           「馬上可以做、而且有明確回報」，分享回報要等管理者人工審核。
           推薦碼是每人不同的，所以這裡只能引到會員中心，不能直接印出來。 */}
