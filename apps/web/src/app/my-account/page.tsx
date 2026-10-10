@@ -134,6 +134,10 @@ export default async function MyAccountPage({
         ledger={pointsLedger}
       />
 
+      {/* 推薦卡片排在分享回報之前 —— 推薦是「馬上可以做、而且有明確回報」，
+          分享回報要等管理者人工審核，動機弱得多。 */}
+      <ReferralCard />
+
       {/* 分享回報 —— FAQ 裡叫人「到會員中心的分享回報」，所以這個入口一定要
           在會員中心找得到，不然那句話就是空的。 */}
       <section className="mt-8 rounded-lg border border-[#10305a]/15 bg-[#10305a]/5 p-5">
@@ -148,8 +152,6 @@ export default async function MyAccountPage({
           告訴我們你的分享
         </Link>
       </section>
-
-      <ReferralCard />
 
       <RecentOrdersSection orders={recentOrders} />
 

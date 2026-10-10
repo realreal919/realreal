@@ -70,6 +70,30 @@ export default function MembershipPage() {
         </p>
       </div>
 
+      {/* 推薦朋友 —— 放在分享回報之前。兩件事的動機強度差很多：推薦是
+          「馬上可以做、而且有明確回報」，分享回報要等管理者人工審核。
+          推薦碼是每人不同的，所以這裡只能引到會員中心，不能直接印出來。 */}
+      <div className="mb-12 rounded-lg border border-[#10305a]/15 bg-[#10305a]/5 p-6">
+        <h2 className="mb-2 text-xl font-bold text-[#10305a]">把喜歡的東西分享出去</h2>
+        <p className="mb-2 text-sm leading-7 text-[#687279]">
+          誠真的會員大多是朋友介紹來的。如果您覺得喝得順口，歡迎把專屬推薦碼給身邊的人。
+        </p>
+        <p className="mb-5 text-sm leading-7 text-[#687279]">
+          朋友首次消費滿 650 元（折扣前），
+          <strong className="text-[#10305a]">您與朋友各獲得 50 元公益存款</strong>，
+          可選擇下次購物折抵，或留存累積，讓善意持續發生。
+        </p>
+        <Link
+          href="/my-account"
+          className="inline-block rounded-full bg-[#10305a] px-6 py-2.5 font-semibold text-white transition-colors hover:bg-[#10305a]/90"
+        >
+          登入看我的專屬推薦碼
+        </Link>
+        <p className="mt-3 text-xs text-[#687279]">
+          每位會員都有一組專屬代碼，登入會員中心即可取得。
+        </p>
+      </div>
+
       {/* 分享回報入口 —— 制度表最下面那排「怎麼走得更近」講的就是這些事，
           看完想做的人應該在同一個畫面就找得到入口，不用去翻會員中心。 */}
       <div className="mb-12 rounded-lg border border-[#10305a]/15 bg-[#10305a]/5 p-6 text-center">

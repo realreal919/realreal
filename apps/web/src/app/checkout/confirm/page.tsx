@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { OrderReferralPrompt } from "@/components/checkout/OrderReferralPrompt"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useCart } from "@/lib/cart"
@@ -469,6 +470,8 @@ export default function ConfirmPage() {
             <GuestRegisterCard email={guestEmail} orderNumber={orderNumber} />
           </div>
         )}
+
+        <OrderReferralPrompt />
 
         {/* Actions */}
         <div className="space-y-3">
