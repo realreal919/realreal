@@ -62,7 +62,7 @@ export default function MembershipPage() {
           「馬上可以做、而且有明確回報」，分享回報要等管理者人工審核。
           推薦碼是每人不同的，所以這裡只能引到會員中心，不能直接印出來。 */}
       <div className="mb-12 rounded-lg border border-[#10305a]/15 bg-[#10305a]/5 p-6">
-        <h2 className="mb-2 text-xl font-bold text-[#10305a]">把喜歡的，分享給在乎的人</h2>
+        <h2 className="mb-2 text-center text-xl font-bold text-[#10305a]">把喜歡的，分享給在乎的人</h2>
         <p className="mb-2 text-sm leading-7 text-[#687279]">
           覺得誠真喝得不錯？歡迎分享給親友，讓彼此都多一份回饋。
         </p>
@@ -71,29 +71,36 @@ export default function MembershipPage() {
           <strong className="text-[#10305a]">您與朋友各獲得 $50 公益存款</strong>，
           可折抵下次購物，也能繼續累積，讓善意延續。
         </p>
-        <Link
-          href="/my-account"
-          className="inline-block rounded-full bg-[#10305a] px-6 py-2.5 font-semibold text-white transition-colors hover:bg-[#10305a]/90"
-        >
-          查看我的專屬推薦碼
-        </Link>
-        <p className="mt-3 text-xs text-[#687279]">
-          登入會員中心，即可找到您的專屬推薦碼。
-        </p>
+        {/* 按鈕置中：按鈕本身是 inline-block，所以要靠外層的 text-center，
+            不是在按鈕上加 mx-auto。 */}
+        <div className="text-center">
+          <Link
+            href="/my-account"
+            className="inline-block rounded-full bg-[#10305a] px-6 py-2.5 font-semibold text-white transition-colors hover:bg-[#10305a]/90"
+          >
+            查看我的專屬推薦碼
+          </Link>
+          <p className="mt-3 text-xs text-[#687279]">
+            登入會員中心，即可找到您的專屬推薦碼。
+          </p>
+        </div>
       </div>
 
       {/* 分享回報入口 —— 制度表最下面那排「怎麼走得更近」講的就是這些事，
           看完想做的人應該在同一個畫面就找得到入口，不用去翻會員中心。 */}
       <div className="mb-12 rounded-lg border border-[#10305a]/15 bg-[#10305a]/5 p-6 text-center">
-        <p className="mb-1 font-semibold text-[#10305a]">分享過了嗎？</p>
-        <p className="mb-4 text-sm text-[#687279]">
-          貼上連結或傳張截圖就好，我們看過會通知你。
+        <h2 className="mb-2 text-xl font-bold text-[#10305a]">分享心得，申請會員升級</h2>
+        <p className="mb-2 text-sm leading-7 text-[#687279]">
+          在 IG、Threads 或其他社群分享過誠真生活了嗎？
+        </p>
+        <p className="mb-5 text-sm leading-7 text-[#687279]">
+          貼上貼文連結，或上傳分享截圖，讓我們看看您的分享。確認後，我們會通知您會員升級結果。
         </p>
         <Link
           href="/share"
           className="inline-block rounded-full border border-[#10305a] px-6 py-2 font-semibold text-[#10305a] transition-colors hover:bg-[#10305a] hover:text-white"
         >
-          分享我的心得
+          提交分享紀錄
         </Link>
       </div>
 
