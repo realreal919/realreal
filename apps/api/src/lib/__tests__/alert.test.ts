@@ -6,6 +6,9 @@
  * 跟「6 小時只寄一封」一樣重要。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+// vi.mock 會被 hoist 到 import 之前，所以這裡用一般 import 就行，
+// 不要用 top-level await import —— 那會讓 tsc 建置失敗，而建置失敗時舊版會繼續跑。
+import { sendAlert, __resetAlertThrottle } from "../alert"
 
 const sendEmail = vi.fn()
 vi.mock("../email", () => ({
@@ -17,7 +20,6 @@ vi.mock("../settings", () => ({
   getSettingOrEnv: async () => "ops@example.com",
 }))
 
-const { sendAlert, __resetAlertThrottle } = await import("../alert")
 
 const SIX_HOURS = 6 * 60 * 60 * 1000
 
