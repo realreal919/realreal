@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Minus, Plus, PencilLine, ShoppingCart, Sparkles } from "lucide-react"
 import { useCart } from "@/lib/cart"
 import { API_URL } from "@/lib/api-url"
-import { buyGetMessages, firstPurchaseProductMessage, marqueeSpendMessage, SPEND_HEADLINE, type BuyGetOffer, type FirstPurchase, type SpendGift, type SpendThreshold } from "@/lib/spend-threshold"
+import { buyGetDetailLines, buyGetMessages, firstPurchaseProductMessage, marqueeSpendMessage, SPEND_HEADLINE, type BuyGetOffer, type FirstPurchase, type SpendGift, type SpendThreshold } from "@/lib/spend-threshold"
 import { Badge } from "@/components/ui/badge"
 import { AddonStrip } from "./AddonStrip"
 
@@ -63,7 +63,10 @@ export function AddToCartSection({
     }
   }, [])
   const spendMessage = marqueeSpendMessage(spendTiers, spendGifts)
+  // 標題與說明成對：標題講「買10送1」，說明講「任選 11 件、最低價 1 件免費」。
+  // 兩個陣列都由 validOffers 過濾，順序一致，所以可以用索引配對。
   const buyGetLines = buyGetMessages(buyGetOffers)
+  const buyGetDetails = buyGetDetailLines(buyGetOffers)
   // 門檻要跟「這個商品最便宜能買到的價格」比，不是跟當下選到的規格比 ——
   // 選了貴的規格就說「自動折」、切回便宜的又多出門檻，同一頁說兩套話。
   const minVariantPrice = variants.length
@@ -189,12 +192,17 @@ export function AddToCartSection({
 
       {/* 買 X 送 Y —— 跟滿額優惠分開一塊，門檻是件數不是金額，混在一起客人會看錯 */}
       {buyGetLines.length > 0 && (
-        <div className="-mt-2 rounded-md bg-amber-50 px-3 py-2.5 text-base" style={{ color: "#92400e" }}>
-          {buyGetLines.map((line) => (
-            <p key={line} className="flex items-center gap-2 font-bold">
-              <Sparkles className="h-5 w-5 shrink-0" />
-              {line}
-            </p>
+        <div className="-mt-2 space-y-1.5 rounded-md bg-amber-50 px-3 py-2.5 text-base" style={{ color: "#92400e" }}>
+          {buyGetLines.map((line, i) => (
+            <div key={line}>
+              <p className="flex items-center gap-2 font-bold">
+                <Sparkles className="h-5 w-5 shrink-0" />
+                {line}
+              </p>
+              {buyGetDetails[i] && (
+                <p className="pl-7 text-xs leading-5">{buyGetDetails[i]}</p>
+              )}
+            </div>
           ))}
         </div>
       )}

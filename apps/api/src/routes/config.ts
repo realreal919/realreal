@@ -3,6 +3,7 @@ import { getShippingRule } from "../lib/shipping"
 import { supabase } from "../lib/supabase"
 import { getSetting } from "../lib/settings"
 import { loadScoopGiftConfig } from "../lib/scoop-gift"
+import { mapBuyGetOffers, type BuyGetOffer } from "../lib/buy-get-offers"
 
 export const configRouter = Router()
 
@@ -140,35 +141,28 @@ configRouter.get("/", async (_req, res) => {
     console.warn("[config] freebie campaign lookup failed (non-fatal):", err)
   }
 
-  // 買 X 送 Y（buy_x_get_y）：跟滿額優惠一樣要講給客人聽，不然客人只有在湊滿
-  // 11 袋結帳時才會發現有折扣 —— 這種活動的重點正是「先知道才會湊」。
+  // 買 X 送 Y：跟滿額優惠一樣要講給客人聽，不然客人只有在湊滿 11 袋結帳時才會
+  // 發現有折扣 —— 這種活動的重點正是「先知道才會湊」。
   // 只收所有人都適用的（沒綁等級、沒綁折扣碼）。
-  let buyGetOffers: Array<{ label: string; buyQty: number; getQty: number }> = []
+  //
+  // 兩種 type 都收：
+  //   buy_x_get_y —— 可重複，湊兩組就免兩件（max_uses_per_order 為上限）
+  //   bundle      —— 一次性，整張訂單只免最便宜的 getQty 件一次
+  // 整理成文案形狀的規則（label、件數欄位、能不能重複）在 mapBuyGetOffers，有測試。
+  let buyGetOffers: BuyGetOffer[] = []
   try {
     const now = new Date().toISOString()
     const { data } = await supabase
       .from("campaigns")
-      .select("name, config, starts_at, ends_at, tier_id, coupon_id")
-      .eq("type", "buy_x_get_y")
+      .select("name, type, config, starts_at, ends_at, tier_id, coupon_id")
+      .in("type", ["buy_x_get_y", "bundle"])
       .eq("is_active", true)
       .is("tier_id", null)
       .is("coupon_id", null)
       .lte("starts_at", now)
-    buyGetOffers = (data ?? [])
-      .filter((c) => !c.ends_at || (c.ends_at as string) > now)
-      .map((c) => {
-        const cfg = (c.config ?? {}) as Record<string, unknown>
-        return {
-          // copy_label 是給客人看的短名（「300克夾鏈袋」）。沒設就退回活動名稱，
-          // 至少不會是空白。
-          label: String(cfg.copy_label ?? c.name ?? "").trim(),
-          buyQty: Number(cfg.buy_quantity ?? 0),
-          getQty: Number(cfg.get_quantity ?? 0),
-        }
-      })
-      .filter((o) => o.label && o.buyQty > 0 && o.getQty > 0)
+    buyGetOffers = mapBuyGetOffers(data ?? [], now)
   } catch (err) {
-    console.warn("[config] buy_x_get_y campaign lookup failed (non-fatal):", err)
+    console.warn("[config] buy_x_get_y / bundle campaign lookup failed (non-fatal):", err)
   }
 
   // 首購折扣：跑馬燈要把「折多少、滿多少可用」講清楚。寫死在前端的話，

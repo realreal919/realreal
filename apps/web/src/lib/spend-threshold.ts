@@ -18,14 +18,46 @@ export const SPEND_HEADLINE = "滿額好禮"
 /**
  * 買 X 送 Y 活動（GET /config 的 buyGetOffers）。跟滿額優惠分開講 —— 它不是
  * 「買到多少錢」而是「湊到幾件」，混在同一條階梯上客人會以為也是金額門檻。
+ *
+ * repeats / freeRule 是 2026-10-11 加的，舊版 API 不會回傳 —— 部署先後順序不同時
+ * 前台可能先上線，所以兩個都可選，沒拿到就當「不重複、免最便宜的」，跟 bundle
+ * 一樣保守。講少了客人只是少知道一件事，講多了（說可以重複但其實不行）會變成
+ * 結帳時金額對不上。
  */
-export type BuyGetOffer = { label: string; buyQty: number; getQty: number }
+export type BuyGetOffer = {
+  label: string
+  buyQty: number
+  getQty: number
+  /** true = 湊兩組免兩件（buy_x_get_y）；false/未給 = 整筆訂單只免一次（bundle） */
+  repeats?: boolean
+  /** 免費的是最便宜還是最貴的那幾件 */
+  freeRule?: "lowest_price" | "highest_price"
+}
 
-/** 「300克夾鏈袋買10送1」。跑馬燈與商品頁共用。 */
+function validOffers(offers: BuyGetOffer[]): BuyGetOffer[] {
+  return offers.filter((o) => o.label && o.buyQty > 0 && o.getQty > 0)
+}
+
+/** 「300克夾鏈袋買10送1」、「全館任選買10送1」。跑馬燈用的短句。 */
 export function buyGetMessages(offers: BuyGetOffer[] = []): string[] {
-  return offers
-    .filter((o) => o.label && o.buyQty > 0 && o.getQty > 0)
-    .map((o) => `${o.label}買${o.buyQty}送${o.getQty}`)
+  return validOffers(offers).map((o) => `${o.label}買${o.buyQty}送${o.getQty}`)
+}
+
+/**
+ * 商品頁用的第二行：把「幾件才成立、免的是哪一件」講清楚。
+ *
+ * 「買10送1」對單一商品很直覺，對全館任選就不是 —— 湊的是 11 件（付 10 件的錢），
+ * 而且 evaluator 免掉的是**最便宜**的那一件。不講的話，客人會以為免的是最貴的，
+ * 結帳才發現少折很多；這是客服爭議，不是小事。
+ */
+export function buyGetDetailLines(offers: BuyGetOffer[] = []): string[] {
+  return validOffers(offers).map((o) => {
+    const total = o.buyQty + o.getQty
+    const which = o.freeRule === "highest_price" ? "最高價" : "最低價"
+    return o.repeats
+      ? `每湊滿 ${total} 件，${which} ${o.getQty} 件免費`
+      : `任選 ${total} 件，${which} ${o.getQty} 件免費（每筆訂單 1 次）`
+  })
 }
 
 /** 首購折扣（GET /config 的 firstPurchase）。 */

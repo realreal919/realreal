@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buyGetMessages, firstPurchaseMessage, firstPurchaseProductMessage, marqueeSpendMessage, spendProgress, spendTiers } from "../spend-threshold"
+import { buyGetDetailLines, buyGetMessages, firstPurchaseMessage, firstPurchaseProductMessage, marqueeSpendMessage, spendProgress, spendTiers } from "../spend-threshold"
 
 const TIERS = [
   { minAmount: 5400, discount: 400 },
@@ -89,6 +89,45 @@ describe("buyGetMessages", () => {
   })
   it("★ 缺名稱或數量的活動不出現，不會變成「買0送0」", () => {
     expect(buyGetMessages([{ label: "", buyQty: 10, getQty: 1 }, { label: "夾鏈袋", buyQty: 0, getQty: 1 }])).toEqual([])
+  })
+  it("全館任選的活動講成「全館任選買10送1」", () => {
+    expect(buyGetMessages([{ label: "全館任選", buyQty: 10, getQty: 1 }])).toEqual(["全館任選買10送1"])
+  })
+})
+
+describe("buyGetDetailLines", () => {
+  it("★ 要講總件數，不是買的件數 —— 買10送1 湊的是 11 件", () => {
+    expect(
+      buyGetDetailLines([{ label: "全館任選", buyQty: 10, getQty: 1, repeats: false }]),
+    ).toEqual(["任選 11 件，最低價 1 件免費（每筆訂單 1 次）"])
+  })
+  it("★ 要講免的是最低價那件，不然客人會以為免最貴的", () => {
+    expect(buyGetDetailLines([{ label: "x", buyQty: 10, getQty: 1 }])[0]).toContain("最低價")
+    expect(
+      buyGetDetailLines([{ label: "x", buyQty: 10, getQty: 1, freeRule: "highest_price" }])[0],
+    ).toContain("最高價")
+  })
+  it("可重複的活動講「每湊滿」，不加「每筆訂單 1 次」", () => {
+    const [line] = buyGetDetailLines([
+      { label: "300克夾鏈袋", buyQty: 10, getQty: 1, repeats: true },
+    ])
+    expect(line).toBe("每湊滿 11 件，最低價 1 件免費")
+  })
+  it("★ 舊版 API 沒回 repeats 時當成不可重複，不能講得比實際多", () => {
+    expect(buyGetDetailLines([{ label: "x", buyQty: 10, getQty: 1 }])[0]).toContain("每筆訂單 1 次")
+  })
+  it("跟 buyGetMessages 用同一組過濾條件，索引才配得起來", () => {
+    const offers = [
+      { label: "", buyQty: 10, getQty: 1 },
+      { label: "全館任選", buyQty: 10, getQty: 1 },
+      { label: "夾鏈袋", buyQty: 0, getQty: 1 },
+    ]
+    expect(buyGetDetailLines(offers)).toHaveLength(buyGetMessages(offers).length)
+    expect(buyGetMessages(offers)).toEqual(["全館任選買10送1"])
+  })
+  it("沒有活動時回空陣列", () => {
+    expect(buyGetDetailLines([])).toEqual([])
+    expect(buyGetDetailLines()).toEqual([])
   })
 })
 
