@@ -61,7 +61,20 @@ export default function MembershipPage() {
       {/* 推薦朋友 —— 放在分享回報之前。兩件事的動機強度差很多：推薦是
           「馬上可以做、而且有明確回報」，分享回報要等管理者人工審核。
           推薦碼是每人不同的，所以這裡只能引到會員中心，不能直接印出來。 */}
-      <div className="mb-12 rounded-lg border border-[#10305a]/15 bg-[#10305a]/5 p-6">
+      {/* 圖在上、文字在下，兩者都留著。
+          圖上的 $650 / $50 是燒死的，而那兩個數字在後台是可調設定
+          （referral.min_order / referral.reward）—— 改了設定，下方的文字會自己跟著變，
+          圖不會，而且不會有任何警告。文字版同時是螢幕閱讀器讀得到的那一份。 */}
+      <div className="mb-12 overflow-hidden rounded-lg border border-[#10305a]/15 bg-[#10305a]/5">
+        <Image
+          src="https://fornopjdqwtexqfedhqv.supabase.co/storage/v1/object/public/product-images/membership/referral-1791696935438.webp"
+          alt="分享推薦碼，邀請好友一起加入：朋友首次消費滿 650 元，雙方各獲得 50 元公益存款"
+          width={1800}
+          height={1350}
+          className="block h-auto w-full"
+          unoptimized
+        />
+        <div className="p-6">
         <h2 className="mb-2 text-center text-xl font-bold text-[#10305a]">把喜歡的，分享給在乎的人</h2>
         <p className="mb-2 text-center text-sm leading-7 text-[#687279]">
           覺得誠真喝得不錯？歡迎分享給親友，讓彼此都多一份回饋。
@@ -83,6 +96,7 @@ export default function MembershipPage() {
           <p className="mt-3 text-xs text-[#687279]">
             登入會員中心，即可找到您的專屬推薦碼。
           </p>
+        </div>
         </div>
       </div>
 
