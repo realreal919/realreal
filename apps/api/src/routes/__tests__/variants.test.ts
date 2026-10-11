@@ -138,3 +138,50 @@ describe("addon_price write validation", () => {
     expect(JSON.stringify(res.body.error)).toContain("加購價不可高於原價")
   })
 })
+
+// 2026-10-11：attributes 原本限定 Record<string,string>，所以後台儲存任何一個
+// 有 recipe（巢狀物件）的規格都回 400 ——「探索誠真 10 入組」21 個規格全部存不了。
+describe("attributes 接受巢狀 JSON（混搭組合的 recipe）", () => {
+  const RECIPE = { recipe: { pool: { qty: 10, variant_ids: ["a", "b"] } }, 置頂: "是" }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockAdminAuth()
+  })
+
+  it("★ PUT 帶巢狀 recipe 不再被擋下來", async () => {
+    mockAdminWrite()
+    const res = await request(app)
+      .put("/products/prod-1/variants/var-1")
+      .set("Authorization", "Bearer test-token")
+      .send({ name: "選擇風味: 任選10入", price: 670, attributes: RECIPE })
+    expect(res.status).toBe(200)
+  })
+
+  it("★ POST 帶巢狀 recipe 不再被擋下來", async () => {
+    mockAdminWrite()
+    const res = await request(app)
+      .post("/products/prod-1/variants")
+      .set("Authorization", "Bearer test-token")
+      .send({ name: "選擇風味: 任選10入", price: 670, attributes: RECIPE })
+    expect(res.status).toBe(201)
+  })
+
+  it("只有字串值的屬性照樣可以存", async () => {
+    mockAdminWrite()
+    const res = await request(app)
+      .put("/products/prod-1/variants/var-1")
+      .set("Authorization", "Bearer test-token")
+      .send({ price: 100, attributes: { 停售: "是" } })
+    expect(res.status).toBe(200)
+  })
+
+  it("attributes 設成 null 可以清空", async () => {
+    mockAdminWrite()
+    const res = await request(app)
+      .put("/products/prod-1/variants/var-1")
+      .set("Authorization", "Bearer test-token")
+      .send({ price: 100, attributes: null })
+    expect(res.status).toBe(200)
+  })
+})

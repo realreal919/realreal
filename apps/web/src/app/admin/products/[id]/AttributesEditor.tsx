@@ -4,40 +4,21 @@ import * as React from "react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-
-type Row = { key: string; value: string }
+import {
+  describeAttribute,
+  mergeAttributes,
+  splitAttributes,
+  type AttributeRow as Row,
+} from "@/lib/variant-attributes"
 
 type AttributesEditorProps = {
-  value: Record<string, string>
-  onChange: (next: Record<string, string>) => void
+  value: Record<string, unknown>
+  onChange: (next: Record<string, unknown>) => void
 }
 
-function rowsToRecord(rows: Row[]): Record<string, string> {
-  const out: Record<string, string> = {}
-  for (const r of rows) {
-    const k = r.key.trim()
-    if (!k) continue
-    // last write wins
-    out[k] = r.value
-  }
-  return out
-}
-
-function recordToRows(rec: Record<string, string>): Row[] {
-  return Object.entries(rec).map(([key, value]) => ({ key, value }))
-}
-
-function recordsEqual(
-  a: Record<string, string>,
-  b: Record<string, string>,
-): boolean {
-  const ak = Object.keys(a)
-  const bk = Object.keys(b)
-  if (ak.length !== bk.length) return false
-  for (const k of ak) {
-    if (a[k] !== b[k]) return false
-  }
-  return true
+function rowsEqual(a: Row[], b: Row[]): boolean {
+  if (a.length !== b.length) return false
+  return a.every((r, i) => r.key === b[i].key && r.value === b[i].value)
 }
 
 function AttributesEditor({ value, onChange }: AttributesEditorProps) {
@@ -46,26 +27,30 @@ function AttributesEditor({ value, onChange }: AttributesEditorProps) {
   // an externally-provided value diverges from what our rows would produce
   // (so a parent reset still works, but our own onChange round-trip doesn't
   // wipe in-progress empty rows).
-  const [rows, setRows] = React.useState<Row[]>(() => recordToRows(value))
-  const lastEmittedRef = React.useRef<Record<string, string>>(value)
+  //
+  // 非字串的屬性（混搭組合的 recipe）不進表格 —— 進了會被 <Input> 轉成
+  // "[object Object]"，一存檔配方就沒了。它們放在 preserved，唯讀顯示，
+  // 送出時原樣帶回。詳見 lib/variant-attributes.ts。
+  const split = React.useMemo(() => splitAttributes(value), [value])
+  const [rows, setRows] = React.useState<Row[]>(() => split.editable)
+  const lastEmittedRef = React.useRef<Row[]>(split.editable)
 
   React.useEffect(() => {
-    if (!recordsEqual(value, lastEmittedRef.current)) {
-      setRows(recordToRows(value))
-      lastEmittedRef.current = value
+    if (!rowsEqual(split.editable, lastEmittedRef.current)) {
+      setRows(split.editable)
+      lastEmittedRef.current = split.editable
     }
-  }, [value])
+  }, [split])
 
   const commit = React.useCallback(
     (nextRows: Row[]) => {
       setRows(nextRows)
-      const rec = rowsToRecord(nextRows)
-      if (!recordsEqual(rec, lastEmittedRef.current)) {
-        lastEmittedRef.current = rec
-        onChange(rec)
+      if (!rowsEqual(nextRows, lastEmittedRef.current)) {
+        lastEmittedRef.current = nextRows
+        onChange(mergeAttributes(nextRows, split.preserved))
       }
     },
-    [onChange],
+    [onChange, split.preserved],
   )
 
   const handleKeyChange = (index: number, key: string) => {
@@ -90,11 +75,15 @@ function AttributesEditor({ value, onChange }: AttributesEditorProps) {
     commit([...rows, { key: "", value: "" }])
   }
 
+  const preservedEntries = Object.entries(split.preserved)
+
   return (
     <div className="mt-2 rounded-[10px] bg-gray-50 p-3">
-      {rows.length === 0 ? (
+      {rows.length === 0 && preservedEntries.length === 0 ? (
         <p className="mb-2 text-xs text-gray-400">尚無屬性</p>
-      ) : (
+      ) : null}
+
+      {rows.length > 0 && (
         <div className="space-y-2">
           {rows.map((row, index) => (
             <div key={index} className="flex items-center gap-2">
@@ -124,6 +113,22 @@ function AttributesEditor({ value, onChange }: AttributesEditorProps) {
           ))}
         </div>
       )}
+
+      {preservedEntries.length > 0 && (
+        <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+          <p className="mb-1 text-xs font-semibold text-amber-900">
+            以下屬性不能在這裡編輯，儲存時會原樣保留
+          </p>
+          <ul className="space-y-0.5 text-xs text-amber-800">
+            {preservedEntries.map(([k, v]) => (
+              <li key={k}>
+                <span className="font-mono">{k}</span>：{describeAttribute(v)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <Button
         type="button"
         variant="outline"

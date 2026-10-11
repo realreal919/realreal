@@ -24,7 +24,9 @@ type Variant = {
   stock_qty: number
   sku: string | null
   weight: number | null
-  attributes: Record<string, string> | null
+  // 值不限字串：混搭組合的 recipe 是巢狀物件，收窄成 string 會讓屬性編輯器
+  // 把它轉成 "[object Object]" 存回去，配方就沒了。見 lib/variant-attributes.ts。
+  attributes: Record<string, unknown> | null
 }
 
 type Category = { id: string; name: string }
@@ -272,7 +274,7 @@ export default function AdminProductEditClient({ product }: { product: ProductRo
   function updateVariant(
     id: string,
     field: keyof Variant,
-    value: string | number | null | Record<string, string>,
+    value: string | number | null | Record<string, unknown>,
   ) {
     setVariants(prev => prev.map(v => v.id === id ? { ...v, [field]: value } : v))
   }
@@ -541,7 +543,7 @@ export default function AdminProductEditClient({ product }: { product: ProductRo
                   <div className="mt-2">
                     <AttributesEditor
                       value={v.attributes ?? {}}
-                      onChange={(attrs: Record<string, string>) => updateVariant(v.id, "attributes", attrs)}
+                      onChange={(attrs: Record<string, unknown>) => updateVariant(v.id, "attributes", attrs)}
                     />
                   </div>
                 </details>

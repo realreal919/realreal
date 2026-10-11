@@ -11,7 +11,7 @@ export interface ProductVariantDraft {
   salePrice: number | null
   stockQty: number
   weight: number | null
-  attributes: Record<string, string>
+  attributes: Record<string, unknown>
 }
 
 export interface ProductCreateDraft {

@@ -44,7 +44,12 @@ const variantBaseSchema = z.object({
   addon_limit: z.number().int().positive().optional(),
   stock_qty: z.number().int().nonnegative().optional(),
   weight: z.number().nonnegative().nullable().optional(),
-  attributes: z.record(z.string(), z.string()).nullable().optional(),
+  // 值不限字串。混搭組合的 recipe 是巢狀物件（{ recipe: { pool: { qty, variant_ids } } }），
+  // 原本限定 Record<string,string>，所以後台只要儲存任何一個有 recipe 的規格就回 400
+  // 「儲存失敗」—— 探索誠真 10 入組那 21 個規格全部存不了（2026-10-11 發現）。
+  // 前台的屬性編輯器會把非字串的屬性唯讀保留，不會把它變成 "[object Object]"
+  // 再存回來（見 web/src/lib/variant-attributes.ts）。
+  attributes: z.record(z.string(), z.unknown()).nullable().optional(),
 })
 
 const addonPriceRefine = (v: { addon_price?: number | null; price?: number | null }) =>
