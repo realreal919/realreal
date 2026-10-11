@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { canAccessAdmin } from "@/lib/admin-access"
 import { AdminSidebar } from "./AdminSidebar"
-
-type Role = "admin" | "editor" | "viewer"
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -18,9 +17,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     .eq("user_id", user.id)
     .single()
 
-  const role = (profile?.role ?? "viewer") as Role
+  // 白名單：只有 admin / editor 放行。詳細理由見 lib/admin-access.ts ——
+  // 簡短版是原本只擋 viewer，而一般會員的 role 是 customer，等於全部放行。
+  const role = profile?.role as string | null | undefined
 
-  if (role === "viewer") redirect("/")
+  if (!canAccessAdmin(role)) redirect("/")
 
   return (
     <div className="flex min-h-screen bg-zinc-50">
