@@ -84,18 +84,18 @@ const FIELD_META: Record<
   },
   "notifications.alert_email": {
     label: "系統告警收件 Email（線上錯誤通知）",
-    hint: "線上發生錯誤時寄到這裡。留空則沿用上面的「管理員收件 Email」。同一個錯誤 15 分鐘內只寄一次、每小時最多 10 封，避免錯誤風暴洗爆寄信額度。（原本的 LINE Notify 已於 2025-03-31 停止服務，改用 Email。）",
+    hint: "線上發生錯誤時寄到這裡。留空則沿用上面的「管理員收件 Email」。最多 6 小時一封，這段期間其他的錯誤會摘要在同一封信裡，避免錯誤風暴把每天 100 封的寄信額度吃光（那個額度跟訂單、出貨通知信共用）。完整錯誤列表看 Sentry。（原本的 LINE Notify 已於 2025-03-31 停止服務，改用 Email。）",
     placeholder: "alert@realreal.cc",
   },
   // Analytics
   "analytics.ga4_measurement_id": {
     label: "GA4 Measurement ID",
-    hint: "改完後須 Vercel + Railway re-deploy 才生效",
+    hint: "Google Analytics 的評估 ID（G- 開頭）。填好存檔，最多 5 分鐘內全站生效，不需要重新部署。留空就完全不載入分析程式。",
     placeholder: "G-XXXXXXXXXX",
   },
   "analytics.gtm_id": {
     label: "GTM Container ID",
-    hint: "改完後須 Vercel + Railway re-deploy 才生效",
+    hint: "目前沒有在用。2026-10-11 起改成直接接 GA4（上面那欄），這裡填什麼都不會有作用。",
     placeholder: "GTM-XXXXXX",
   },
   "analytics.sentry_dsn_web": {
