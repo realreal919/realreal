@@ -231,8 +231,20 @@ configRouter.get("/", async (_req, res) => {
     console.warn("[config] scoop gift lookup failed (non-fatal):", err)
   }
 
+  // GA4 的評估 ID。放在公開的 /config 是刻意的 —— 它本來就會出現在每一頁的
+  // 原始碼裡，不是秘密。讓前台從這裡讀，店主就能在後台改 ID，
+  // 不必動 Vercel 的環境變數（那是建置時烘進去的，改了要重新部署）。
+  let ga4MeasurementId: string | null = null
+  try {
+    const raw = (await getSetting("analytics.ga4_measurement_id"))?.trim()
+    ga4MeasurementId = raw && /^G-[A-Z0-9]+$/i.test(raw) ? raw.toUpperCase() : null
+  } catch (err) {
+    console.warn("[config] GA4 設定讀取失敗（非致命）:", err)
+  }
+
   res.json({
     allowTestPaid: process.env.ALLOW_NON_ADMIN_TEST_PAID === "true",
+    ga4MeasurementId,
     shipping,
     shippingCampaigns,
     spendThresholds,

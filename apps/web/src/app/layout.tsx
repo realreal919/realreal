@@ -5,6 +5,7 @@ import { StorefrontShell } from "@/components/layout/StorefrontShell"
 import { KolRefCapture } from "@/components/KolRefCapture"
 import { ReferralCapture } from "@/components/ReferralCapture"
 import { Analytics } from "@/components/Analytics"
+import { API_URL } from "@/lib/api-url"
 import { getCategories } from "@/lib/catalog"
 import { createClient } from "@/lib/supabase/server"
 import "./globals.css"
@@ -57,14 +58,34 @@ export const metadata: Metadata = {
   },
 }
 
+/**
+ * GA4 評估 ID，從 API 的公開設定讀。
+ *
+ * 不用環境變數是故意的：NEXT_PUBLIC_* 是建置時烘進去的，改了要重新部署，
+ * 而且要登 Vercel 後台。讀設定的話，店主在我們自己的後台改就生效。
+ *
+ * 拿不到就回 null（不埋設）—— 沒有數據比讓整頁挂掉好。
+ */
+async function getGa4MeasurementId(): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_URL}/config`, { next: { revalidate: 300 } })
+    if (!res.ok) return null
+    const json = (await res.json()) as { ga4MeasurementId?: string | null }
+    return json.ga4MeasurementId ?? null
+  } catch {
+    return null
+  }
+}
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // Categories (spec P) + auth state (spec Q) fetched server-side; passed down
   // through StorefrontShell so Header/Footer can render the right dropdown +
   // an avatar-style account chip when the user is logged in.
   const supabase = await createClient()
-  const [categories, { data: { user } }] = await Promise.all([
+  const [categories, { data: { user } }, ga4MeasurementId] = await Promise.all([
     getCategories(),
     supabase.auth.getUser(),
+    getGa4MeasurementId(),
   ])
 
   // Resolve initial letter for the avatar: display_name > email > null (logged out)
@@ -82,7 +103,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="zh-TW">
       <body className="font-sans antialiased">
-        <Analytics />
+        <Analytics measurementId={ga4MeasurementId} />
         <Suspense fallback={null}>
           <KolRefCapture />
           <ReferralCapture />

@@ -3,45 +3,42 @@
 import Script from "next/script"
 
 /**
- * Google Tag Manager bootstrap.
+ * GA4 埋設。
  *
- * Spec L (docs/superpowers/specs/2026-05-31-L-ga4-gtm-sentry-integration-design.md)
- * §1 — GTM 設定.
+ * 2026-10-11 改寫：原本只支援 GTM（GTM-XXXXXXX），而 ID 讀自建置時烘進去的
+ * NEXT_PUBLIC_GTM_ID。那個環境變數從來沒設過，所以這個元件一直回傳 null —— 站上
+ * 從頭到尾沒有任何流量紀錄，而且沒有任何地方看得出來。
  *
- *  - Reads NEXT_PUBLIC_GTM_ID at build time (must be set in Vercel env).
- *  - Renders nothing if GTM_ID is missing OR NODE_ENV !== "production",
- *    so dev / preview never pollute analytics with junk events.
- *  - Loads the GTM bootstrap with strategy="afterInteractive" so it never
- *    blocks first paint; GA4 fires through GTM tags configured in the
- *    GTM workspace (we do NOT call gtag directly anywhere).
+ * 現在直接吃 GA4 的評估 ID（G-XXXXXXXXXX），不經過 GTM：
+ *   - 店主原本在 WordPress 用的就是評估 ID，手上沒有 GTM 容器
+ *   - 要的只是流量數字，多一層 GTM 只是多一個會設定錯的地方
  *
- * Event helpers live in `@/lib/analytics` and push onto `window.dataLayer`,
- * which the inline script below initialises before the GTM container loads.
+ * ID 從 GET /config 讀（由 layout 取得後傳進來），不是環境變數 —— 這樣店主在
+ * 後台改 ID 就會生效，不必重新部署。
+ *
+ * dataLayer 仍然初始化：lib/analytics 的事件推送是寫給 dataLayer 的，gtag.js
+ * 本身也用同一個陣列，所以那些既有的事件程式碼不用改。
  */
-export function Analytics() {
-  const gtmId = process.env.NEXT_PUBLIC_GTM_ID
-  if (!gtmId || process.env.NODE_ENV !== "production") return null
+export function Analytics({ measurementId }: { measurementId?: string | null }) {
+  // 開發與預覽環境不送，免得把測試行為混進正式報表
+  if (!measurementId || process.env.NODE_ENV !== "production") return null
+
   return (
     <>
       <Script
-        id="gtm-base"
+        src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
+        strategy="afterInteractive"
+      />
+      <Script
+        id="ga4-init"
         strategy="afterInteractive"
         dangerouslySetInnerHTML={{
           __html: `
-        (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-        new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-        j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-        'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-        })(window,document,'script','dataLayer','${gtmId}');
-      `,
-        }}
-      />
-      <noscript
-        dangerouslySetInnerHTML={{
-          __html: `
-        <iframe src="https://www.googletagmanager.com/ns.html?id=${gtmId}"
-        height="0" width="0" style="display:none;visibility:hidden"></iframe>
-      `,
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${measurementId}');
+          `,
         }}
       />
     </>
