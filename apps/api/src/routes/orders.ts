@@ -1831,7 +1831,9 @@ ordersRouter.get("/", requireAuth, async (req, res) => {
 ordersRouter.get("/by-number/:orderNumber/status", async (req, res) => {
   const { data, error } = await supabase
     .from("orders")
-    .select("order_number, status, payment_status, payment_method, total, user_id, guest_email")
+    // shipping_method：訂單完成頁要據此顯示「接下來會怎麼送、怎麼取」。不是個資
+    // （就是 cvs_711 / home_delivery 這種字串），而且客人本來就是自己選的。
+    .select("order_number, status, payment_status, payment_method, shipping_method, total, user_id, guest_email")
     .eq("order_number", req.params.orderNumber)
     .maybeSingle()
   if (error || !data) { res.status(404).json({ error: "Order not found" }); return }
@@ -1842,6 +1844,7 @@ ordersRouter.get("/by-number/:orderNumber/status", async (req, res) => {
       status: row.status,
       payment_status: row.payment_status,
       payment_method: row.payment_method,
+      shipping_method: row.shipping_method,
       total: row.total,
       // Conditional — null once a user claims the order.
       guest_email: row.user_id == null ? (row.guest_email ?? null) : null,

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { trackPurchase } from "@/lib/analytics"
 import { clearPromoState } from "@/components/checkout/PromoWidget"
 import { GuestRegisterCard } from "@/components/checkout/GuestRegisterCard"
+import { orderNotice, type OrderNotice } from "@/lib/order-notice"
 import { createClient } from "@/lib/supabase/client"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
@@ -62,6 +63,24 @@ function StepIndicator({ current }: { current: number }) {
         })}
       </ol>
     </nav>
+  )
+}
+
+/**
+ * 「接下來會怎麼送」的說明。超商取貨、超商取貨付款、宅配各一份，由 orderNotice
+ * 依取貨方式挑；挑不到就整塊不顯示（例如港澳，或取貨方式還沒載入）。
+ */
+function NoticeCard({ notice }: { notice: OrderNotice }) {
+  return (
+    <div className="mx-auto max-w-sm space-y-3 rounded-lg border bg-zinc-50 p-4 text-left text-sm">
+      <p className="font-semibold text-zinc-800">📦 {notice.title}</p>
+      <ol className="list-decimal space-y-1.5 pl-5 text-zinc-600">
+        {notice.steps.map((s) => (
+          <li key={s}>{s}</li>
+        ))}
+      </ol>
+      <p className="border-t border-zinc-200 pt-3 text-zinc-500">{notice.closing}</p>
+    </div>
   )
 }
 
@@ -126,6 +145,9 @@ export default function ConfirmPage() {
   // the GuestRegisterCard off for members — they have nothing to convert.
   const [guestEmail, setGuestEmail] = useState<string | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false)
+  // 取貨方式決定要顯示哪一份「接下來會怎麼送」。URL 上的 method 是**付款**方式，
+  // 問不出客人選的是超商還是宅配，所以要跟訂單狀態一起讀回來。
+  const [shippingMethod, setShippingMethod] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -154,8 +176,12 @@ export default function ConfirmPage() {
           `${API_URL}/orders/by-number/${encodeURIComponent(orderNumber)}/status`,
         )
         if (!r.ok || cancelled) return
-        const body = (await r.json()) as { data?: { guest_email?: string | null } }
-        if (!cancelled) setGuestEmail(body.data?.guest_email ?? null)
+        const body = (await r.json()) as {
+          data?: { guest_email?: string | null; shipping_method?: string | null }
+        }
+        if (cancelled) return
+        setGuestEmail(body.data?.guest_email ?? null)
+        setShippingMethod(body.data?.shipping_method ?? null)
       } catch {
         /* network blip — silently leave guestEmail null */
       }
@@ -168,6 +194,8 @@ export default function ConfirmPage() {
   // orderNumber to prove ownership in the register-from-guest endpoint.
   const showGuestRegister =
     !isLoggedIn && !!guestEmail && orderNumber !== "---"
+
+  const notice = orderNotice(shippingMethod, method)
 
   // Server-side truth: fetch the real payment_status from the API.
   // URL params from the gateway redirect can lie (a hostile redirect could
@@ -287,14 +315,7 @@ export default function ConfirmPage() {
               訂單編號：<span className="font-mono font-medium">{orderNumber}</span>
             </p>
           </div>
-          <div className="max-w-sm mx-auto rounded-lg bg-zinc-50 border p-4 text-sm text-zinc-600 space-y-2 text-left">
-            <p className="font-semibold text-zinc-800">📦 超商取貨付款流程</p>
-            <ol className="list-decimal list-inside space-y-1.5 text-zinc-600">
-              <li>包裹寄至您選擇的超商（約 3–5 個工作天）</li>
-              <li>收到超商簡訊通知後，前往取貨</li>
-              <li>取貨時現場付款給店員（現金）</li>
-            </ol>
-          </div>
+          {notice && <NoticeCard notice={notice} />}
           {showGuestRegister && guestEmail && (
             <div className="max-w-sm mx-auto">
               <GuestRegisterCard email={guestEmail} orderNumber={orderNumber} />
@@ -464,6 +485,14 @@ export default function ConfirmPage() {
             </span>
           </div>
         </div>
+
+        {/* 線上付款的客人原本在這頁什麼都看不到 —— 選了超商取貨也不知道要等簡訊、
+            要去門市拿。說明放在訂單編號下面、按鈕上面，是看完訂單號自然往下讀的位置。 */}
+        {notice && (
+          <div className="mb-6">
+            <NoticeCard notice={notice} />
+          </div>
+        )}
 
         {showGuestRegister && guestEmail && (
           <div className="mb-6">
