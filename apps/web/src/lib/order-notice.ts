@@ -56,16 +56,29 @@ const HOME_DELIVERY: OrderNotice = {
   closing: "感謝您的訂購，期待誠真的日常滋養，陪伴您與家人好好生活。",
 }
 
+/**
+ * 港澳（順豐運費到付）。比另外三份多兩點，而且那兩點正是不能漏的：運費到付、
+ * 可能有關稅。少講任何一點，收件人會在門口被要求付一筆沒預期的錢。
+ */
+const OVERSEAS: OrderNotice = {
+  title: "港澳配送｜順豐速運",
+  steps: [
+    ...SHIP_AND_MAIL,
+    "商品將透過順豐速運配送至您填寫的收件地址，實際配送時間依物流狀況而定。",
+    "運費採到付方式，由收件人依順豐速運的實際收費支付。",
+    "跨境配送可能涉及關稅或其他相關費用，如有產生，請依當地規定及物流業者通知辦理。",
+  ],
+  closing: "感謝您的訂購，期待誠真的日常滋養，陪伴您與家人好好生活。",
+}
+
 const CVS_METHODS = new Set(["cvs_711", "cvs_family"])
 
 /**
  * 回傳要顯示的說明；沒有對應文案時回 null（整塊不顯示）。
  *
- * 寧可不顯示也不要套錯一份：
- *   - 港澳（overseas_cod）是順豐運費到付，上面三份都沒講到「要付運費給快遞」，
- *     套宅配那份會漏掉最關鍵的一句。等店主給文案再加。
- *   - shippingMethod 還沒載入（null）時也回 null，畫面先空著，載到再出現。
- *     這裡寧可晚半秒出現，也不要先顯示一份可能是錯的。
+ * 寧可不顯示也不要套錯一份：shippingMethod 還沒載入（null）時回 null，畫面
+ * 先空著，載到再出現。寧可晚半秒出現，也不要先顯示一份可能是錯的 —— 四份
+ * 文案講的付款與運費規則各不相同，套錯等於給客人錯的承諾。
  *
  * paymentMethod 是 cvs_cod 時一律用取貨付款那份，不管 shippingMethod 讀到了沒 ——
  * 取貨付款本來就只有超商取貨，這樣頁面一進來就有說明可看。
@@ -78,5 +91,6 @@ export function orderNotice(
   if (!shippingMethod) return null
   if (CVS_METHODS.has(shippingMethod)) return CVS_PREPAID
   if (shippingMethod === "home_delivery") return HOME_DELIVERY
+  if (shippingMethod === "overseas_cod") return OVERSEAS
   return null
 }
