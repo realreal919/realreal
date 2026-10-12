@@ -37,6 +37,7 @@ import {
 import { isHiddenVariant } from "../lib/variant-order"
 import { loadScoopGiftConfig, scoopGiftApplies } from "../lib/scoop-gift"
 import { applyMemberCoupon, type CouponCartItem } from "../lib/repurchase-coupon"
+import { resolveFirstPurchaseVsCoupon } from "../lib/discount-exclusivity"
 import { normalizeCode } from "../lib/referral"
 import { resolveReferrer } from "../lib/referral-service"
 import { getSetting } from "../lib/settings"
@@ -454,6 +455,9 @@ ordersRouter.post("/preview", optionalAuth, async (req, res) => {
   const campaignResults = await evaluateAllCampaigns(evaluatorCtx)
 
   let campaignDiscountCents = 0
+  // 首購折要單獨記下來，因為它跟會員券不併用（擇優）。記成「cents」是為了跟
+  // campaignDiscountCents 同單位，之後要作廢時直接相減。
+  let firstPurchaseDiscountCents = 0
   const freeItems: FreeItem[] = []
   const discounts: Array<{ campaign_id: string; name: string; amount: number; type: string }> = []
   const freeShippingNames: string[] = []
@@ -461,6 +465,9 @@ ordersRouter.post("/preview", optionalAuth, async (req, res) => {
     if (!r.applied) continue
     if (r.discount_amount && r.discount_amount > 0) {
       campaignDiscountCents += Math.round(r.discount_amount * 100)
+      if (r.type === "first_purchase") {
+        firstPurchaseDiscountCents += Math.round(r.discount_amount * 100)
+      }
       discounts.push({
         campaign_id: r.campaign_id,
         name: r.campaign_name,
@@ -566,7 +573,21 @@ ordersRouter.post("/preview", optionalAuth, async (req, res) => {
     userId,
     cartItems as Array<{ product_slug?: string | null; unit_price: number; qty: number }>,
   )
-  const repurchaseDiscountCents = repurchase ? Math.round(repurchase.discount * 100) : 0
+  let repurchaseDiscountCents = repurchase ? Math.round(repurchase.discount * 100) : 0
+
+  // 首購折與會員券擇優（2026-10-12 店主指定）。這段必須跟 POST / 一模一樣，
+  // 否則結帳頁顯示的金額會跟實際收的不同。
+  {
+    const d = resolveFirstPurchaseVsCoupon(firstPurchaseDiscountCents, repurchaseDiscountCents)
+    if (d.dropFirstPurchase) {
+      campaignDiscountCents -= firstPurchaseDiscountCents
+      // 明細也要拿掉，不然結帳頁會列一筆沒有被計入總額的折扣
+      for (let i = discounts.length - 1; i >= 0; i--) {
+        if (discounts[i].type === "first_purchase") discounts.splice(i, 1)
+      }
+    }
+    if (d.dropCoupon) repurchaseDiscountCents = 0
+  }
 
   let pointsDiscountCents = 0
   let appliedPreviewPointsUsed = 0
@@ -934,11 +955,16 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
   let campaignDiscountCents = 0
   let shippingZeroedByCampaign = false
   let firstPurchaseApplied = false
+  // 首購折的金額要單獨留著 —— 它跟會員券不併用，稍後擇優時要能把它扣回去。
+  let firstPurchaseDiscountCents = 0
   const freeItems: FreeItem[] = []
   for (const r of campaignResults) {
     if (!r.applied) continue
     if (r.discount_amount) {
       campaignDiscountCents += Math.round(r.discount_amount * 100)
+      if (r.type === "first_purchase") {
+        firstPurchaseDiscountCents += Math.round(r.discount_amount * 100)
+      }
     }
     if (r.free_items && r.free_items.length > 0) {
       freeItems.push(...r.free_items)
@@ -1084,7 +1110,28 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
     userId,
     cartItems as Array<{ product_slug?: string | null; unit_price: number; qty: number }>,
   )
-  const repurchaseDiscountCents = repurchase ? Math.round(repurchase.discount * 100) : 0
+  let repurchaseDiscountCents = repurchase ? Math.round(repurchase.discount * 100) : 0
+
+  // 首購折與會員券擇優（2026-10-12 店主指定）。跟 POST /preview 同一套規則。
+  //
+  // 作廢首購折時連 firstPurchaseApplied 一起關掉：那個欄位是「這張單用掉了
+  // 首購資格」的憑據（uniq_first_purchase_per_user 只允許每人一張），沒折到錢
+  // 卻佔著資格，等於白白吃掉客人一輩子一次的首購折。
+  //
+  // 作廢券時把 repurchase 當成沒有：下面標記 member_coupons 已使用的那段看的是
+  // repurchaseCouponId，設成 null 券就會留在手上。
+  let repurchaseCouponId: string | null = repurchase?.couponId ?? null
+  {
+    const d = resolveFirstPurchaseVsCoupon(firstPurchaseDiscountCents, repurchaseDiscountCents)
+    if (d.dropFirstPurchase) {
+      campaignDiscountCents -= firstPurchaseDiscountCents
+      firstPurchaseApplied = false
+    }
+    if (d.dropCoupon) {
+      repurchaseDiscountCents = 0
+      repurchaseCouponId = null
+    }
+  }
 
   let pointsUsed = 0
   let pointsDiscountCents = 0
@@ -1248,11 +1295,13 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
   // 回購券一人一張、用過就沒了，所以在訂單成立後把它標記為已使用。
   // 條件帶上 status='active'：同一張券同時被兩筆結帳用到時，只有一筆會更新到，
   // 另一筆的折抵雖然已經算進金額，至少不會讓券被重複消耗而查不出來。
-  if (repurchase) {
+  // repurchaseCouponId（不是 repurchase.couponId）：擇優後被讓掉的券要留在
+  // 客人手上，標記成已使用就等於憑空沒收一張沒折到錢的券。
+  if (repurchaseCouponId) {
     const { error: couponErr } = await supabase
       .from("member_coupons")
       .update({ status: "used", used_order_id: order.id })
-      .eq("id", repurchase.couponId)
+      .eq("id", repurchaseCouponId)
       .eq("status", "active")
     if (couponErr) {
       console.error("[orders] 回購券標記已使用失敗（非致命）:", couponErr)
