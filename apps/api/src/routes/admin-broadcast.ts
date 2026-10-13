@@ -15,15 +15,16 @@ export const adminBroadcastRouter = Router()
 adminBroadcastRouter.use(requireAuth, requireAdmin)
 
 /**
- * 隨通知信發的感謝券。一次兩張，面額不同。
+ * 隨通知信發的感謝券。
  *
- * 兩張的理由：滿 1500 對輕量購買的人太遠，只給那一張等於只對大單客有意義。
- * 滿 600 那張是給其他人的。資料庫的唯一索引是 (user_id, amount)，所以同一個
- * 面額一人仍然只會有一張。
+ * 2026-10-13 店主改回一張（滿 1500 折 100）。10/12–10/13 之間發過兩張的那
+ * 177 個人，手上的滿 600 折 50 仍然有效，不會因為這裡改了就失效。
+ *
+ * 這個陣列同時決定「發幾張券」與「信上印幾張」—— 信件模板是照傳進去的清單印的，
+ * 不是寫死兩張。資料庫的唯一索引是 (user_id, amount)，同一個面額一人只會有一張。
  */
 const THANKS_COUPONS = [
   { amount: 100, minOrder: 1500, prefix: "TK" },
-  { amount: 50, minOrder: 600, prefix: "TS" },
 ] as const
 const THANKS_VALID_DAYS = 60
 
