@@ -47,6 +47,8 @@ type OrderDetail = {
   member_tier?: { name: string; rebate_rate: number } | null
   metadata?: { coupon_code?: string | null; coupon_discount?: number | null } | null
   campaign_names?: string[]
+  /** 會員券（感謝券／回購券），API 由 member_coupons.used_order_id 反查 */
+  member_coupon?: { code?: string | null; amount: number } | null
   attributed_kol_slug?: string | null
   free_items?: Array<{ name?: string; sku?: string; qty?: number; via_coupon?: boolean }>
   shipping_zeroed_by_campaign?: boolean
@@ -110,6 +112,7 @@ export default async function OrderDetailPage({
     metadata: order.metadata ?? null,
     campaignNames: order.campaign_names ?? [],
     attributed_kol_slug: order.attributed_kol_slug ?? null,
+    memberCoupon: order.member_coupon ?? null,
   })
   const freeItems = order.free_items ?? []
 

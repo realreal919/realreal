@@ -4,13 +4,22 @@
  *
  * Data sources (all already persisted at order creation, orders.ts):
  *   campaign_discount      — 行銷活動折扣金額
- *   metadata.coupon_*      — 優惠券代碼 + 折抵金額
+ *   metadata.coupon_*      — 優惠券代碼 + 折抵金額（客人自己輸入的優惠碼）
  *   points_used            — 點數折抵（1 點 = NT$1）
- *   discount_amount        — 總折扣；扣掉上面三項的餘額即會員等級折扣
+ *   memberCoupon           — 會員券（感謝券、回購券）；訂單上沒有這個欄位，
+ *                            由呼叫端用 member_coupons.used_order_id 反查
+ *   discount_amount        — 總折扣；扣掉上面四項的餘額才是會員等級折扣
+ *
+ * 2026-10-13：會員券原本沒有自己的一行，於是它的金額掉進「扣剩的」那個桶子，
+ * 被標成「會員等級折扣」。#10000338 就是這樣：客人是初心之友（折扣率 0），
+ * 畫面卻顯示「會員等級折扣 100」，實際上那是老朋友感謝券 TKQUHDGS。
+ *
+ * 用反查而不是在訂單上多存一個欄位，是為了連既有訂單一起修好 —— member_coupons
+ * 本來就記著 used_order_id，不必改資料也不必回填。
  */
 
 export type DiscountLine = {
-  key: "campaign" | "coupon" | "points" | "member" | "other"
+  key: "campaign" | "coupon" | "member_coupon" | "points" | "member" | "other"
   label: string
   amount: number
 }
@@ -26,6 +35,8 @@ export type DiscountBreakdownInput = {
   /** Resolved campaign names (from applied_campaign_ids), optional. */
   campaignNames?: string[]
   attributed_kol_slug?: string | null
+  /** 會員券（感謝券／回購券），由 member_coupons.used_order_id 反查而來。 */
+  memberCoupon?: { code?: string | null; amount: number | string | null } | null
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100
@@ -58,9 +69,24 @@ export function buildDiscountBreakdown(input: DiscountBreakdownInput): DiscountL
     lines.push({ key: "points", label: `點數折抵（${points.toLocaleString()} 點）`, amount: points })
   }
 
-  // Whatever the itemized parts don't account for is the member-tier discount
-  // (the only component not stored as its own column).
-  const member = round2(total - campaign - coupon - points)
+  // 會員券。金額以「總折扣扣掉其他項目後的餘額」為上限 —— 券面額跟實際折抵
+  // 不一定相等（券可能只折得到部分金額），以訂單實際折掉的為準，才不會讓
+  // 各行加起來超過 discount_amount。
+  const memberCouponFace = round2(Number(input.memberCoupon?.amount ?? 0))
+  const remainder = round2(total - campaign - coupon - points)
+  const memberCoupon = Math.min(memberCouponFace, Math.max(0, remainder))
+  if (memberCoupon > 0.009) {
+    const code = input.memberCoupon?.code
+    lines.push({
+      key: "member_coupon",
+      label: `會員券折扣${code ? `（${code}）` : ""}`,
+      amount: memberCoupon,
+    })
+  }
+
+  // 剩下來的才是會員等級折扣 —— 它是唯一沒有自己欄位的項目。目前三個等級的
+  // 折扣率都是 0，所以實務上這一行不會出現；留著是因為後台隨時可以設。
+  const member = round2(remainder - memberCoupon)
   if (member > 0.009) {
     lines.push({ key: "member", label: "會員等級折扣", amount: member })
   }

@@ -123,6 +123,14 @@ export default async function AdminOrderDetailPage({
       .in("id", campaignIds)
     campaignNames = (campaigns ?? []).map((c: { name: string | null }) => c.name ?? "").filter(Boolean)
   }
+  // 會員券（感謝券／回購券）。訂單上沒有這個欄位，但 member_coupons 記著
+  // used_order_id，反查得到 —— 連既有訂單都能正確標示，不必回填資料。
+  const { data: usedCoupon } = await supabase
+    .from("member_coupons")
+    .select("code, amount")
+    .eq("used_order_id", order.id)
+    .maybeSingle()
+
   const discountLines = buildDiscountBreakdown({
     discount_amount: order.discount_amount,
     campaign_discount: order.campaign_discount,
@@ -130,6 +138,7 @@ export default async function AdminOrderDetailPage({
     metadata: order.metadata ?? null,
     campaignNames,
     attributed_kol_slug: order.attributed_kol_slug ?? null,
+    memberCoupon: usedCoupon ?? null,
   })
   const freeItems = (order.free_items ?? []) as Array<{ name?: string; sku?: string; qty?: number; via_coupon?: boolean }>
   const couponCode = (order.metadata as { coupon_code?: string | null } | null)?.coupon_code ?? null

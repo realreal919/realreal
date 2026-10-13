@@ -1765,6 +1765,14 @@ ordersRouter.get("/:id", requireAuth, async (req, res) => {
     campaignNames = (campaigns ?? []).map((c) => (c as { name: string | null }).name ?? "").filter(Boolean)
   }
 
+  // 會員券（感謝券／回購券）。訂單上沒有這個欄位，但 member_coupons 記著
+  // used_order_id —— 反查得到，所以既有訂單也能正確標示折扣來源，不用回填。
+  const { data: usedCoupon } = await supabase
+    .from("member_coupons")
+    .select("code, amount")
+    .eq("used_order_id", order.id)
+    .maybeSingle()
+
   const addr = addresses?.[0] ?? null
   res.json({
     data: {
@@ -1782,6 +1790,9 @@ ordersRouter.get("/:id", requireAuth, async (req, res) => {
       member_tier: memberTier,
       metadata: (order as Record<string, unknown>).metadata ?? null,
       campaign_names: campaignNames,
+      member_coupon: usedCoupon
+        ? { code: (usedCoupon as { code: string | null }).code, amount: Number((usedCoupon as { amount: number }).amount) }
+        : null,
       attributed_kol_slug: (order as Record<string, unknown>).attributed_kol_slug ?? null,
       free_items: (order as Record<string, unknown>).free_items ?? [],
       shipping_zeroed_by_campaign: Boolean((order as Record<string, unknown>).shipping_zeroed_by_campaign),
