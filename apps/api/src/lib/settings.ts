@@ -318,7 +318,9 @@ export const SECTIONS: Record<string, { label: string; keys: string[] }> = {
     keys: ["linepay.channel_id", "linepay.channel_secret", "linepay.sandbox"],
   },
   jkopay: {
-    label: "街口支付",
+    // 2026-10-13 停用，結帳頁已經沒有這個選項。設定留著是因為既有 12 筆街口
+    // 訂單還可能要退款 —— 金鑰清掉就退不了。
+    label: "街口支付（已停用，保留供既有訂單退款）",
     keys: [
       "jkopay.store_id",
       "jkopay.api_key",

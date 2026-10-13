@@ -228,6 +228,24 @@ describe("POST /orders", () => {
     expect(res.status).toBe(400)
   })
 
+  // 2026-10-13 停用街口支付。結帳頁已經沒有這個選項，但 UI 擋得住不代表 API
+  // 擋得住 —— 直接打 API 一樣能建單，所以 schema 這一層也要拒絕。
+  it("★ 不再接受 jkopay（已停用的付款方式）", async () => {
+    const res = await request(app)
+      .post("/orders")
+      .send({ ...validBody, paymentMethod: "jkopay" })
+    expect(res.status).toBe(400)
+  })
+
+  it("其他付款方式照常受理", async () => {
+    for (const m of ["pchomepay", "linepay"]) {
+      const res = await request(app)
+        .post("/orders")
+        .send({ ...validBody, paymentMethod: m })
+      expect(res.status).not.toBe(400)
+    }
+  })
+
   it("returns 400 for missing items", async () => {
     const { items: _items, ...bodyWithoutItems } = validBody
     const res = await request(app).post("/orders").send(bodyWithoutItems)

@@ -129,7 +129,7 @@ export default function PrivacyPage() {
         <p>本品牌接受以下付款方式：</p>
         <ul>
           <li>信用卡（Visa、Mastercard、JCB）</li>
-          <li>LINE Pay、街口支付（依平台支援調整）</li>
+          <li>LINE Pay（依平台支援調整）</li>
         </ul>
 
         <h3>2.6 服務內容之變更與電子報發送</h3>

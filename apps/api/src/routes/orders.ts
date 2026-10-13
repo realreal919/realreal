@@ -284,7 +284,9 @@ const createOrderSchema = z.object({
   items: z.array(orderItemSchema).min(1),
   address: addressSchema,
   shippingMethod: z.enum(["home_delivery", "cvs_711", "cvs_family", "overseas_cod"]),  // 新增
-  paymentMethod: z.enum(["pchomepay", "linepay", "jkopay", "cvs_cod", "test_paid"]),  // test_paid = admin sandbox (skips gateway)
+  // 2026-10-13 停用街口支付，所以新訂單不接受 jkopay。webhook、退款、補付款
+  // 那幾條路徑都留著 —— 既有 12 筆街口訂單還要收得到回調、退得了款。
+  paymentMethod: z.enum(["pchomepay", "linepay", "cvs_cod", "test_paid"]),  // test_paid = admin sandbox (skips gateway)
   guestEmail: z.string().email().optional(),
   couponCode: z.string().optional(),
   points_used: z.number().int().min(0).optional(),
