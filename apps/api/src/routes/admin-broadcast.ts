@@ -92,6 +92,21 @@ async function sentToday(): Promise<number> {
  * 寄給「有帳號、沒退訂行銷、還沒拿過感謝券」的人。不限有沒有買過 ——
  * 這封信講的是制度，註冊了就該知道。
  */
+/**
+ * 永遠不寄「會員制度更新通知」的 email。
+ *
+ * 這不是退訂 —— 退訂是客人自己的意思，記在 user_profiles.marketing_opt_out。
+ * 這張清單是店主個別交代「這個人這封信不要寄」，所以分開放：把它寫成退訂會
+ * 連帶讓對方收不到其他行銷信，那是替客人做了她沒做的決定。
+ *
+ * 2026-10-13 店主指定：Sunny（warmflying@gmail.com）。
+ */
+const NEVER_SEND_MEMBERSHIP_UPDATE = new Set(["warmflying@gmail.com"])
+
+export function isExcludedFromMembershipUpdate(email: string): boolean {
+  return NEVER_SEND_MEMBERSHIP_UPDATE.has(email.trim().toLowerCase())
+}
+
 async function buildRecipients(): Promise<{ list: Recipient[]; alreadySent: number }> {
   const { data: profiles, error } = await supabase
     .from("user_profiles")
@@ -122,6 +137,7 @@ async function buildRecipients(): Promise<{ list: Recipient[]; alreadySent: numb
     if (sent.has(r.user_id)) continue
     const email = emails.get(r.user_id)
     if (!email) continue
+    if (isExcludedFromMembershipUpdate(email)) continue
     list.push({ userId: r.user_id, email, displayName: r.display_name ?? "" })
   }
   return { list, alreadySent: sent.size }
