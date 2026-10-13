@@ -10,8 +10,7 @@ import { getSettingOrEnv } from "./settings"
  *
  * V1 behaviour:
  *  1. Mark the row in `payments` for this order as `refund_requested`
- *     (only flips rows currently in `succeeded` — we don't touch failed /
- *     pending payments).
+ *     (only flips rows where money actually moved — see REFUNDABLE_STATUSES).
  *  2. Send a notification e-mail to the admin address configured in
  *     `notifications.admin_email` (falls back to `ADMIN_EMAIL` env var)
  *     so a human knows to issue the actual refund in the gateway's portal.
@@ -21,6 +20,23 @@ import { getSettingOrEnv } from "./settings"
  * admins will hit the gateway dashboard manually. The TODO block below
  * is the hook for the future per-provider switch.
  */
+/**
+ * 「錢真的收到了」的付款狀態 —— 只有這些需要退。
+ *
+ * 2026-10-13 修的 bug：原本比對的是 `succeeded`，但這個系統從來沒寫過那個字。
+ * payments 實際只有四種狀態：captured(195)、pending(104)、failed(21)、paid(2)。
+ * 所以那行 UPDATE 從上線到現在**一筆都沒更新到** —— 訂單標成「已退款」，
+ * payments 卻還停在 captured，後台也就看不到任何待退款的紀錄，整件事只剩一封
+ * 寄給管理員的信。#10000307（LINE Pay 670 元）就是這樣，客人帳單上的扣款還在。
+ *
+ * pending 不含在內：那是超商取貨付款，錢還沒收，沒有東西好退。
+ * failed 也不含：根本沒扣款成功。
+ */
+const REFUNDABLE_STATUSES = ["captured", "paid", "succeeded"] as const
+
+/** 沙盒訂單沒有真的金流可退，標了只會在待辦清單上製造假的工作。 */
+const SANDBOX_GATEWAYS = ["test", "test_paid"]
+
 export async function refundPayment(
   order: {
     id: string
@@ -31,18 +47,30 @@ export async function refundPayment(
   reason: string,
 ): Promise<{ ok: boolean; message: string }> {
   // 1) Mark payments as refund_requested so admin lists / reports reflect
-  //    the pending refund. Only flips rows currently in `succeeded`.
-  const { error: paymentsError } = await supabase
+  //    the pending refund. 只動「錢真的收到了」的那幾種狀態。
+  const { data: flagged, error: paymentsError } = await supabase
     .from("payments")
     .update({ status: "refund_requested" })
     .eq("order_id", order.id)
-    .eq("status", "succeeded")
+    .in("status", REFUNDABLE_STATUSES as unknown as string[])
+    .not("gateway", "in", `(${SANDBOX_GATEWAYS.join(",")})`)
+    .select("id")
 
   if (paymentsError) {
     return {
       ok: false,
       message: `更新付款記錄失敗：${paymentsError.message}`,
     }
+  }
+
+  // 一筆都沒標到就要講出來。原本的寫法悄悄地什麼都沒做，退款這種事沉默失敗
+  // 等於客人的錢卡在那裡沒人知道。
+  const flaggedCount = (flagged ?? []).length
+  if (flaggedCount === 0) {
+    console.warn(
+      `[refund-payment] order ${order.id}: 沒有任何付款紀錄被標記為待退款`
+      + `（可能本來就沒收到錢，或狀態不在 ${REFUNDABLE_STATUSES.join("/")} 之內）`,
+    )
   }
 
   // 2) Notify admin so the actual refund happens in the gateway dashboard.
@@ -81,7 +109,9 @@ export async function refundPayment(
 
   return {
     ok: true,
-    message: "已標記退款請求，請至金流後台手動操作",
+    message: flaggedCount > 0
+      ? `已標記 ${flaggedCount} 筆退款請求，請至金流後台手動操作`
+      : "沒有需要退款的付款紀錄（未收到款或已處理）",
   }
 
   // TODO future: per-provider real refund API.
