@@ -8,20 +8,20 @@ const MARKETING_TABS = [
   { href: "/admin/marketing/points", label: "點數規則" },
   { href: "/admin/marketing/share-reports", label: "分享回報" },
   { href: "/admin/marketing/recall", label: "召回名單" },
-  { href: "/admin/marketing/broadcast", label: "制度更新通知" },
+  { href: "/admin/marketing/broadcast", label: "寄信給客人" },
 ]
 
-export const metadata = { title: "會員制度更新通知 | Admin" }
+export const metadata = { title: "寄信給客人 | Admin" }
 
 export default function AdminBroadcastPage() {
   return (
     <div className="space-y-4">
       <AdminTabs tabs={MARKETING_TABS} />
       <div>
-        <h1 className="text-2xl font-bold text-[#10305a]">會員制度更新通知（一次性）</h1>
+        <h1 className="text-2xl font-bold text-[#10305a]">寄信給客人</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          寄給所有沒退訂行銷的會員，隨信發一張老朋友感謝券（滿 1500 折 100、60 天）。
-          <strong>寄出去收不回來</strong>——先用「測試寄給自己」看過實際長相，再分批正式寄出。
+          這一頁的每一種信<strong>寄出去都收不回來</strong>——先用「測試寄給自己」或「查名單」
+          確認過，再正式寄出。每天的寄信額度是跟訂單確認信、出貨通知信共用的。
         </p>
       </div>
       <BroadcastClient />

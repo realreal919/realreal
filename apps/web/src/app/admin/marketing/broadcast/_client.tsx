@@ -328,6 +328,15 @@ export function BroadcastClient() {
         </div>
       )}
 
+      {/* 會員制度更新通知。頁面標題改成「寄信給客人」之後，這一區需要自己的
+          標題 —— 不然畫面上三種信混在一起，看不出哪些按鈕屬於哪一封。 */}
+      <div>
+        <h2 className="text-base font-semibold text-[#10305a]">會員制度更新通知（一次性）</h2>
+        <p className="mt-1 text-sm text-zinc-500">
+          寄給所有沒退訂行銷的會員，隨信發老朋友感謝券。先用「測試寄給自己」看過實際長相，再分批正式寄出。
+        </p>
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-4">
         <div className="rounded-lg border p-4">
           <p className="text-xs text-zinc-500">待寄送</p>
