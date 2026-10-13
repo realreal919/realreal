@@ -280,7 +280,15 @@ export function BroadcastClient() {
 
   return (
     <div className="space-y-6">
-      {correction && correction.pending + correction.already_sent > 0 && (
+      {/* 寄完就收起來。這是一次性的補救信，寄完之後留在畫面上只會讓人每次都要
+          重新判斷「這個還要不要按」。已寄的筆數留一行當紀錄就夠了。 */}
+      {correction && correction.already_sent > 0 && correction.pending === 0 && (
+        <p className="rounded-lg border border-dashed p-3 text-sm text-zinc-500">
+          更正信已全部寄出（{correction.already_sent} 人，排除 {correction.excluded} 人），不需要再操作。
+        </p>
+      )}
+
+      {correction && correction.pending > 0 && (
         <div className="rounded-lg border-2 border-[#10305a] p-4">
           <p className="mb-1 font-semibold text-[#10305a]">
             更正信（10/9 那批的推薦金額誤植為 0 元）
@@ -337,6 +345,16 @@ export function BroadcastClient() {
         </p>
       </div>
 
+      {/* 全部寄完就把統計與寄送控制收起來。這是一次性的廣播，寄完之後那些
+          輸入框和按鈕留在畫面上，每次打開都要重新判斷一次「還要不要按」。 */}
+      {status.pending === 0 && status.already_sent > 0 && (
+        <p className="rounded-lg border border-dashed p-3 text-sm text-zinc-500">
+          會員制度更新通知已全部寄出（{status.already_sent} 人），不需要再操作。
+          新註冊的會員之後若要補寄，這一區會自動出現。
+        </p>
+      )}
+
+      {status.pending > 0 && (<>
       <div className="grid gap-3 sm:grid-cols-4">
         <div className="rounded-lg border p-4">
           <p className="text-xs text-zinc-500">待寄送</p>
@@ -417,7 +435,10 @@ export function BroadcastClient() {
           </Button>
         </div>
       </div>
+      </>)}
 
+      {/* 沒有人拿過券時沒有補寄的對象，整塊不顯示。 */}
+      {status.already_sent > 0 && (
       <div className="rounded-lg border p-4">
         <p className="mb-2 font-medium text-[#10305a]">3. 補寄（有券但沒收到信的人）</p>
         <p className="mb-3 text-sm text-zinc-500">
@@ -450,6 +471,7 @@ export function BroadcastClient() {
           補寄這些人
         </Button>
       </div>
+      )}
 
       <OrderDelaySection />
 
