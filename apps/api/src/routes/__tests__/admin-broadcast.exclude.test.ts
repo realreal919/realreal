@@ -7,7 +7,7 @@ vi.mock("../../lib/supabase", () => ({
 import { isExcludedFromMembershipUpdate } from "../admin-broadcast"
 
 describe("isExcludedFromMembershipUpdate", () => {
-  it("★ Sunny（warmflying@gmail.com）不寄會員制度更新通知（2026-10-13 店主指定）", () => {
+  it("★ 店主自己的帳號（warmflying@gmail.com）不寄行銷信（2026-10-13 指定）", () => {
     expect(isExcludedFromMembershipUpdate("warmflying@gmail.com")).toBe(true)
   })
 

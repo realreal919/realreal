@@ -93,18 +93,22 @@ async function sentToday(): Promise<number> {
  * 這封信講的是制度，註冊了就該知道。
  */
 /**
- * 永遠不寄「會員制度更新通知」的 email。
+ * 店主自己的帳號，行銷信一律不寄。
  *
- * 這不是退訂 —— 退訂是客人自己的意思，記在 user_profiles.marketing_opt_out。
- * 這張清單是店主個別交代「這個人這封信不要寄」，所以分開放：把它寫成退訂會
- * 連帶讓對方收不到其他行銷信，那是替客人做了她沒做的決定。
+ * 真正生效的是 user_profiles.marketing_opt_out —— 那一個欄位四個寄信的地方都有
+ * 檢查（制度更新信、更正信、召回名單、回饋信與回購提醒），2026-10-13 已經把
+ * warmflying@gmail.com 設成 true。
  *
- * 2026-10-13 店主指定：Sunny（warmflying@gmail.com）。
+ * 這張清單是第二道防線：帳號的退訂狀態可能被後台改回來，或被測試流程重設，
+ * 而「這是店主本人的帳號」這件事不會變。兩道都在，才不會因為一次誤觸就把
+ * 行銷信寄給自己。
+ *
+ * 不含交易信（訂單確認、出貨通知）—— 那些本來就該收得到。
  */
-const NEVER_SEND_MEMBERSHIP_UPDATE = new Set(["warmflying@gmail.com"])
+const OWNER_ACCOUNTS = new Set(["warmflying@gmail.com"])
 
 export function isExcludedFromMembershipUpdate(email: string): boolean {
-  return NEVER_SEND_MEMBERSHIP_UPDATE.has(email.trim().toLowerCase())
+  return OWNER_ACCOUNTS.has(email.trim().toLowerCase())
 }
 
 async function buildRecipients(): Promise<{ list: Recipient[]; alreadySent: number }> {
