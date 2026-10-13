@@ -42,6 +42,13 @@ const DEFAULT_CORRECTION_EXCLUDE = [
   "karso1122@yahoo.com.tw",
 ].join("\n")
 
+type DelayPreview = {
+  targets: Array<{ order_number: string; name: string; email: string }>
+  missing: string[]
+  sent_today: number
+  daily_cap: number
+}
+
 type Correction = {
   pending: number
   already_sent: number
@@ -49,6 +56,136 @@ type Correction = {
   remaining_today: number
   daily_cap: number
   sent_today: number
+}
+
+/**
+ * 出貨延後通知。
+ *
+ * 訂單編號由人填，不是系統推算 —— 缺哪個品項、哪幾張單受影響，只有看著庫存
+ * 和訂單的人知道。按「查名單」會先把收件人列出來確認，再按寄出。
+ */
+function OrderDelaySection() {
+  const [orders, setOrders] = useState("")
+  const [shipDate, setShipDate] = useState("")
+  const [preview, setPreview] = useState<DelayPreview | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  function lookup() {
+    startTransition(async () => {
+      try {
+        const r = await callApi<DelayPreview>(
+          `/admin/broadcast/order-delay?orders=${encodeURIComponent(orders)}`,
+        )
+        setPreview(r)
+        if (r.missing.length > 0) {
+          toast.warning(`這些訂單找不到收件信箱：${r.missing.join("、")}`)
+        }
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "查詢失敗")
+      }
+    })
+  }
+
+  function send() {
+    if (!preview || preview.targets.length === 0) return
+    if (!shipDate.trim()) {
+      toast.error("請先填出貨日期")
+      return
+    }
+    if (
+      !confirm(
+        `確定要寄出 ${preview.targets.length} 封出貨延後通知？\n` +
+          `出貨日期會印成「${shipDate}」。寄出後無法收回。`,
+      )
+    ) {
+      return
+    }
+    startTransition(async () => {
+      try {
+        const r = await callApi<{ sent: number; failed: string[]; missing: string[] }>(
+          "/admin/broadcast/order-delay",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              orderNumbers: preview.targets.map((t) => t.order_number),
+              shipDate: shipDate.trim(),
+              confirm: true,
+            }),
+          },
+        )
+        toast.success(`已寄出 ${r.sent} 封`, {
+          description: r.failed.length ? `失敗：${r.failed.join("、")}` : undefined,
+        })
+        setPreview(null)
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "寄送失敗")
+      }
+    })
+  }
+
+  return (
+    <div className="rounded-lg border p-4">
+      <h2 className="mb-1 text-base font-semibold text-[#10305a]">出貨延後通知</h2>
+      <p className="mb-3 text-sm text-zinc-600">
+        告訴客人他的訂單因缺貨會晚出貨。這是服務信，退訂行銷訊息的客人一樣會收到。
+      </p>
+
+      <label className="mb-1 block text-sm text-zinc-600">
+        訂單編號（用空白、逗號或換行分隔）
+      </label>
+      <textarea
+        className="mb-3 h-20 w-full rounded-md border px-3 py-2 text-sm"
+        placeholder="10000327 10000331 10000335"
+        value={orders}
+        onChange={(e) => setOrders(e.target.value)}
+      />
+
+      <label className="mb-1 block text-sm text-zinc-600">
+        出貨日期（照這樣印在信上，星期幾請自己寫）
+      </label>
+      <Input
+        className="mb-3"
+        placeholder="10/15（四）"
+        value={shipDate}
+        onChange={(e) => setShipDate(e.target.value)}
+      />
+
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" onClick={lookup} disabled={isPending || !orders.trim()}>
+          查名單
+        </Button>
+        <Button
+          onClick={send}
+          disabled={isPending || !preview || preview.targets.length === 0}
+          style={{ backgroundColor: "#10305a", color: "#fff" }}
+        >
+          寄出{preview && preview.targets.length > 0 ? ` ${preview.targets.length} 封` : ""}
+        </Button>
+      </div>
+
+      {preview && (
+        <div className="mt-3 rounded-md bg-zinc-50 p-3 text-sm">
+          <p className="mb-2 text-zinc-600">
+            今日已寄 {preview.sent_today} 封 ・ 上限 {preview.daily_cap} 封
+          </p>
+          {preview.targets.length === 0 ? (
+            <p className="text-zinc-500">沒有可寄的對象</p>
+          ) : (
+            <ul className="space-y-1 text-zinc-700">
+              {preview.targets.map((t) => (
+                <li key={t.order_number}>
+                  {t.order_number} ・ {t.name || "（未填姓名）"} — {t.email}
+                </li>
+              ))}
+            </ul>
+          )}
+          {preview.missing.length > 0 && (
+            <p className="mt-2 text-red-600">找不到收件信箱：{preview.missing.join("、")}</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function BroadcastClient() {
@@ -304,6 +441,8 @@ export function BroadcastClient() {
           補寄這些人
         </Button>
       </div>
+
+      <OrderDelaySection />
 
       {status.sample.length > 0 && (
         <div className="rounded-lg border p-4">

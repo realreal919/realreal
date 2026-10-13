@@ -7,6 +7,8 @@ import { getSetting } from "../lib/settings"
 import { generateCouponCode } from "../lib/repurchase-coupon"
 import { ensureReferralCode, loadReferralSettings } from "../lib/referral-service"
 import { renderAndSendEmail } from "../workers/email-sender"
+import { sendEmail } from "../lib/email"
+import { ORDER_DELAY_SUBJECT, renderOrderDelayNotice } from "../emails/OrderDelayNotice"
 
 export const adminBroadcastRouter = Router()
 
@@ -561,6 +563,145 @@ adminBroadcastRouter.post("/correction", async (req, res) => {
       sent_today: after,
       remaining_today: Math.max(0, cap - after),
     })
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "寄送失敗" })
+  }
+})
+
+// ---------------------------------------------------------------------------
+// 出貨延後通知
+//
+// 這是服務信不是行銷信：講的是「你自己那張訂單晚出貨」，所以不看
+// marketing_opt_out —— 退訂行銷訊息的客人，訂單晚出貨一樣要知道。
+//
+// 名單由管理者指定訂單編號，不是系統推算的。缺哪個品項、哪幾張單受影響，
+// 只有看著庫存和訂單的人知道；系統猜錯會寄給不該收的人，而這種信寄出去
+// 收不回來。
+// ---------------------------------------------------------------------------
+
+type DelayTarget = { orderNumber: string; name: string; email: string }
+
+/** 訂單編號 → 收件人。查不到 email 的會被挑出來回報，不會默默跳過。 */
+async function delayTargets(
+  orderNumbers: string[],
+): Promise<{ targets: DelayTarget[]; missing: string[] }> {
+  const { data: orders } = await supabase
+    .from("orders")
+    .select("id, order_number, user_id, guest_email")
+    .in("order_number", orderNumbers)
+    .is("deleted_at", null)
+
+  const rows = (orders ?? []) as Array<{
+    id: string
+    order_number: string
+    user_id: string | null
+    guest_email: string | null
+  }>
+
+  const { data: addrs } = await supabase
+    .from("order_addresses")
+    .select("order_id, name, email")
+    .eq("type", "shipping")
+    .in("order_id", rows.map((r) => r.id))
+  const addrByOrder = new Map(
+    ((addrs ?? []) as Array<{ order_id: string; name: string | null; email: string | null }>)
+      .map((a) => [a.order_id, a]),
+  )
+
+  // 會員的信箱在 auth.users，一次撈完
+  const emailById = new Map<string, string>()
+  const { data: authList } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 })
+  for (const u of authList?.users ?? []) if (u.email) emailById.set(u.id, u.email)
+
+  const targets: DelayTarget[] = []
+  const missing: string[] = []
+  for (const num of orderNumbers) {
+    const row = rows.find((r) => r.order_number === num)
+    if (!row) {
+      missing.push(num)
+      continue
+    }
+    const addr = addrByOrder.get(row.id)
+    // 訪客訂單的信箱在 guest_email，會員的在 auth.users，兩邊都沒有才看收件地址
+    const email = row.guest_email ?? (row.user_id ? emailById.get(row.user_id) : null) ?? addr?.email
+    if (!email) {
+      missing.push(num)
+      continue
+    }
+    targets.push({ orderNumber: num, name: addr?.name ?? "", email })
+  }
+  return { targets, missing }
+}
+
+const delaySchema = z.object({
+  /** 要通知的訂單編號 */
+  orderNumbers: z.array(z.string().min(6).max(20)).min(1).max(50),
+  /** 出貨日，照著印在信上，例「10/15（四）」。星期幾由管理者寫，程式不猜。 */
+  shipDate: z.string().min(2).max(40),
+  confirm: z.literal(true),
+})
+
+/** GET —— 先看名單長怎樣，不寄。 */
+adminBroadcastRouter.get("/order-delay", async (req, res) => {
+  try {
+    const raw = typeof req.query.orders === "string" ? req.query.orders : ""
+    const nums = raw.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean)
+    if (nums.length === 0) {
+      res.json({ targets: [], missing: [], sent_today: await sentToday(), daily_cap: await dailySendCap() })
+      return
+    }
+    const { targets, missing } = await delayTargets(nums)
+    const [today, cap] = await Promise.all([sentToday(), dailySendCap()])
+    res.json({
+      targets: targets.map((t) => ({ order_number: t.orderNumber, name: t.name, email: t.email })),
+      missing,
+      sent_today: today,
+      daily_cap: cap,
+    })
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "名單產生失敗" })
+  }
+})
+
+/** POST —— 真的寄。 */
+adminBroadcastRouter.post("/order-delay", async (req, res) => {
+  const parsed = delaySchema.safeParse(req.body)
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() })
+    return
+  }
+  const { orderNumbers, shipDate } = parsed.data
+
+  try {
+    const { targets, missing } = await delayTargets(orderNumbers)
+    if (targets.length === 0) {
+      res.status(400).json({ error: "指定的訂單都找不到收件信箱", missing })
+      return
+    }
+
+    const sent: string[] = []
+    const failed: string[] = []
+    for (const t of targets) {
+      try {
+        await sendEmail({
+          to: t.email,
+          subject: ORDER_DELAY_SUBJECT,
+          html: renderOrderDelayNotice({
+            customerName: t.name,
+            orderNumber: t.orderNumber,
+            shipDate,
+          }),
+        })
+        sent.push(t.orderNumber)
+      } catch (err) {
+        console.error(`[broadcast] 出貨延後通知寄送失敗 ${t.orderNumber}:`, err)
+        failed.push(t.orderNumber)
+      }
+      // 跟其他廣播一樣的節流，避免一次打爆寄信服務
+      await new Promise((r) => setTimeout(r, 150))
+    }
+
+    res.json({ sent: sent.length, sent_orders: sent, failed, missing })
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : "寄送失敗" })
   }
