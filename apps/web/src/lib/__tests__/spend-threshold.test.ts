@@ -93,6 +93,37 @@ describe("buyGetMessages", () => {
   it("全館任選的活動講成「全館任選買10送1」", () => {
     expect(buyGetMessages([{ label: "全館任選", buyQty: 10, getQty: 1 }])).toEqual(["全館任選買10送1"])
   })
+
+  it("★ 名稱裡已經有「買10送1」時不要再接一次（會變成買10送1買10送1）", () => {
+    expect(buyGetMessages([{ label: "蛋白粉任選買10送1", buyQty: 10, getQty: 1 }])).toEqual([
+      "蛋白粉任選買10送1",
+    ])
+  })
+
+  it("★ 件數以設定為準，不以名稱為準（名稱寫錯時不能照抄）", () => {
+    // 活動名稱寫買10送1，但設定其實是買 5 送 1 —— 跑馬燈要講結帳真正會算的那個
+    expect(buyGetMessages([{ label: "蛋白粉任選買10送1", buyQty: 5, getQty: 1 }])).toEqual([
+      "蛋白粉任選買5送1",
+    ])
+  })
+
+  it("名稱中間有買N送M、或寫成「買 10 送 1」也認得", () => {
+    expect(buyGetMessages([{ label: "買 10 送 1 蛋白粉", buyQty: 10, getQty: 1 }])).toEqual([
+      "蛋白粉買10送1",
+    ])
+  })
+
+  it("拿掉之後留下的括號或逗號不要留在句尾", () => {
+    expect(buyGetMessages([{ label: "蛋白粉任選（買10送1）", buyQty: 10, getQty: 1 }])).toEqual([
+      "蛋白粉任選買10送1",
+    ])
+  })
+
+  it("★ 名稱沒寫買N送M時維持原樣", () => {
+    expect(buyGetMessages([{ label: "300克夾鏈袋", buyQty: 10, getQty: 1 }])).toEqual([
+      "300克夾鏈袋買10送1",
+    ])
+  })
 })
 
 describe("buyGetDetailLines", () => {

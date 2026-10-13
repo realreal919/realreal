@@ -38,9 +38,36 @@ function validOffers(offers: BuyGetOffer[]): BuyGetOffer[] {
   return offers.filter((o) => o.label && o.buyQty > 0 && o.getQty > 0)
 }
 
+/**
+ * 把名稱裡自己就寫了的「買N送M」拿掉。
+ *
+ * 2026-10-13：店主把活動取名「蛋白粉任選買10送1」，跑馬燈就變成
+ * 「蛋白粉任選買10送1買10送1」—— 文案是 `${label}買${buyQty}送${getQty}`，
+ * 名稱裡已經有一次了。
+ *
+ * 是「拿掉再重接」而不是「有就直接用名稱」：名稱是人打的，件數是結帳真正會算的
+ * 那個數字。兩邊不一致時（名稱寫買10送1、設定其實是買5送1），直接用名稱等於
+ * 在跑馬燈上給客人一個系統不會兌現的承諾。重接之後數字永遠跟著設定走。
+ */
+function stripBuyGet(label: string): string {
+  return (
+    label
+      // 連著括號一起拿掉，不然「蛋白粉任選（買10送1）」會剩下一對空括號
+      .replace(/[（(［\[【]\s*買\s*\d+\s*送\s*\d+\s*[）)］\]】]/g, "")
+      .replace(/買\s*\d+\s*送\s*\d+/g, "")
+      // 剩下的空括號、句尾的標點都收掉
+      .replace(/[（(［\[【]\s*[）)］\]】]/g, "")
+      .replace(/^[\s,、，]+|[（(［\[【\s,、，]+$/g, "")
+      .trim()
+  )
+}
+
 /** 「300克夾鏈袋買10送1」、「全館任選買10送1」。跑馬燈用的短句。 */
 export function buyGetMessages(offers: BuyGetOffer[] = []): string[] {
-  return validOffers(offers).map((o) => `${o.label}買${o.buyQty}送${o.getQty}`)
+  return validOffers(offers).map((o) => {
+    const name = stripBuyGet(o.label)
+    return `${name}買${o.buyQty}送${o.getQty}`
+  })
 }
 
 /**
