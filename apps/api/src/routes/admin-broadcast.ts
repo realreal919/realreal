@@ -70,22 +70,36 @@ function twToday(): string {
  * 系統會放你再寄 60 封通知信 —— 加起來超過寄送服務的每日上限，
  * 而被撠掉的會是排在後面的訂單確認信。
  */
+/**
+ * 今天寄了幾封（制度更新信 + 更正信）。
+ *
+ * 數的是**人**不是券。2026-10-12 起每人發兩張感謝券，而原本是用券的筆數當封數，
+ * 於是一封信被算成兩封 —— 每日上限 60 封會在真正寄出 30 封時就喊停。
+ * 更正信在 2026-10-13 改成一人一封、一次蓋掉名下所有券之後也是同樣情形。
+ *
+ * PostgREST 沒有 count(distinct)，所以把 user_id 撈回來自己去重。持券的人只有
+ * 一百多個，撈全部沒有負擔。
+ */
 async function sentToday(): Promise<number> {
   const today = twToday()
   const start = new Date(`${today}T00:00:00+08:00`)
-  const [{ count: issued }, { count: corrected }] = await Promise.all([
+  const [{ data: issued }, { data: corrected }] = await Promise.all([
     supabase
       .from("member_coupons")
-      .select("id", { count: "exact", head: true })
+      .select("user_id")
       .eq("type", "thanks")
       .gte("created_at", start.toISOString()),
     supabase
       .from("member_coupons")
-      .select("id", { count: "exact", head: true })
+      .select("user_id")
       .eq("type", "thanks")
       .like("note", `%${CORRECTION_MARK} ${today}%`),
   ])
-  return (issued ?? 0) + (corrected ?? 0)
+  const uniq = (rows: Array<{ user_id: string }> | null) =>
+    new Set((rows ?? []).map((r) => r.user_id)).size
+  // 兩種信分開算：同一個人今天可能既收到制度更新信、又收到更正信，那就是兩封。
+  return uniq(issued as Array<{ user_id: string }> | null)
+    + uniq(corrected as Array<{ user_id: string }> | null)
 }
 
 /**
@@ -422,7 +436,15 @@ adminBroadcastRouter.post("/membership-update", async (req, res) => {
 /** 原信寄出的日期，印在更正信裡。 */
 const CORRECTION_ORIGINAL_SENT_ON = "10/9"
 
-type CorrectionTarget = Recipient & { couponId: string; note: string }
+/**
+ * 更正信的收件人。
+ *
+ * coupons 是「這個人所有還沒標記過的感謝券」—— 複數，不是一張。
+ * 2026-10-12 起每人發兩張券（滿1500折100、滿600折50），而這份名單原本是
+ * 「一張券一列」，於是每個人都出現兩次、收到兩封一模一樣的更正信。
+ * 改成一人一列，寄完把他名下所有未標記的券一起蓋章，才不會下一輪又冒出來。
+ */
+type CorrectionTarget = Recipient & { coupons: Array<{ id: string; note: string }> }
 
 async function correctionTargets(exclude: string[] = []): Promise<{
   pending: CorrectionTarget[]
@@ -457,20 +479,25 @@ async function correctionTargets(exclude: string[] = []): Promise<{
   )
 
   const skip = new Set(exclude.map((e) => e.toLowerCase().trim()))
-  const pending: CorrectionTarget[] = []
+  // 一人一列：同一個人名下的多張券併成一筆，否則兩張券 = 兩封信。
+  const byUser = new Map<string, CorrectionTarget>()
   for (const r of todo) {
     const email = emails.get(r.user_id)
     if (!email || skip.has(email.toLowerCase())) continue
     if (prof.get(r.user_id)?.marketing_opt_out) continue
-    pending.push({
+    const existing = byUser.get(r.user_id)
+    if (existing) {
+      existing.coupons.push({ id: r.id, note: r.note ?? "" })
+      continue
+    }
+    byUser.set(r.user_id, {
       userId: r.user_id,
       email,
       displayName: prof.get(r.user_id)?.display_name ?? "",
-      couponId: r.id,
-      note: r.note ?? "",
+      coupons: [{ id: r.id, note: r.note ?? "" }],
     })
   }
-  return { pending, alreadySent }
+  return { pending: [...byUser.values()], alreadySent }
 }
 
 const correctionQuery = z.object({ exclude: z.array(z.string()).max(50).optional() })
@@ -543,10 +570,14 @@ adminBroadcastRouter.post("/correction", async (req, res) => {
         })
         // 寄成功才記號。順序跟感謝券那邊相反是刻意的：這封沒有要發任何東西，
         // 重寄的代價只是再收一封，比「寄失敗卻被記成已寄」小得多。
-        await supabase
-          .from("member_coupons")
-          .update({ note: `${t.note}${CORRECTION_MARK} ${twToday()}` })
-          .eq("id", t.couponId)
+        // 這個人名下所有未標記的券都要蓋章，不然下一輪他又會出現在名單上。
+        const stamp = `${CORRECTION_MARK} ${twToday()}`
+        for (const c of t.coupons) {
+          await supabase
+            .from("member_coupons")
+            .update({ note: `${c.note}${stamp}` })
+            .eq("id", c.id)
+        }
         sent++
       } catch (err) {
         console.error(`[broadcast] 更正信寄送失敗 ${t.email}:`, err)
