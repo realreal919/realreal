@@ -138,11 +138,19 @@ describe("buyGetDetailLines", () => {
       buyGetDetailLines([{ label: "x", buyQty: 10, getQty: 1, freeRule: "highest_price" }])[0],
     ).toContain("最高價")
   })
-  it("可重複的活動講「每湊滿」，不加「每筆訂單 1 次」", () => {
+  it("★ 可重複的活動要講「每單不限 1 次」", () => {
     const [line] = buyGetDetailLines([
       { label: "300克夾鏈袋", buyQty: 10, getQty: 1, repeats: true },
     ])
-    expect(line).toBe("每湊滿 11 件，最低價 1 件免費")
+    expect(line).toBe("任選 11 件，最低價 1 件免費，每單不限 1 次")
+  })
+
+  it("★ 不可重複與可重複的說法不能講反（差的是真金白銀）", () => {
+    const once = buyGetDetailLines([{ label: "x", buyQty: 10, getQty: 1, repeats: false }])[0]
+    const many = buyGetDetailLines([{ label: "x", buyQty: 10, getQty: 1, repeats: true }])[0]
+    expect(once).toContain("每筆訂單 1 次")
+    expect(once).not.toContain("不限")
+    expect(many).toContain("不限")
   })
   it("★ 舊版 API 沒回 repeats 時當成不可重複，不能講得比實際多", () => {
     expect(buyGetDetailLines([{ label: "x", buyQty: 10, getQty: 1 }])[0]).toContain("每筆訂單 1 次")

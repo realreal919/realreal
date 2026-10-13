@@ -190,18 +190,18 @@ export function AddToCartSection({
         </p>
       )}
 
-      {/* 買 X 送 Y —— 跟滿額優惠分開一塊，門檻是件數不是金額，混在一起客人會看錯 */}
+      {/* 買 X 送 Y —— 跟滿額優惠分開一塊，門檻是件數不是金額，混在一起客人會看錯。
+          字級、圖示大小、間距都比照下面的「滿額好禮」：兩塊緊鄰著，一塊 text-base
+          粗體配大圖示、一塊 text-xs，看起來像兩個不同系統拼起來的。 */}
       {buyGetLines.length > 0 && (
-        <div className="-mt-2 space-y-1.5 rounded-md bg-amber-50 px-3 py-2.5 text-base" style={{ color: "#92400e" }}>
+        <div className="-mt-2 space-y-2 rounded-md bg-amber-50 px-3 py-2 text-xs" style={{ color: "#92400e" }}>
           {buyGetLines.map((line, i) => (
             <div key={line}>
-              <p className="flex items-center gap-2 font-bold">
-                <Sparkles className="h-5 w-5 shrink-0" />
+              <p className="flex items-center gap-1.5 font-semibold">
+                <Sparkles className="h-3.5 w-3.5 shrink-0" />
                 {line}
               </p>
-              {buyGetDetails[i] && (
-                <p className="pl-7 text-xs leading-5">{buyGetDetails[i]}</p>
-              )}
+              {buyGetDetails[i] && <p className="mt-0.5">{buyGetDetails[i]}</p>}
             </div>
           ))}
         </div>

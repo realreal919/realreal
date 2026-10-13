@@ -81,8 +81,11 @@ export function buyGetDetailLines(offers: BuyGetOffer[] = []): string[] {
   return validOffers(offers).map((o) => {
     const total = o.buyQty + o.getQty
     const which = o.freeRule === "highest_price" ? "最高價" : "最低價"
+    // 「不限 1 次」與「每筆訂單 1 次」這兩句差很多錢：湊 22 件時前者免 2 件、
+    // 後者免 1 件。所以它跟著活動類型走（buy_x_get_y 會重複、bundle 不會），
+    // 不是寫死的 —— 文案講得比系統慷慨，客人結帳時就會發現對不上。
     return o.repeats
-      ? `每湊滿 ${total} 件，${which} ${o.getQty} 件免費`
+      ? `任選 ${total} 件，${which} ${o.getQty} 件免費，每單不限 1 次`
       : `任選 ${total} 件，${which} ${o.getQty} 件免費（每筆訂單 1 次）`
   })
 }
