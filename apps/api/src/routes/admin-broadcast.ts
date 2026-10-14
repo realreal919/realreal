@@ -128,18 +128,37 @@ export function isExcludedFromMembershipUpdate(email: string): boolean {
   return OWNER_ACCOUNTS.has(email.trim().toLowerCase())
 }
 
+/**
+ * 只寄給「老會員」—— 2026-10-08（含）以前註冊的人。
+ *
+ * 這封信講的是「謝謝你這一路的支持」，還附一張老朋友感謝券。10/9 之後才註冊的
+ * 人收到它會很怪：柯美含註冊第三天就收到一封謝謝她一路陪伴的信，而且那張券
+ * 跟首購折疊在同一筆訂單上（#10000338）。
+ *
+ * 用台北時間切：profiles.created_at 存的是 UTC，10/9 00:00+08:00 等於
+ * 10/8 16:00Z。寫死成一個時間點而不是「幾天前」—— 這是一次性的廣播，名單應該
+ * 是固定的一群人，不該因為今天是哪一天而變動。
+ */
+const OLD_MEMBER_CUTOFF = "2026-10-08T16:00:00.000Z"
+
+export function isOldMember(createdAt: string | null | undefined): boolean {
+  if (!createdAt) return false
+  return createdAt < OLD_MEMBER_CUTOFF
+}
+
 async function buildRecipients(): Promise<{ list: Recipient[]; alreadySent: number }> {
   const { data: profiles, error } = await supabase
     .from("user_profiles")
-    .select("user_id, display_name, marketing_opt_out")
+    .select("user_id, display_name, marketing_opt_out, created_at")
   if (error) throw new Error(error.message)
 
   const rows = (profiles ?? []) as Array<{
     user_id: string
     display_name: string | null
     marketing_opt_out: boolean | null
+    created_at: string | null
   }>
-  const eligible = rows.filter((r) => !r.marketing_opt_out)
+  const eligible = rows.filter((r) => !r.marketing_opt_out && isOldMember(r.created_at))
 
   // 已經拿過感謝券 = 已經收過這封信。券本身就是憑據，不另外建一張寄送紀錄表。
   const { data: sentRows } = await supabase
