@@ -38,6 +38,7 @@
     "bullmq": "^5",
     "cookie-parser": "^1.4.7",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.3.1",
     "ioredis": "^5",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^8.0.4",

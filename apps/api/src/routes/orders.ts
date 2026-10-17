@@ -1882,20 +1882,34 @@ ordersRouter.get("/", requireAuth, async (req, res) => {
   })
 })
 
+/** 訪客 email 只在下單後這段時間內回傳（見下方端點說明）。 */
+const GUEST_EMAIL_TTL_MS = 60 * 60 * 1000
+
+function isWithinGuestEmailWindow(createdAt: string | null): boolean {
+  if (!createdAt) return false
+  const t = Date.parse(createdAt)
+  if (Number.isNaN(t)) return false
+  return Date.now() - t <= GUEST_EMAIL_TTL_MS
+}
+
 // GET /orders/by-number/:orderNumber/status — public, returns the minimal
 // status info the post-payment confirm page needs. No PII, no items.
+//
 // EXCEPTION: `guest_email` is returned ONLY when the order is still a guest
-// order (user_id IS NULL). The confirm page uses it to prefill the
-// "建立會員帳號" prompt that converts the just-completed checkout into a
-// Supabase Auth user. Once the order is claimed (user_id set), the field is
-// returned as null so subsequent lookups via the same public URL don't leak
-// the buyer's email.
+// order (user_id IS NULL) **and was created within the last hour**. The confirm
+// page uses it to prefill the「建立會員帳號」prompt right after checkout.
+//
+// 2026-10-17 加上時間窗：訂單編號是 10000001 連號遞增，而這一支不需要任何驗證，
+// 所以原本「未綁帳號就回傳 email」等於整份訪客名單（當時 109 筆）可以被人從頭
+// 掃到尾。結帳完成頁只會在剛下單的那幾分鐘用到這個欄位，限制在 1 小時內既不影響
+// 它，也讓掃描者最多只能撈到最近一小時內、而且還沒註冊的訂單。
+// 搭配 middleware/rate-limit.ts 的 orderStatusLimiter 一起看。
 ordersRouter.get("/by-number/:orderNumber/status", async (req, res) => {
   const { data, error } = await supabase
     .from("orders")
     // shipping_method：訂單完成頁要據此顯示「接下來會怎麼送、怎麼取」。不是個資
     // （就是 cvs_711 / home_delivery 這種字串），而且客人本來就是自己選的。
-    .select("order_number, status, payment_status, payment_method, shipping_method, total, user_id, guest_email")
+    .select("order_number, status, payment_status, payment_method, shipping_method, total, user_id, guest_email, created_at")
     .eq("order_number", req.params.orderNumber)
     .maybeSingle()
   if (error || !data) { res.status(404).json({ error: "Order not found" }); return }
@@ -1908,8 +1922,12 @@ ordersRouter.get("/by-number/:orderNumber/status", async (req, res) => {
       payment_method: row.payment_method,
       shipping_method: row.shipping_method,
       total: row.total,
-      // Conditional — null once a user claims the order.
-      guest_email: row.user_id == null ? (row.guest_email ?? null) : null,
+      // Conditional — null once a user claims the order, and null for anything
+      // older than GUEST_EMAIL_TTL_MS (see the note above).
+      guest_email:
+        row.user_id == null && isWithinGuestEmailWindow(row.created_at as string | null)
+          ? (row.guest_email ?? null)
+          : null,
     },
   })
 })

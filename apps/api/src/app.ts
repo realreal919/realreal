@@ -26,6 +26,7 @@ import { analyticsRouter } from "./routes/analytics"
 import { invoicesRouter } from "./routes/invoices"
 import { amegoWebhookRouter } from "./routes/webhooks/amego"
 import { requireAuth } from "./middleware/auth"
+import { TRUST_PROXY_HOPS, orderStatusLimiter, emailLookupLimiter, publicWriteLimiter } from "./middleware/rate-limit"
 import { requireAdmin } from "./middleware/admin"
 import { ordersRouter } from "./routes/orders"
 import { pchomepayWebhookRouter } from "./routes/webhooks/pchomepay"
@@ -54,6 +55,10 @@ import { kolsRouter } from "./routes/kols"
 import { adminKolsRouter } from "./routes/admin-kols"
 
 export const app = express()
+
+// Railway 在前面有一層反向代理。不設這個，req.ip 會是代理的位址，流量限制
+// 會把所有客人算成同一個人 —— 第一個達標之後全站都被擋。
+app.set("trust proxy", TRUST_PROXY_HOPS)
 
 // CORS — must be first so preflight OPTIONS requests are handled before any auth checks
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -88,9 +93,9 @@ app.use(
 // Cookie parser — needed for Spec I (KOL affiliate cookie `kol_ref` read in /orders POST).
 app.use(cookieParser())
 app.use("/health", healthRouter)
-app.use("/contact", contactRouter)
+app.use("/contact", publicWriteLimiter, contactRouter)
 app.use("/config", configRouter)
-app.use("/share-reports", shareReportsRouter)
+app.use("/share-reports", publicWriteLimiter, shareReportsRouter)
 app.use("/categories", categoriesRouter)
 app.use("/admin/categories", categoriesAdminRouter)
 app.use("/variants", variantPricesRouter)
@@ -111,7 +116,9 @@ app.use("/admin/broadcast", adminBroadcastRouter)
 app.use("/admin/team", adminTeamRouter)
 app.use("/admin/customers", adminCustomersRouter)
 app.use("/auth/legacy", authLegacyRouter)
-app.use("/auth", authEmailRouter)
+app.use("/auth", emailLookupLimiter, authEmailRouter)
+// 只擋訂單狀態查詢那一支（連號可猜），不要擋到 POST /orders 本身 —— 那是結帳。
+app.use("/orders/by-number", orderStatusLimiter)
 app.use("/orders", ordersRouter)
 app.use("/webhooks/pchomepay", pchomepayWebhookRouter)
 app.use("/webhooks/linepay", linepayWebhookRouter)

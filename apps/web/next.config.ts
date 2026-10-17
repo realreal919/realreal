@@ -12,6 +12,31 @@ const nextConfig: NextConfig = {
   },
   // 改過網址的商品：舊網址轉到新網址。商品頁的資料快取在 API 回 404 時不會更新，
   // 舊網址會一直顯示改名前的內容與價格，所以不能等它自己過期。
+  // 安全標頭。2026-10-17 檢查時站上只有 HSTS（Vercel 自己加的），其餘一個都沒有。
+  // 這幾個不是防資料外洩，是縱深防禦：萬一哪天有 XSS 或有人把網站嵌進 iframe
+  // 做釣魚，這些標頭會先擋一層。
+  //
+  // 刻意不加 Content-Security-Policy：站上有 gtag.js、Sentry 與 Supabase 的
+  // 跨網域請求，CSP 要一條一條白名單，寫錯會整站空白。要加的話得單獨做一輪，
+  // 先用 Report-Only 觀察幾天再開。
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          // 不准別的網站把我們嵌進 iframe（點擊劫持）
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          // 不要讓瀏覽器自己猜檔案型別（把上傳的圖當成 HTML 執行）
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          // 跨站連出去時只送網域，不送完整網址（訂單編號之類的不會外流）
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // 沒用到的瀏覽器功能一律關掉
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
+        ],
+      },
+    ]
+  },
+
   async redirects() {
     return [
       // 2026-09-21 隨身包 3 入組當天改成 2 入組
