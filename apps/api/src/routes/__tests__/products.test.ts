@@ -507,3 +507,56 @@ describe("POST /admin/products/:id/restore", () => {
     expect(eqFn).toHaveBeenCalledWith("id", "prod-1")
   })
 })
+
+describe("不公開商品（is_unlisted）", () => {
+  function mockList() {
+    const eq = vi.fn().mockReturnThis()
+    const q = {
+      select: vi.fn().mockReturnThis(),
+      eq,
+      is: vi.fn().mockReturnThis(),
+      ilike: vi.fn().mockReturnThis(),
+      textSearch: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      range: vi.fn().mockResolvedValue({ data: [], error: null, count: 0 }),
+    }
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === "product_variants") {
+        return { select: vi.fn().mockReturnThis(), in: vi.fn().mockResolvedValue({ data: [], error: null }) } as any
+      }
+      return q as any
+    })
+    return eq
+  }
+
+  it("★ 列表預設擋掉不公開商品 —— 商品頁／分類／搜尋／首頁都走這一支", async () => {
+    const eq = mockList()
+    const res = await request(app).get("/products")
+    expect(res.status).toBe(200)
+    expect(eq).toHaveBeenCalledWith("is_unlisted", false)
+  })
+
+  it("★ include_unlisted=true 時不擋 —— 後台商品挑選器要找得到", async () => {
+    const eq = mockList()
+    const res = await request(app).get("/products?include_unlisted=true&search=60")
+    expect(res.status).toBe(200)
+    expect(eq).not.toHaveBeenCalledWith("is_unlisted", false)
+  })
+
+  it("★ 單一商品（/:slug）不擋 —— 擋了連結就失去意義", async () => {
+    const q = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      is: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({
+        data: { ...mockProduct, is_unlisted: true, product_variants: [] },
+        error: null,
+      }),
+    }
+    vi.mocked(supabase.from).mockImplementation(() => q as any)
+    const res = await request(app).get("/products/probiotic-capsule")
+    expect(res.status).toBe(200)
+    expect(res.body.data.is_unlisted).toBe(true)
+    expect(q.eq).not.toHaveBeenCalledWith("is_unlisted", false)
+  })
+})

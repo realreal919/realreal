@@ -86,6 +86,8 @@ const productSchema = z.object({
   is_featured: z.boolean().optional(),
   is_addon: z.boolean().optional(),
   is_recommended: z.boolean().optional(),
+  // 不公開：照常上架可買，但不出現在任何列表（見 0062 migration）。
+  is_unlisted: z.boolean().optional(),
   display_priority: z.number().int().min(0).max(99999).optional(),
   min_tier_id: z.string().uuid().nullable().optional(),
   // 自動下架時間（ISO 字串）。空字串視為清空 —— 表單送出時空欄位就是 ""。
@@ -145,12 +147,19 @@ productsRouter.get("/", async (req, res) => {
 
   let query = supabase
     .from("products")
-    .select("id, name, slug, description, category_id, images, is_active, is_featured, is_addon, is_recommended, display_priority, created_at, min_tier_id, badge_text, delist_at, membership_tiers!min_tier_id(id, name, min_spend), product_variants(id, sku, name, price, sale_price, addon_price, addon_limit, stock_qty, attributes)", { count: "exact" })
+    .select("id, name, slug, description, category_id, images, is_active, is_featured, is_addon, is_recommended, is_unlisted, display_priority, created_at, min_tier_id, badge_text, delist_at, membership_tiers!min_tier_id(id, name, min_spend), product_variants(id, sku, name, price, sale_price, addon_price, addon_limit, stock_qty, attributes)", { count: "exact" })
     .eq("is_active", true)
     .is("deleted_at", null)
     .order("is_featured", { ascending: false })
     .order("display_priority", { ascending: false })
     .order("created_at", { ascending: false })
+
+  // 不公開商品（is_unlisted）不出現在任何列表 —— 商品頁、分類頁、站內搜尋、
+  // 首頁置頂、推薦區、加購區全部走這一支，所以擋在這裡就等於擋住所有入口。
+  // 商品本身照常上架、照常結帳，只是逛不到；拿到網址的人 GET /products/:slug
+  // 仍然讀得到（那一支刻意不擋，否則連結就沒有意義了）。
+  // include_unlisted=true 是後台專用的逃生門（商品挑選器要找得到它）。
+  if (req.query.include_unlisted !== "true") query = query.eq("is_unlisted", false)
 
   if (categoryId) query = query.eq("category_id", categoryId)
   if (req.query.featured_only === "true") query = query.eq("is_featured", true)
@@ -197,7 +206,7 @@ productsRouter.get("/:slug", async (req, res) => {
   const { data, error } = await supabase
     .from("products")
     .select(`
-      id, name, slug, description, excerpt, category_id, images, is_active, created_at, min_tier_id, badge_text, delist_at,
+      id, name, slug, description, excerpt, category_id, images, is_active, is_unlisted, created_at, min_tier_id, badge_text, delist_at,
       membership_tiers!min_tier_id(id, name, min_spend),
       product_variants (id, sku, name, price, sale_price, addon_price, addon_limit, stock_qty, weight, attributes)
     `)
@@ -447,13 +456,15 @@ const toggleSchema = z
     is_active: z.boolean().optional(),
     is_addon: z.boolean().optional(),
     is_recommended: z.boolean().optional(),
+    is_unlisted: z.boolean().optional(),
   })
   .refine(
     (v) =>
       v.is_active !== undefined ||
       v.is_addon !== undefined ||
-      v.is_recommended !== undefined,
-    { message: "At least one of is_active / is_addon / is_recommended is required" },
+      v.is_recommended !== undefined ||
+      v.is_unlisted !== undefined,
+    { message: "At least one of is_active / is_addon / is_recommended / is_unlisted is required" },
   )
 
 productsAdminRouter.patch("/:id/toggle", requireAuth, requireEditor, async (req, res) => {
@@ -464,7 +475,7 @@ productsAdminRouter.patch("/:id/toggle", requireAuth, requireEditor, async (req,
     .from("products")
     .update(parsed.data)
     .eq("id", req.params.id)
-    .select("id, is_active, is_addon, is_recommended")
+    .select("id, is_active, is_addon, is_recommended, is_unlisted")
     .single()
 
   if (error) { res.status(500).json({ error: error.message }); return }

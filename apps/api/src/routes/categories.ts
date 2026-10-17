@@ -73,6 +73,9 @@ categoriesRouter.get("/", async (_req, res) => {
       .from("products")
       .select("category_id")
       .eq("is_active", true)
+      // 不公開商品不算進分類的商品數 —— 選單寫著 3 件、點進去只有 2 件，
+      // 客人會以為是壞掉。後台的分類頁用的是另一支查詢，照樣算得到它。
+      .eq("is_unlisted", false)
       .in("category_id", ids)
     if (prodErr) { res.status(500).json({ error: prodErr.message }); return }
     for (const p of products ?? []) {

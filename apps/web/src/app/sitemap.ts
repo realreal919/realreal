@@ -15,12 +15,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let productRoutes: MetadataRoute.Sitemap = []
   try {
     const { data: products } = await getProducts({ limit: 1000 })
-    productRoutes = products.map((p) => ({
-      url: `${BASE_URL}/shop/${p.slug}`,
-      lastModified: new Date(p.created_at),
-      changeFrequency: "weekly" as const,
-      priority: 0.7,
-    }))
+    // 列表 API 已經擋掉不公開商品，這裡再擋一次 —— sitemap 等於把網址主動送給
+    // Google，萬一哪天 API 的預設行為改了，這支是最不該漏的一道。
+    productRoutes = products
+      .filter((p) => !p.is_unlisted)
+      .map((p) => ({
+        url: `${BASE_URL}/shop/${p.slug}`,
+        lastModified: new Date(p.created_at),
+        changeFrequency: "weekly" as const,
+        priority: 0.7,
+      }))
   } catch {
     // If the API is unavailable, return only static routes
   }

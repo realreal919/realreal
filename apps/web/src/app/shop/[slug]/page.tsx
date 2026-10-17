@@ -90,7 +90,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params
   const product = await getProductBySlug(slug)
   if (!product) return { title: "商品不存在" }
-  return { title: `${product.name} | 誠真生活 RealReal`, description: product.description }
+  return {
+    title: `${product.name} | 誠真生活 RealReal`,
+    description: product.description,
+    // 不公開商品：擋掉搜尋引擎。它本來就不在任何列表和 sitemap 裡，但只要有人
+    // 把連結貼在公開的地方（粉專、論壇），爬蟲照樣會循線找到並收錄 —— 收錄之後
+    // 就等於公開了，而且要從 Google 移除比擋住難得多。
+    ...(product.is_unlisted ? { robots: { index: false, follow: false } } : {}),
+  }
 }
 
 export default async function ProductDetailPage({ params }: { params: Promise<{ slug: string }> }) {
