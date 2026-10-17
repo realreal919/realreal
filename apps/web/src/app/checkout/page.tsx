@@ -226,6 +226,12 @@ export default function CheckoutPage() {
   const [cvsStoreName, setCvsStoreName] = useState("")
   const [cvsStoreId, setCvsStoreId] = useState("")
   const [cvsAddress, setCvsAddress] = useState("")
+  // 會員上次取貨的門市。超商取貨佔了七成訂單，但「自動帶入」以前只看宅配地址，
+  // 常用超商的回頭客每次都得重開地圖選一次。門市資料本來就存在 order_addresses
+  // 裡（address = 店名、cvs_store_id = 店號、cvs_type = 超商），拿來用就好。
+  const [lastCvsStore, setLastCvsStore] = useState<
+    { storeId: string; storeName: string; cvsType: string } | null
+  >(null)
   const [country, setCountry] = useState("")
   const [invoice, setInvoice] = useState<InvoiceData>({ type: "B2C_2" })
   const [notes, setNotes] = useState("")
@@ -402,10 +408,33 @@ export default function CheckoutPage() {
         .order("created_at", { ascending: false })
         .limit(10)
       if (cancelled || !recentOrders?.length) return
+      const orderIds = recentOrders.map((o: { id: string }) => o.id)
+
+      // 上次取貨的門市 —— 只記起來，等客人真的選了超商取貨才套用（見下方 effect）。
+      const { data: lastCvs } = await supabase
+        .from("order_addresses")
+        .select("address, cvs_store_id, cvs_type")
+        .in("order_id", orderIds)
+        .eq("address_type", "cvs")
+        .not("cvs_store_id", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (!cancelled && lastCvs) {
+        const c = lastCvs as { address: string | null; cvs_store_id: string | null; cvs_type: string | null }
+        if (c.cvs_store_id && c.address) {
+          setLastCvsStore({
+            storeId: c.cvs_store_id,
+            storeName: c.address,
+            cvsType: c.cvs_type === "family" ? "family" : "711",
+          })
+        }
+      }
+
       const { data: lastAddr } = await supabase
         .from("order_addresses")
         .select("name, phone, city, postal_code, address")
-        .in("order_id", recentOrders.map((o: { id: string }) => o.id))
+        .in("order_id", orderIds)
         .eq("address_type", "home")
         .order("created_at", { ascending: false })
         .limit(1)
@@ -681,6 +710,23 @@ export default function CheckoutPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addressType])
+
+  // 把「上次取貨的門市」帶進來。
+  //
+  // 必須排在上面那個 effect 後面：切換配送方式時它會把門市清空（避免宅配的
+  // 街道地址跟超商門市混在同一筆訂單裡），所以這裡要在清空之後才補。
+  // 只在客人還沒選門市時套用 —— 客人自己挑過的永遠優先。
+  useEffect(() => {
+    if (!lastCvsStore) return
+    if (addressType !== "cvs" && addressType !== "cvs_cod") return
+    if (cvsStoreId) return
+    setCvsStoreId(lastCvsStore.storeId)
+    setCvsStoreName(lastCvsStore.storeName)
+    setShippingMethod(lastCvsStore.cvsType === "family" ? "family" : "711")
+    // 門市地址沒有存進訂單（order_addresses.address 放的是店名），所以留空；
+    // 畫面上只會顯示店名，客人要換店再開地圖。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addressType, lastCvsStore])
 
   // Apply a saved address from the picker — overwrites the form fields since
   // the user explicitly chose it. "" = back to manual entry (leaves fields).
@@ -1144,7 +1190,16 @@ export default function CheckoutPage() {
                       {cvsStoreName ? (
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="font-medium text-sm">{cvsStoreName}</p>
+                            <p className="font-medium text-sm">
+                              {cvsStoreName}
+                              {/* 讓客人知道門市是系統帶出來的，不是他剛才選的 ——
+                                  沒講的話會以為自己選過，到店才發現取錯間。 */}
+                              {lastCvsStore && cvsStoreId === lastCvsStore.storeId && (
+                                <span className="ml-2 rounded bg-[#10305a]/10 px-1.5 py-0.5 text-[10px] font-medium text-[#10305a]">
+                                  上次取貨門市
+                                </span>
+                              )}
+                            </p>
                             <p className="text-xs text-zinc-500">門市編號：{cvsStoreId}</p>
                             {cvsAddress && (
                               <p className="text-xs text-zinc-500">{cvsAddress}</p>
@@ -1236,7 +1291,16 @@ export default function CheckoutPage() {
                       {cvsStoreName ? (
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="font-medium text-sm">{cvsStoreName}</p>
+                            <p className="font-medium text-sm">
+                              {cvsStoreName}
+                              {/* 讓客人知道門市是系統帶出來的，不是他剛才選的 ——
+                                  沒講的話會以為自己選過，到店才發現取錯間。 */}
+                              {lastCvsStore && cvsStoreId === lastCvsStore.storeId && (
+                                <span className="ml-2 rounded bg-[#10305a]/10 px-1.5 py-0.5 text-[10px] font-medium text-[#10305a]">
+                                  上次取貨門市
+                                </span>
+                              )}
+                            </p>
                             <p className="text-xs text-zinc-500">門市編號：{cvsStoreId}</p>
                             {cvsAddress && (
                               <p className="text-xs text-zinc-500">{cvsAddress}</p>
