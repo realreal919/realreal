@@ -19,6 +19,13 @@ const nextConfig: NextConfig = {
       // 用 302（permanent: false）：2 入組哪天重新上架，拿掉這兩行就好，瀏覽器不會永久記住。
       { source: "/shop/sachet-3pack", destination: "/shop/protein-10pack-sampler", permanent: false },
       { source: "/shop/sachet-2pack", destination: "/shop/protein-10pack-sampler", permanent: false },
+
+      // 2026-10-17 三個商品網址本來就拼錯字（stawberry 少了 r、vegain、drawgonfruit）。
+      // 拼錯的關鍵字對不上 Google 上的搜尋（"strawberry protein" 之類），分享出去也不好看。
+      // 用 301（permanent: true）：請搜尋引擎把舊網址的權重轉到新網址，舊連結不會變死連結。
+      { source: "/shop/vegan-protein-powder-stawberry", destination: "/shop/vegan-protein-powder-strawberry", permanent: true },
+      { source: "/shop/vegain-protein-ses50", destination: "/shop/vegan-protein-ses50", permanent: true },
+      { source: "/shop/vegan-protein-powder-almond-drawgonfruit", destination: "/shop/vegan-protein-powder-almond-dragonfruit", permanent: true },
     ]
   },
 }

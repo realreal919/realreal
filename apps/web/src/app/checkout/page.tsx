@@ -11,6 +11,7 @@ import { InvoiceSelector, type InvoiceData } from "@/components/checkout/Invoice
 import { API_URL } from "@/lib/api-url"
 import { applyAddonDisplay, cartDisplaySubtotal } from "@/lib/addon-display"
 import { validateInvoice } from "@/lib/invoice-carrier"
+import { trackBeginCheckout, trackCheckoutBlocked, trackAddShippingInfo } from "@/lib/analytics"
 import {
   buildOrderPreviewItems,
   formatShippingPreviewLabel,
@@ -748,10 +749,25 @@ export default function CheckoutPage() {
     // Mark all as touched to show errors
     setTouched({ name: true, phone: true, email: true, city: true, address: true, cvsStore: true, country: true })
     if (Object.keys(errs).length > 0) {
+      // 哪個欄位把人擋下來 —— 只送欄位名稱，不送客人填的內容。
+      trackCheckoutBlocked(Object.keys(errs))
       // 捲動 + 聚焦到第一個有錯的欄位，使用者不用自己找哪裡紅字
       scrollToFirstError(errs)
       return
     }
+
+    trackAddShippingInfo(
+      {
+        total: cartDisplaySubtotal(items),
+        items: items.map(i => ({
+          sku: i.variantId,
+          name: [i.productName, i.variantName].filter(Boolean).join(" "),
+          unit_price: Number(i.price) || 0,
+          qty: Number(i.qty) || 0,
+        })),
+      },
+      addressType,
+    )
 
     // Build the persisted address by addressType so residual fields from a
     // previously-selected mode never leak into the order (T-P2). Switching
@@ -789,6 +805,25 @@ export default function CheckoutPage() {
   // but 商品小計 NT$580 from the raw total() helper). preview.subtotal stays
   // authoritative once it arrives.
   const subtotal = cartDisplaySubtotal(items)
+
+  // GA4 漏斗：進到結帳第一步送一次 begin_checkout。等 hydrated 才送，否則
+  // zustand 還沒把購物車讀回來，會送出一筆空購物車的事件。useRef 擋重送 ——
+  // 這一頁會因為運費試算、欄位輸入重新渲染很多次。
+  const beginCheckoutFired = useRef(false)
+  useEffect(() => {
+    if (beginCheckoutFired.current) return
+    if (!hydrated || items.length === 0) return
+    beginCheckoutFired.current = true
+    trackBeginCheckout({
+      total: cartDisplaySubtotal(items),
+      items: items.map(i => ({
+        sku: i.variantId,
+        name: [i.productName, i.variantName].filter(Boolean).join(" "),
+        unit_price: Number(i.price) || 0,
+        qty: Number(i.qty) || 0,
+      })),
+    })
+  }, [hydrated, items])
   // total() kept available for places that explicitly want the raw catalog
   // sum (none currently, but the hook stays exported).
   void total

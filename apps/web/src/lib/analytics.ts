@@ -110,10 +110,36 @@ export function trackAddToCart(item: PurchaseItem): void {
 }
 
 /**
+ * 結帳第一步被驗證擋下來。GA4 標準事件裡沒有這個，是自訂的。
+ *
+ * 2026-10-17：報表顯示 20 個人開始結帳、只有 14 個進到付款頁，30% 在填資料
+ * 那一頁就離開了。但沒有任何事件告訴我們「卡在哪個欄位」，只能猜。送出被擋
+ * 的欄位名稱（只有欄位名，不含客人填的內容），下次看報表就知道該修哪裡。
+ */
+export function trackCheckoutBlocked(fields: string[]): void {
+  if (fields.length === 0) return
+  emit("checkout_blocked", {
+    // GA4 的自訂參數不收陣列，串成字串（欄位名本身不是個資）
+    blocked_fields: [...fields].sort().join(","),
+    blocked_count: fields.length,
+  })
+}
+
+/** 結帳第一步（寄送資料）填完、成功進到付款頁。 */
+export function trackAddShippingInfo(cart: { items: PurchaseItem[]; total: number }, shippingTier?: string): void {
+  emit("add_shipping_info", {
+    currency: "TWD",
+    value: cart.total,
+    items: toGa4Items(cart.items),
+    ...(shippingTier ? { shipping_tier: shippingTier } : {}),
+  })
+}
+
+/**
  * 進入結帳流程。
  *
- * TODO: 尚未接上呼叫點。接在 /checkout/payment 掛載時，而且要用 useRef 擋成
- * 只送一次 —— 重新渲染或上一步退回來都會重複觸發，漏斗數字會虛胖。
+ * 呼叫點在 /checkout 掛載時（購物車不是空的才送），用 useRef 擋成只送一次 ——
+ * 重新渲染或上一步退回來都會重複觸發，漏斗數字會虛胖。
  */
 export function trackBeginCheckout(cart: {
   items: PurchaseItem[]
