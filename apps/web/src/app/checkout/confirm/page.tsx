@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useCart } from "@/lib/cart"
 import { Button } from "@/components/ui/button"
-import { trackPurchase } from "@/lib/analytics"
+import { trackPurchase, type PurchaseItem } from "@/lib/analytics"
 import { clearPromoState } from "@/components/checkout/PromoWidget"
 import { GuestRegisterCard } from "@/components/checkout/GuestRegisterCard"
 import { orderNotice, type OrderNotice } from "@/lib/order-notice"
@@ -148,6 +148,9 @@ export default function ConfirmPage() {
   // 取貨方式決定要顯示哪一份「接下來會怎麼送」。URL 上的 method 是**付款**方式，
   // 問不出客人選的是超商還是宅配，所以要跟訂單狀態一起讀回來。
   const [shippingMethod, setShippingMethod] = useState<string | null>(null)
+  // 訂單實收金額。GA4 的 purchase 事件要帶這個當 value —— 以前帶 0，
+  // 等於報表上「有轉換、沒營收」。伺服器回來的才算數。
+  const [orderTotal, setOrderTotal] = useState<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -177,11 +180,17 @@ export default function ConfirmPage() {
         )
         if (!r.ok || cancelled) return
         const body = (await r.json()) as {
-          data?: { guest_email?: string | null; shipping_method?: string | null }
+          data?: {
+            guest_email?: string | null
+            shipping_method?: string | null
+            total?: number | string | null
+          }
         }
         if (cancelled) return
         setGuestEmail(body.data?.guest_email ?? null)
         setShippingMethod(body.data?.shipping_method ?? null)
+        const t = Number(body.data?.total)
+        if (Number.isFinite(t)) setOrderTotal(t)
       } catch {
         /* network blip — silently leave guestEmail null */
       }
@@ -227,6 +236,8 @@ export default function ConfirmPage() {
         const res = r.ok ? await r.json() : null
         if (cancelled) return
         const ps = (res?.data?.payment_status as string | undefined) ?? undefined
+        const polledTotal = Number(res?.data?.total)
+        if (Number.isFinite(polledTotal)) setOrderTotal(polledTotal)
         const mapped = mapPaymentStatus(ps)
         setPaymentStatus(mapped)
         // Stop polling once we reach a terminal state OR the budget runs out.
@@ -252,6 +263,35 @@ export default function ConfirmPage() {
       if (timer) clearTimeout(timer)
     }
   }, [orderNumber, method])
+
+  // 結帳品項的快照。下面那個清理 effect 會把 localStorage 的 realreal-checkout
+  // 刪掉，而 effect 是照宣告順序跑的 —— 所以這支一定要排在它前面，否則 GA4 的
+  // purchase 事件永遠拿不到品項，只剩一個沒有內容的轉換。
+  const purchasedItems = useRef<PurchaseItem[]>([])
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("realreal-checkout")
+      if (!raw) return
+      const parsed = JSON.parse(raw) as {
+        items?: Array<{
+          variantId?: string
+          productName?: string
+          variantName?: string
+          price?: number
+          qty?: number
+        }>
+      }
+      purchasedItems.current = (parsed.items ?? []).map(i => ({
+        // 快照裡沒有 SKU，用 variantId 當 item_id —— 它一樣能唯一對應到一個規格。
+        sku: i.variantId ?? "",
+        name: [i.productName, i.variantName].filter(Boolean).join(" ") || "（未知品項）",
+        unit_price: Number(i.price) || 0,
+        qty: Number(i.qty) || 0,
+      }))
+    } catch {
+      // SSR、無痕模式或 JSON 壞掉 —— 沒有品項照樣送轉換，只是少了明細。
+    }
+  }, [])
 
   // Clear cart + checkout/promo storage ONLY on a confirmed success — never
   // while still loading, pending, or failed. The previous version cleared
@@ -285,23 +325,22 @@ export default function ConfirmPage() {
   // === "success" rather than firing on mount so a forged ?status=success
   // redirect can't inflate revenue numbers.
   //
-  // TODO(spec-L follow-up): the /orders/by-number/:n/status endpoint only
-  // returns payment_status today. Extend it (or add a richer fetch here)
-  // so we can pass items + total + kol_slug to trackPurchase. For v1 we
-  // fire with transaction_id only — GA4 still records the conversion,
-  // just without ecommerce line items.
+  // 金額等伺服器回來才送（orderTotal 跟 payment_status 來自同一個回應）。
+  // 寧可晚一拍，也不要送出一筆 value=0 的轉換 —— 那會讓 GA4 的收益報表
+  // 長期低估，而且事後無法回填。
   const purchaseFired = useRef(false)
   useEffect(() => {
     if (purchaseFired.current) return
     if (paymentStatus !== "success") return
     if (orderNumber === "---") return
+    if (orderTotal === null) return
     purchaseFired.current = true
     trackPurchase({
       id: orderNumber,
-      total: 0,
-      items: [],
+      total: orderTotal,
+      items: purchasedItems.current,
     })
-  }, [paymentStatus, orderNumber])
+  }, [paymentStatus, orderNumber, orderTotal])
 
   if (isCvsCod) {
     return (

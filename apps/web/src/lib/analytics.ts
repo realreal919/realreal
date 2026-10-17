@@ -1,25 +1,50 @@
 /**
- * GA4 event helpers — push onto `window.dataLayer` so GTM tags can forward
- * them to GA4 (or any other platform configured in the GTM workspace).
+ * GA4 事件。
  *
- * Spec L (docs/superpowers/specs/2026-05-31-L-ga4-gtm-sentry-integration-design.md)
- * §2 — `lib/analytics.ts` event helpers.
+ * 2026-10-17 改寫：原本是寫給 GTM 的 —— 往 `window.dataLayer` 推一個
+ * `{ event: "purchase", ecommerce: {...} }` 物件，由 GTM 容器轉成 GA4 事件。
+ * 但 2026-10-11 站上改成直接載入 gtag.js、不經過 GTM（見 components/Analytics.tsx），
+ * 而 gtag.js **只認 arguments 形式的指令**（'event', 名稱, 參數），對這種物件
+ * 完全視而不見。結果是從 10/11 到 10/17，購買事件一次也沒送到 GA4，
+ * 報表上的「重要活動」一直是 0 —— 沒有錯誤訊息，所以從外面看不出來。
  *
- * All helpers are SSR-safe: each guards on `typeof window !== "undefined"`
- * so they're no-ops during server rendering / build prerender.  The
- * `dataLayer` may not yet be initialised when the helper fires (Analytics.tsx
- * sets it up `afterInteractive`), so we use optional chaining + a fallback
- * push to defer until GTM is ready.
+ * 兩個地方要一起改才有用：
+ *   1. 改用 gtag('event', ...) 送（本檔 emit()）
+ *   2. 電商參數要攤平。`items`/`value`/`currency` 直接放在事件參數上，
+ *      GTM 時代那層 `ecommerce: {...}` 包裝是 GTM 專用的，gtag.js 會把
+ *      整包當成一個無意義的自訂參數丟掉。
+ *
+ * SSR 安全：每個 helper 都擋 `typeof window === "undefined"`，預算渲染時是 no-op。
  */
 
-type DataLayerWindow = Window & { dataLayer?: Array<Record<string, unknown>> }
+type GtagWindow = Window & {
+  dataLayer?: unknown[]
+  gtag?: (...args: unknown[]) => void
+}
 
-function push(event: Record<string, unknown>): void {
+/**
+ * 送一個 GA4 事件。
+ *
+ * 正常情況下 `window.gtag` 在 Analytics.tsx 的 inline script 就定義好了（那支
+ * script 比 gtag.js 本體早執行，先把指令排進 dataLayer 佇列），所以這裡幾乎都走
+ * 第一條路。第二條是保險：萬一 inline script 還沒跑（afterInteractive），就自己
+ * 用同樣的 shim 把 arguments 推進佇列，gtag.js 載入後會照順序補送。
+ *
+ * 注意 fallback 必須用 `function` 而不是箭頭函式 —— 要的就是它的 `arguments`。
+ */
+function emit(name: string, params: Record<string, unknown>): void {
   if (typeof window === "undefined") return
-  const w = window as DataLayerWindow
-  // Initialise lazily — GTM's bootstrap script does the same idempotently.
-  w.dataLayer = w.dataLayer || []
-  w.dataLayer.push(event)
+  const w = window as GtagWindow
+  if (typeof w.gtag === "function") {
+    w.gtag("event", name, params)
+    return
+  }
+  const queue = (w.dataLayer = w.dataLayer || [])
+  function shim() {
+    // eslint-disable-next-line prefer-rest-params
+    queue.push(arguments)
+  }
+  ;(shim as (...args: unknown[]) => void)("event", name, params)
 }
 
 export interface PurchaseItem {
@@ -36,88 +61,67 @@ export interface PurchaseOrder {
   kol_slug?: string | null
 }
 
-/**
- * Fire GA4 `purchase` event after a successful checkout.
- * Called from /checkout/confirm once payment_status === "success".
- */
-export function trackPurchase(order: PurchaseOrder): void {
-  push({
-    event: "purchase",
-    ecommerce: {
-      transaction_id: order.id,
-      value: order.total,
-      currency: "TWD",
-      items: order.items.map(i => ({
-        item_id: i.sku,
-        item_name: i.name,
-        price: i.unit_price,
-        quantity: i.qty,
-      })),
-      affiliation: order.kol_slug ? `kol:${order.kol_slug}` : undefined,
-    },
-  })
+function toGa4Items(items: PurchaseItem[]) {
+  return items.map(i => ({
+    item_id: i.sku,
+    item_name: i.name,
+    price: i.unit_price,
+    quantity: i.qty,
+  }))
 }
 
 /**
- * Fire GA4 `view_promotion` event when a visitor lands on a KOL page.
- * Called from /k/[slug] client mount — see _client.tsx.
+ * 結帳成功後送出 GA4 `purchase`。呼叫點在 /checkout/confirm，等伺服器回報
+ * payment_status 成功才送（不是一進頁面就送，否則偽造的 ?status=success 會灌水）。
+ *
+ * `value` 要帶訂單實收金額。帶 0 的話 GA4 照樣記一筆轉換，但收益欄是 0，
+ * 報表上看起來就像「有人買、但沒有營收」。
  */
+export function trackPurchase(order: PurchaseOrder): void {
+  emit("purchase", {
+    transaction_id: order.id,
+    value: order.total,
+    currency: "TWD",
+    items: toGa4Items(order.items),
+    ...(order.kol_slug ? { affiliation: `kol:${order.kol_slug}` } : {}),
+  })
+}
+
+/** 客人進到 KOL 推薦頁時送出 GA4 `view_promotion`。 */
 export function trackKolView(kolSlug: string): void {
-  push({
-    event: "view_promotion",
+  emit("view_promotion", {
     promotion_id: `kol:${kolSlug}`,
     promotion_name: kolSlug,
   })
 }
 
 /**
- * Fire GA4 `add_to_cart` event when a customer adds an item to their cart.
+ * 加入購物車。
  *
- * TODO(spec-L v1): not yet wired. Add call site in shop/product detail's
- * "加入購物車" handler (apps/web/src/app/shop/[slug] or wherever cart.add
- * lives) — needs careful UI hookup so we only fire on user intent, not on
- * cart hydration / SSR.
+ * TODO: 尚未接上呼叫點。要接在「加入購物車」的按鈕處理函式，不能接在購物車
+ * 水合（hydration）那裡，否則每次重新整理都會多算一次。
  */
 export function trackAddToCart(item: PurchaseItem): void {
-  push({
-    event: "add_to_cart",
-    ecommerce: {
-      currency: "TWD",
-      value: item.unit_price * item.qty,
-      items: [
-        {
-          item_id: item.sku,
-          item_name: item.name,
-          price: item.unit_price,
-          quantity: item.qty,
-        },
-      ],
-    },
+  emit("add_to_cart", {
+    currency: "TWD",
+    value: item.unit_price * item.qty,
+    items: toGa4Items([item]),
   })
 }
 
 /**
- * Fire GA4 `begin_checkout` event when a customer enters the checkout flow.
+ * 進入結帳流程。
  *
- * TODO(spec-L v1): not yet wired. Add call site in /checkout/payment mount,
- * but only once (guard with useRef) — otherwise re-renders / step-back will
- * inflate the funnel count.
+ * TODO: 尚未接上呼叫點。接在 /checkout/payment 掛載時，而且要用 useRef 擋成
+ * 只送一次 —— 重新渲染或上一步退回來都會重複觸發，漏斗數字會虛胖。
  */
 export function trackBeginCheckout(cart: {
   items: PurchaseItem[]
   total: number
 }): void {
-  push({
-    event: "begin_checkout",
-    ecommerce: {
-      currency: "TWD",
-      value: cart.total,
-      items: cart.items.map(i => ({
-        item_id: i.sku,
-        item_name: i.name,
-        price: i.unit_price,
-        quantity: i.qty,
-      })),
-    },
+  emit("begin_checkout", {
+    currency: "TWD",
+    value: cart.total,
+    items: toGa4Items(cart.items),
   })
 }
