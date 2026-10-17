@@ -15,3 +15,13 @@ supabase/.temp/
 
 # 後端環境變數（含 Supabase service_role key），一律不進版本庫
 apps/api/.env
+
+# 臨時腳本（裡面常常直接寫死 service_role 金鑰）
+# 這個 repo 是公開的。scratch 腳本裡的金鑰一旦被 git add . 帶進歷史就收不回來。
+/*.mjs
+/*.py
+scratch_*
+/migration/
+/home-stock/
+/deleted-accounts/
+/__pycache__/
