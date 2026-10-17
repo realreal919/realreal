@@ -410,37 +410,47 @@ export default function CheckoutPage() {
       if (cancelled || !recentOrders?.length) return
       const orderIds = recentOrders.map((o: { id: string }) => o.id)
 
-      // 上次取貨的門市 —— 只記起來，等客人真的選了超商取貨才套用（見下方 effect）。
-      const { data: lastCvs } = await supabase
+      // 一次把這幾筆訂單的收件資料撈回來，再在前端挑出「最近一筆宅配」與
+      // 「最近一筆超商」。
+      //
+      // ⚠ 不能用 .order("created_at") —— order_addresses **沒有這個欄位**，
+      // 送出去會 400，整個查詢回 null。原本的宅配自動帶入就是這樣長期失效的
+      // （錯誤被 Supabase client 吞掉，畫面上只是沒帶入，看不出有錯）。
+      // orderIds 已經是新到舊，照它的順序排才是正確的時間序。
+      const { data: addrRows } = await supabase
         .from("order_addresses")
-        .select("address, cvs_store_id, cvs_type")
+        .select("order_id, address_type, name, phone, city, postal_code, address, cvs_store_id, cvs_type")
         .in("order_id", orderIds)
-        .eq("address_type", "cvs")
-        .not("cvs_store_id", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      if (!cancelled && lastCvs) {
-        const c = lastCvs as { address: string | null; cvs_store_id: string | null; cvs_type: string | null }
-        if (c.cvs_store_id && c.address) {
-          setLastCvsStore({
-            storeId: c.cvs_store_id,
-            storeName: c.address,
-            cvsType: c.cvs_type === "family" ? "family" : "711",
-          })
-        }
+      if (cancelled) return
+
+      type OrderAddr = {
+        order_id: string
+        address_type: string | null
+        name: string | null
+        phone: string | null
+        city: string | null
+        postal_code: string | null
+        address: string | null
+        cvs_store_id: string | null
+        cvs_type: string | null
+      }
+      const rank = new Map(orderIds.map((id: string, i: number) => [id, i]))
+      const byRecency = ((addrRows ?? []) as OrderAddr[])
+        .slice()
+        .sort((x, y) => (rank.get(x.order_id) ?? 99) - (rank.get(y.order_id) ?? 99))
+
+      // 上次取貨的門市 —— 只記起來，等客人真的選了超商取貨才套用（見下方 effect）。
+      const lastCvs = byRecency.find((r) => r.address_type === "cvs" && r.cvs_store_id && r.address)
+      if (lastCvs) {
+        setLastCvsStore({
+          storeId: lastCvs.cvs_store_id!,
+          storeName: lastCvs.address!,
+          cvsType: lastCvs.cvs_type === "family" ? "family" : "711",
+        })
       }
 
-      const { data: lastAddr } = await supabase
-        .from("order_addresses")
-        .select("name, phone, city, postal_code, address")
-        .in("order_id", orderIds)
-        .eq("address_type", "home")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      if (cancelled || !lastAddr) return
-      const a = lastAddr as { name: string | null; phone: string | null; city: string | null; postal_code: string | null; address: string | null }
+      const a = byRecency.find((r) => r.address_type === "home")
+      if (!a) return
       // Functional setState so the saved address book (set synchronously on
       // mount) wins — order history only fills fields still empty.
       if (a.name) setName((prev) => prev || a.name!)
