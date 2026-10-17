@@ -334,6 +334,19 @@ export default function ConfirmPage() {
     if (paymentStatus !== "success") return
     if (orderNumber === "---") return
     if (orderTotal === null) return
+    // 客人重新整理完成頁就是一次新的頁面載入，useRef 會歸零 —— 擋不住重複送。
+    // GA4 不保證會用 transaction_id 去重，所以同一筆訂單會被算成兩筆營收。
+    // 用 localStorage 記住送過的訂單編號，跨載入也只送一次。
+    const sentKey = `ga4-purchase-${orderNumber}`
+    try {
+      if (localStorage.getItem(sentKey)) {
+        purchaseFired.current = true
+        return
+      }
+      localStorage.setItem(sentKey, "1")
+    } catch {
+      // 無痕模式／storage 不可用：退回只擋同一次載入，寧可漏擋也不要不送。
+    }
     purchaseFired.current = true
     trackPurchase({
       id: orderNumber,
