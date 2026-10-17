@@ -797,18 +797,17 @@ export default function CheckoutPage() {
     router.push("/checkout/payment")
   }
 
-  if (!hydrated) return null
-
-  // Local subtotal fallback — used by 訂單摘要 when preview is still loading
-  // OR when offline. Apply add-on display rule so the fallback matches the
-  // per-line numbers (otherwise mobile shows lines NT$50 + NT$380 = NT$430
-  // but 商品小計 NT$580 from the raw total() helper). preview.subtotal stays
-  // authoritative once it arrives.
-  const subtotal = cartDisplaySubtotal(items)
-
-  // GA4 漏斗：進到結帳第一步送一次 begin_checkout。等 hydrated 才送，否則
-  // zustand 還沒把購物車讀回來，會送出一筆空購物車的事件。useRef 擋重送 ——
-  // 這一頁會因為運費試算、欄位輸入重新渲染很多次。
+  // GA4 漏斗：進到結帳第一步送一次 begin_checkout
+  //
+  // ⚠ 這一段**必須**留在下面的 `if (!hydrated) return null` 之前。放在後面的話，
+  // 第一次渲染（hydrated=false）會在早期 return 就結束、跑不到這兩個 hook，
+  // 水合完成後才突然多出兩個 —— React 會直接拋
+  // 「Rendered more hooks than during the previous render」，整頁結帳白畫面。
+  // 2026-10-17 就是這樣壞過一次。
+  //
+  // 事件本身要等 hydrated 才送（effect 裡面擋），否則 zustand 還沒把購物車
+  // 讀回來，會送出一筆空購物車的事件。useRef 擋重送 —— 這一頁會因為運費
+  // 試算、欄位輸入重新渲染很多次。
   const beginCheckoutFired = useRef(false)
   useEffect(() => {
     if (beginCheckoutFired.current) return
@@ -824,6 +823,16 @@ export default function CheckoutPage() {
       })),
     })
   }, [hydrated, items])
+
+  if (!hydrated) return null
+
+  // Local subtotal fallback — used by 訂單摘要 when preview is still loading
+  // OR when offline. Apply add-on display rule so the fallback matches the
+  // per-line numbers (otherwise mobile shows lines NT$50 + NT$380 = NT$430
+  // but 商品小計 NT$580 from the raw total() helper). preview.subtotal stays
+  // authoritative once it arrives.
+  const subtotal = cartDisplaySubtotal(items)
+
   // total() kept available for places that explicitly want the raw catalog
   // sum (none currently, but the hook stays exported).
   void total
