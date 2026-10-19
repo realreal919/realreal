@@ -196,7 +196,7 @@ async function issueWithClaim(
   const { data: invoice, error: invErr } = await supabase
     .from("invoices")
     .select(
-      "*, orders!invoices_order_id_fkey(order_number, total, user_id, order_items(qty, unit_price, product_snapshot))",
+      "*, orders!invoices_order_id_fkey(order_number, total, user_id, guest_email, order_items(qty, unit_price, product_snapshot))",
     )
     .eq("id", invoiceId)
     .single()
@@ -242,6 +242,26 @@ async function issueWithClaim(
       }))
     : []
 
+  // 買受人 email。Amego 的發票通知信是寄到發票上這個欄位，沒填就不會寄 ——
+  // 而這裡以前從來沒傳過，所以 BuyerEmailAddress 一直是空字串，267 張發票
+  // 沒有任何一張通知到客人手上（客人反映「沒收到發票」就是這個原因，
+  // 不是偶發，是從來沒寄過）。
+  //
+  // 訪客訂單用 guest_email；會員訂單去 user_profiles 撈。兩邊都沒有就留空，
+  // 維持原本的行為 —— 開票本身不受影響，寧可少寄信也不能開不出發票。
+  let buyerEmail: string | undefined = (order?.guest_email as string | null) ?? undefined
+  if (!buyerEmail && order?.user_id) {
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("email")
+      .eq("user_id", order.user_id)
+      .maybeSingle()
+    buyerEmail = ((profile as { email?: string | null } | null)?.email) ?? undefined
+  }
+  if (!buyerEmail) {
+    console.warn(`[invoice] order=${orderNumber} 沒有買受人 email，Amego 不會寄發票通知信`)
+  }
+
   // ---- 3) 真的開 -----------------------------------------------------------
   let result: Awaited<ReturnType<typeof issueInvoice>>
   try {
@@ -251,6 +271,7 @@ async function issueWithClaim(
       amount: Number((invoice as any).amount),
       taxAmount: Number((invoice as any).tax_amount),
       type: (invoice as any).type,
+      buyerEmail,
       carrierType: (invoice as any).carrier_type,
       carrierNumber: (invoice as any).carrier_number ?? undefined,
       loveCode: (invoice as any).love_code ?? undefined,
