@@ -1701,11 +1701,23 @@ ordersRouter.get("/:id", requireAuth, async (req, res) => {
   if (orderError || !order) { res.status(404).json({ error: "Order not found" }); return }
   if (order.user_id !== userId) { res.status(403).json({ error: "Forbidden" }); return }
 
-  const [{ data: items }, { data: addresses }, { data: payments }] = await Promise.all([
+  const [{ data: items }, { data: addresses }, { data: payments }, { data: invoiceRow }] = await Promise.all([
     supabase.from("order_items").select("*").eq("order_id", orderId),
     supabase.from("order_addresses").select("*").eq("order_id", orderId),
     supabase.from("payments").select("*").eq("order_id", orderId).order("created_at", { ascending: false }).limit(1),
+    // 電子發票。客人問客服最多的就是「發票呢」，但他自己在網站上完全查不到 ——
+    // 以前只有後台看得見。只回號碼、日期、狀態與載具／統編這些他本來就該知道的
+    // 欄位，不含 Amego 內部 id。
+    supabase
+      .from("invoices")
+      .select("invoice_number, status, issued_at, type, tax_id, company_title, carrier_type, carrier_number, amount")
+      .eq("order_id", orderId)
+      .order("issued_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ])
+
+  const invoice = (invoiceRow as Record<string, unknown> | null) ?? null
 
   // 本次訂單的公益存款（= 公益點數）。
   // 真實入帳來源：post-payment pipeline 的 grantPoints() 寫進 points_ledger 的
@@ -1796,6 +1808,7 @@ ordersRouter.get("/:id", requireAuth, async (req, res) => {
         ? { code: (usedCoupon as { code: string | null }).code, amount: Number((usedCoupon as { amount: number }).amount) }
         : null,
       attributed_kol_slug: (order as Record<string, unknown>).attributed_kol_slug ?? null,
+      invoice,
       free_items: (order as Record<string, unknown>).free_items ?? [],
       shipping_zeroed_by_campaign: Boolean((order as Record<string, unknown>).shipping_zeroed_by_campaign),
       payment_method: order.payment_method ?? "",

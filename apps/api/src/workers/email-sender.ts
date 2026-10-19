@@ -22,7 +22,9 @@ import { renderSubscriptionFailed } from "../emails/SubscriptionFailed"
 export type EmailJobData =
   | { template: "order-confirmation"; to: string; data: { orderNumber: string; items: any[]; total: string; address: string } }
   | { template: "payment-confirmed"; to: string; data: { orderNumber: string; amount: string; customerName: string; items: Array<{ name: string; qty: number; price: string }>; pickupInfo: string; codNotice?: string; isGuestOrder?: boolean } }
-  | { template: "order-shipped"; to: string; data: { orderNumber: string; customerName: string; codAmount?: number | null; pickupInfo?: string | null } }
+  // invoiceNumber / invoiceDate 不是派送端填的，是寄信前由 attachInvoiceInfo()
+  // 去資料庫補上的（見 renderAndSendEmail）。
+  | { template: "order-shipped"; to: string; data: { orderNumber: string; customerName: string; codAmount?: number | null; pickupInfo?: string | null; invoiceNumber?: string | null; invoiceDate?: string | null } }
   | { template: "payment-reminder"; to: string; data: { orderNumber: string; customerName: string; amount: string; items: Array<{ name: string; qty: number; price: string }>; pickupInfo: string; repayUrl: string } }
   | { template: "tier-upgrade"; to: string; data: { newTier: string; discountRate: number; perks: string[] } }
   | { template: "repurchase-reminder"; to: string; data: { customerName: string; couponAmount: number; couponMinOrder: number; couponCode: string; validUntil: string } }
@@ -119,12 +121,56 @@ function flattenData(template: string, data: Record<string, any>): Record<string
 }
 
 /**
+ * 把發票號碼與開立日期掛到信件資料上。查不到就什麼都不做 —— 發票還沒開、
+ * 或這筆根本不開發票（舊訂單匯入）時，信照寄，只是不顯示發票那一段。
+ */
+async function attachInvoiceInfo(data: Record<string, any>): Promise<void> {
+  try {
+    const { data: order } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("order_number", data.orderNumber)
+      .maybeSingle()
+    if (!order) return
+    const { data: invoice } = await supabase
+      .from("invoices")
+      .select("invoice_number, issued_at, status")
+      .eq("order_id", (order as { id: string }).id)
+      .eq("status", "issued")
+      .maybeSingle()
+    const inv = invoice as { invoice_number: string | null; issued_at: string | null } | null
+    if (!inv?.invoice_number) return
+    data.invoiceNumber = inv.invoice_number
+    if (inv.issued_at) {
+      // 台灣時間，只要日期
+      data.invoiceDate = new Date(new Date(inv.issued_at).getTime() + 8 * 3600_000)
+        .toISOString()
+        .slice(0, 10)
+    }
+  } catch (err) {
+    console.warn("[email] 查發票失敗，出貨通知照寄（不附發票資訊）:", err)
+  }
+}
+
+/**
  * Render an email template and send it directly via Gmail SMTP.
  * First tries to load an editable template from site_contents (CMS).
  * Falls back to hardcoded render functions if not found in DB.
  */
 export async function renderAndSendEmail(jobData: EmailJobData): Promise<void> {
   const { template, to, data } = jobData
+
+  // 出貨通知附上發票資訊。
+  //
+  // 2026-10-19：Amego 的發票通知信從來沒寄出去過（開票時沒帶買受人 email，
+  // 已修），但那條路徑握在 Amego 手上，我們看不到成敗。信裡自己寫一次，
+  // 客人至少永遠有一份發票號碼 —— 這也是客服被問「發票呢」時唯一能自助的東西。
+  //
+  // 放在出貨通知而不是訂單確認信：開票是付款後丟給 worker 做的，訂單確認信
+  // 寄出的當下發票通常還沒開；出貨時一定開好了。
+  if (template === "order-shipped" && data.orderNumber && !data.invoiceNumber) {
+    await attachInvoiceInfo(data)
+  }
 
   // Try DB template first (CMS override)
   const vars = flattenData(template, data)

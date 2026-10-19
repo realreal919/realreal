@@ -49,6 +49,22 @@ type OrderDetail = {
   campaign_names?: string[]
   /** 會員券（感謝券／回購券），API 由 member_coupons.used_order_id 反查 */
   member_coupon?: { code?: string | null; amount: number } | null
+  /**
+   * 電子發票。以前只有後台看得到，客人只能寫信問客服 ——
+   * 而 Amego 的發票通知信長期沒寄出去（見 2026-10-19 的修正），
+   * 等於客人完全拿不到自己的發票號碼。
+   */
+  invoice?: {
+    invoice_number: string | null
+    status: string | null
+    issued_at: string | null
+    type: string | null
+    tax_id: string | null
+    company_title: string | null
+    carrier_type: string | null
+    carrier_number: string | null
+    amount: number | null
+  } | null
   attributed_kol_slug?: string | null
   free_items?: Array<{ name?: string; sku?: string; qty?: number; via_coupon?: boolean }>
   shipping_zeroed_by_campaign?: boolean
@@ -284,6 +300,39 @@ export default async function OrderDetailPage({
             <p><span className="text-zinc-500">郵遞區號：</span>{order.address.postal_code}</p>
           </div>
         </div>
+        {order.invoice?.invoice_number && order.invoice.status === "issued" && (
+          <div>
+            <h2 className="text-lg font-semibold mb-3 text-[#10305a]">電子發票</h2>
+            <div className="p-4 bg-zinc-50 rounded-lg space-y-1 text-sm">
+              <p>
+                <span className="text-zinc-500">發票號碼：</span>
+                <span className="font-mono font-semibold">{order.invoice.invoice_number}</span>
+              </p>
+              {order.invoice.issued_at && (
+                <p>
+                  <span className="text-zinc-500">開立日期：</span>
+                  {new Date(order.invoice.issued_at).toLocaleDateString("zh-TW")}
+                </p>
+              )}
+              {order.invoice.type === "B2B" && order.invoice.tax_id && (
+                <p>
+                  <span className="text-zinc-500">統一編號：</span>
+                  {order.invoice.tax_id}
+                  {order.invoice.company_title ? `（${order.invoice.company_title}）` : ""}
+                </p>
+              )}
+              {order.invoice.carrier_number && (
+                <p>
+                  <span className="text-zinc-500">載具號碼：</span>
+                  <span className="font-mono">{order.invoice.carrier_number}</span>
+                </p>
+              )}
+              <p className="pt-1 text-xs text-zinc-500">
+                發票已上傳財政部電子發票整合服務平台，可憑發票號碼查詢。
+              </p>
+            </div>
+          </div>
+        )}
         <div>
           <h2 className="text-lg font-semibold mb-3 text-[#10305a]">付款 / 配送</h2>
           <div className="p-4 bg-zinc-50 rounded-lg space-y-1 text-sm">
