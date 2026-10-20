@@ -159,8 +159,26 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-marquee {
     animation: none;
-    justify-content: center;
-    flex-wrap: wrap;
+  }
+
+  /* 2026-10-20：原本這裡是 flex-wrap: wrap。手機上每一則訊息都比螢幕寬，
+   * 所以十則各自換行 —— 跑馬燈從 20px 變成 200px 的一面文字牆，把整個頁首
+   * 擠到下面去，而且因為內容刻意重複兩份，每則訊息還會出現兩次。
+   * 店主在自己手機上看到的就是這個（iOS 設定→輔助使用→動作→減少動態效果）。
+   *
+   * 改成：不捲動，但保持單行、讓使用者自己左右滑。關掉動態效果的人要的是
+   * 「不要自己動」，不是「把所有訊息攤平給我看」。 */
+  .marquee-dup {
+    display: none;
+  }
+
+  .marquee-viewport {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .marquee-viewport::-webkit-scrollbar {
+    display: none;
   }
 }
 

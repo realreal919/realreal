@@ -64,17 +64,24 @@ function AnnouncementBar() {
     "港澳寄件可順豐運費到付",
     "銀杏水蜜桃口味新上市",
   ]
-  const items = [...messages, ...messages]
+  // 兩份一模一樣的內容接在一起，動畫平移 -50% 就剛好接回起點（無縫循環）。
+  // 第二份是純視覺的複製品：aria-hidden 讓螢幕報讀器不要唸兩次，而且關掉動態
+  // 效果時整份隱藏（見 globals.css 的 prefers-reduced-motion）。
+  const renderItems = (keyPrefix: string) =>
+    messages.map((msg, i) => (
+      <span key={`${keyPrefix}-${i}`} className="mx-8 inline-flex items-center gap-2">
+        <span className="text-yellow-300">★</span>
+        {msg}
+      </span>
+    ))
 
   return (
-    <div className="overflow-hidden bg-[#10305a] text-white py-2 text-sm">
+    <div className="marquee-viewport overflow-hidden bg-[#10305a] text-white py-2 text-sm">
       <div className="flex animate-marquee whitespace-nowrap">
-        {items.map((msg, i) => (
-          <span key={i} className="mx-8 inline-flex items-center gap-2">
-            <span className="text-yellow-300">★</span>
-            {msg}
-          </span>
-        ))}
+        <div className="flex shrink-0">{renderItems("a")}</div>
+        <div className="marquee-dup flex shrink-0" aria-hidden="true">
+          {renderItems("b")}
+        </div>
       </div>
     </div>
   )
