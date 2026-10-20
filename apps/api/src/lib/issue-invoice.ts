@@ -251,12 +251,16 @@ async function issueWithClaim(
   // 維持原本的行為 —— 開票本身不受影響，寧可少寄信也不能開不出發票。
   let buyerEmail: string | undefined = (order?.guest_email as string | null) ?? undefined
   if (!buyerEmail && order?.user_id) {
-    const { data: profile } = await supabase
-      .from("user_profiles")
-      .select("email")
-      .eq("user_id", order.user_id)
-      .maybeSingle()
-    buyerEmail = ((profile as { email?: string | null } | null)?.email) ?? undefined
+    // 會員的 email 在 auth.users，**不在 user_profiles**（那張表只有
+    // display_name / phone / tier 之類）。2026-10-19 第一版寫成查
+    // user_profiles.email，PostgREST 回 42703「欄位不存在」，於是會員訂單
+    // 的發票照樣沒有買受人 email —— 跟修之前一模一樣。
+    try {
+      const { data: authUser } = await supabase.auth.admin.getUserById(order.user_id as string)
+      buyerEmail = authUser?.user?.email ?? undefined
+    } catch (err) {
+      console.warn(`[invoice] order=${orderNumber} 查會員 email 失敗:`, err)
+    }
   }
   if (!buyerEmail) {
     console.warn(`[invoice] order=${orderNumber} 沒有買受人 email，Amego 不會寄發票通知信`)
