@@ -560,3 +560,41 @@ describe("不公開商品（is_unlisted）", () => {
     expect(q.eq).not.toHaveBeenCalledWith("is_unlisted", false)
   })
 })
+
+describe("加購區排序", () => {
+  function mockList() {
+    const order = vi.fn().mockReturnThis()
+    const q = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      is: vi.fn().mockReturnThis(),
+      ilike: vi.fn().mockReturnThis(),
+      textSearch: vi.fn().mockReturnThis(),
+      order,
+      range: vi.fn().mockResolvedValue({ data: [], error: null, count: 0 }),
+    }
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === "product_variants") {
+        return { select: vi.fn().mockReturnThis(), in: vi.fn().mockResolvedValue({ data: [], error: null }) } as any
+      }
+      return q as any
+    })
+    return order
+  }
+
+  it("★ 加購區不看 is_featured —— 否則首頁置頂的商品會永遠卡在第一個", async () => {
+    const order = mockList()
+    const res = await request(app).get("/products?is_addon=true")
+    expect(res.status).toBe(200)
+    const cols = order.mock.calls.map((c) => c[0])
+    expect(cols).not.toContain("is_featured")
+    expect(cols[0]).toBe("display_priority")
+  })
+
+  it("一般商品列表照舊：置頂優先", async () => {
+    const order = mockList()
+    const res = await request(app).get("/products")
+    expect(res.status).toBe(200)
+    expect(order.mock.calls.map((c) => c[0])[0]).toBe("is_featured")
+  })
+})

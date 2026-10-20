@@ -150,9 +150,23 @@ productsRouter.get("/", async (req, res) => {
     .select("id, name, slug, description, category_id, images, is_active, is_featured, is_addon, is_recommended, is_unlisted, display_priority, created_at, min_tier_id, badge_text, delist_at, membership_tiers!min_tier_id(id, name, min_spend), product_variants(id, sku, name, price, sale_price, addon_price, addon_limit, stock_qty, attributes)", { count: "exact" })
     .eq("is_active", true)
     .is("deleted_at", null)
-    .order("is_featured", { ascending: false })
-    .order("display_priority", { ascending: false })
-    .order("created_at", { ascending: false })
+
+  // 加購區只照排序值排，不看「首頁置頂」。
+  //
+  // is_featured 是「要不要出現在首頁」，跟「加購區誰排前面」是兩回事。混在一起
+  // 的話，只要一個商品被設為首頁置頂，它就會卡在加購區第一個 —— 2026-10-21
+  // 就是這樣：三果日麗（置頂）和帆布袋（置頂）佔住前兩格，隨身包不管排序值
+  // 調多高都擠不上去。店主想調加購區順序卻怎麼調都沒反應。
+  if (req.query.is_addon === "true") {
+    query = query
+      .order("display_priority", { ascending: false })
+      .order("created_at", { ascending: false })
+  } else {
+    query = query
+      .order("is_featured", { ascending: false })
+      .order("display_priority", { ascending: false })
+      .order("created_at", { ascending: false })
+  }
 
   // 不公開商品（is_unlisted）不出現在任何列表 —— 商品頁、分類頁、站內搜尋、
   // 首頁置頂、推薦區、加購區全部走這一支，所以擋在這裡就等於擋住所有入口。
