@@ -95,3 +95,45 @@ describe("isMixAndMatchBundle", () => {
     )
   })
 })
+
+describe("會員限定組合（沒有 recipe 屬性的混搭組合）", () => {
+  it("★ 30 天自選組合歸在自由搭配 —— 以前掉到果實系列", () => {
+    expect(
+      classifyProteinProduct({
+        name: "會員限定 | 30天植物蛋白自選組合",
+        variants: [
+          { name: "選擇風味: 原味 30包" },
+          { name: "選擇風味: 可可+草莓 各15包" },
+          { name: "選擇風味: 任選30包（不含銀杏水蜜桃，請於結帳頁備註）" },
+        ],
+      }),
+    ).toBe("steady")
+  })
+
+  it("★ 60 天支持計畫同樣歸在自由搭配", () => {
+    expect(
+      classifyProteinProduct({
+        name: "會員限定 | 60 天植物蛋白支持計畫",
+        variants: [
+          { name: "選擇風味: 草莓．芝麻藍莓．杏仁火龍果 各 20入" },
+          { name: "選擇風味: 銀杏水蜜桃15入．其他口味任選45入（其他口味請於結帳頁備註）" },
+        ],
+      }),
+    ).toBe("steady")
+  })
+
+  it("★ 單一口味商品不受影響 —— 它的 3 入組不叫「任選」也不叫「各N入」", () => {
+    expect(
+      classifyProteinProduct({
+        name: "初心原味｜300克純素植物蛋白粉｜誠之初",
+        variants: [{ name: "單袋" }, { name: "3入組" }, { name: "5入組" }],
+      }),
+    ).toBe("pure")
+    expect(
+      classifyProteinProduct({
+        name: "果真草莓 | 300克純素凍乾水果蛋白粉 | 童心未泯",
+        variants: [{ name: "單袋" }, { name: "3入組" }],
+      }),
+    ).toBe("fruit")
+  })
+})

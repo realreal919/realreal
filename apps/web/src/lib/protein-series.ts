@@ -30,7 +30,7 @@ export const PROTEIN_SERIES_META: Record<ProteinSeries, { title: string; subtitl
 
 export const PROTEIN_SERIES_ORDER: ProteinSeries[] = ["pure", "fruit", "steady", "trial"]
 
-type VariantLike = { attributes?: Record<string, unknown> | null }
+type VariantLike = { name?: string | null; attributes?: Record<string, unknown> | null }
 export type ProductForSeries = { name: string; variants?: VariantLike[] | null }
 
 /** 這個商品有沒有「從多種口味裡任選」的規格。 */
@@ -41,9 +41,28 @@ export function isMixAndMatchBundle(product: ProductForSeries): boolean {
   })
 }
 
+/**
+ * 規格名稱自己說它是混搭：「任選 10 袋」「原味+可可 各15包」「自選組合」。
+ *
+ * 2026-10-20 加的。會員限定那兩個組合（30 天自選、60 天支持計畫）的規格沒有
+ * recipe 屬性，於是掉到名稱退路；而「會員限定」不在前綴清單裡，又不含
+ * 原味／可可，就被歸進果實系列 —— 一個混搭組合被放在單一口味那一區。
+ *
+ * 比對規格名稱而不是商品名稱：商品名的前綴是行銷文案（穩定補給→會員限定，
+ * 半個月內就改過一次），規格名稱描述的是「這一組實際裝什麼」，改動少得多。
+ * 真正的解法還是補 recipe 屬性（連庫存也會跟著正確），那是另一件事。
+ */
+function variantNamesSayMixAndMatch(product: ProductForSeries): boolean {
+  return (product.variants ?? []).some((v) => {
+    const n = v?.name ?? ""
+    return n.includes("任選") || n.includes("自選") || /各\s*\d+\s*[入包袋]/.test(n)
+  })
+}
+
 export function classifyProteinProduct(product: ProductForSeries): ProteinSeries {
   // 先看資料：有混搭規格就是任選組合，不管它叫什麼名字
   if (isMixAndMatchBundle(product)) return "steady"
+  if (variantNamesSayMixAndMatch(product)) return "steady"
 
   // 以下是沒有 attributes 的舊商品才會走到的退路
   const name = product.name
