@@ -58,6 +58,132 @@ type Correction = {
   sent_today: number
 }
 
+type InvoiceNoticePreview = {
+  recipients: number
+  invoices: number
+  daily_cap: number
+  sent_today: number
+  remaining_today: number
+  skipped_no_email: string[]
+  targets: Array<{ email: string; name: string; invoice_numbers: string[] }>
+}
+
+/**
+ * 電子發票補寄通知。
+ *
+ * 開票時沒把買受人 email 傳給光貿，所以上線到 2026-10-20 之間，發票通知信
+ * 一封都沒寄出去。沒有載具也沒有捐贈的客人完全拿不到自己的發票號碼，這一區
+ * 就是補寄給他們的。
+ *
+ * 名單是系統算的，不用人填：已開立、還沒通知過、不是統編發票、沒捐贈、沒載具、
+ * 訂單沒取消。寄成功的會在發票上蓋時間戳，所以分批寄不會重複。
+ */
+function InvoiceNoticeSection() {
+  const [preview, setPreview] = useState<InvoiceNoticePreview | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  function lookup() {
+    startTransition(async () => {
+      try {
+        const r = await callApi<InvoiceNoticePreview>("/admin/broadcast/invoice-notice")
+        setPreview(r)
+        if (r.skipped_no_email.length > 0) {
+          toast.warning(`這些訂單查不到信箱，已跳過：${r.skipped_no_email.join("、")}`)
+        }
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "查詢失敗")
+      }
+    })
+  }
+
+  function send() {
+    if (!preview || preview.recipients === 0) return
+    const batch = Math.min(preview.recipients, preview.remaining_today)
+    if (batch <= 0) {
+      toast.error(`今天的寄送額度已用完（上限 ${preview.daily_cap} 封）`)
+      return
+    }
+    if (
+      !confirm(
+        `確定要寄出 ${batch} 封發票補寄通知？\n` +
+          `名單共 ${preview.recipients} 位、${preview.invoices} 張發票；` +
+          `今天剩餘額度 ${preview.remaining_today} 封，這批寄 ${batch} 位，` +
+          `剩下的明天再按一次。寄出後無法收回。`,
+      )
+    ) {
+      return
+    }
+    startTransition(async () => {
+      try {
+        const r = await callApi<{ sent: number; failed: string[]; remaining_recipients: number }>(
+          "/admin/broadcast/invoice-notice",
+          { method: "POST", body: JSON.stringify({ limit: batch }) },
+        )
+        toast.success(`已寄出 ${r.sent} 封`, {
+          description:
+            (r.failed.length ? `失敗：${r.failed.join("、")}。` : "") +
+            (r.remaining_recipients > 0 ? `還有 ${r.remaining_recipients} 位待寄` : "全部寄完了"),
+        })
+        setPreview(null)
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "寄送失敗")
+      }
+    })
+  }
+
+  return (
+    <div className="rounded-lg border p-4">
+      <h2 className="mb-1 text-base font-semibold text-[#10305a]">電子發票補寄通知</h2>
+      <p className="mb-3 text-sm text-zinc-600">
+        補寄「沒有載具、沒有捐贈」客人的發票號碼 —— 這些人原本完全收不到發票通知。
+        名單系統自動算，寄過的不會再寄；一位客人有多張發票只寄一封、信裡列完。
+      </p>
+
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" onClick={lookup} disabled={isPending}>
+          查名單
+        </Button>
+        <Button
+          onClick={send}
+          disabled={isPending || !preview || preview.recipients === 0}
+          style={{ backgroundColor: "#10305a", color: "#fff" }}
+        >
+          寄出
+          {preview && preview.recipients > 0
+            ? ` ${Math.min(preview.recipients, preview.remaining_today)} 封`
+            : ""}
+        </Button>
+      </div>
+
+      {preview && (
+        <div className="mt-3 rounded-md bg-zinc-50 p-3 text-sm">
+          <p className="mb-2 text-zinc-600">
+            待寄 {preview.recipients} 位 ・ 共 {preview.invoices} 張發票 ・ 今日已寄{" "}
+            {preview.sent_today} 封 ・ 上限 {preview.daily_cap} 封（今天還可寄{" "}
+            {preview.remaining_today} 封）
+          </p>
+          {preview.recipients === 0 ? (
+            <p className="text-zinc-500">沒有待補寄的發票</p>
+          ) : (
+            <ul className="max-h-64 space-y-1 overflow-auto text-zinc-700">
+              {preview.targets.map((t) => (
+                <li key={t.email}>
+                  {t.name || "（未填姓名）"} — {t.email} ・ {t.invoice_numbers.join("、")}
+                </li>
+              ))}
+            </ul>
+          )}
+          {preview.skipped_no_email.length > 0 && (
+            <p className="mt-2 text-red-600">
+              查不到信箱（已跳過）：{preview.skipped_no_email.join("、")}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /**
  * 出貨延後通知。
  *
@@ -474,6 +600,7 @@ export function BroadcastClient() {
       )}
 
       <OrderDelaySection />
+      <InvoiceNoticeSection />
 
       {status.sample.length > 0 && (
         <div className="rounded-lg border p-4">

@@ -9,6 +9,7 @@ import { ensureReferralCode, loadReferralSettings } from "../lib/referral-servic
 import { renderAndSendEmail } from "../workers/email-sender"
 import { sendEmail } from "../lib/email"
 import { ORDER_DELAY_SUBJECT, renderOrderDelayNotice } from "../emails/OrderDelayNotice"
+import { INVOICE_NOTICE_SUBJECT, renderInvoiceNotice } from "../emails/InvoiceNotice"
 
 export const adminBroadcastRouter = Router()
 
@@ -753,6 +754,234 @@ adminBroadcastRouter.post("/order-delay", async (req, res) => {
     }
 
     res.json({ sent: sent.length, sent_orders: sent, failed, missing })
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "寄送失敗" })
+  }
+})
+
+/* ============================================================================
+ * 電子發票補寄通知
+ *
+ * 開票時沒把買受人 email 傳給光貿，所以上線至今一封發票通知信都沒寄出去
+ * （修正見 lib/issue-invoice.ts）。這一支負責補寄那些已經開立、但客人
+ * 實際上沒有任何管道拿到的發票。
+ *
+ * 「沒有任何管道」= 不是統編發票（公司可自行到平台查調）、沒有捐贈
+ * （捐出去的發票不歸客人）、也沒有載具（有載具的存在客人的手機條碼裡）。
+ * 其餘的，email 就是唯一的通知路徑。
+ * ========================================================================= */
+
+type InvoiceNoticeRow = {
+  invoiceId: string
+  invoiceNumber: string
+  issuedDate: string
+  amount: number
+  orderNumber: string
+}
+
+type InvoiceNoticeTarget = {
+  email: string
+  name: string
+  invoices: InvoiceNoticeRow[]
+}
+
+/** 台灣時間的 YYYY/MM/DD —— 信上要印的日期，不能直接用 UTC 的那一天。 */
+function twInvoiceDate(iso: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .format(new Date(iso))
+    .replace(/-/g, "/")
+}
+
+async function invoiceNoticeTargets(): Promise<{
+  targets: InvoiceNoticeTarget[]
+  skippedNoEmail: string[]
+}> {
+  // 還沒通知過、已開立的發票
+  const { data: invoices, error } = await supabase
+    .from("invoices")
+    .select("id, invoice_number, issued_at, amount, order_id, type, carrier_number, love_code")
+    .eq("status", "issued")
+    .is("notice_sent_at", null)
+    .order("issued_at", { ascending: true })
+  if (error) throw new Error(`發票查詢失敗：${error.message}`)
+
+  const candidates = (invoices ?? []).filter((r: Record<string, unknown>) => {
+    if (r.type === "B2B") return false // 公司自己到平台查調
+    if (r.love_code) return false // 捐出去了
+    if (r.carrier_number) return false // 存在客人的載具裡
+    return true
+  })
+  if (candidates.length === 0) return { targets: [], skippedNoEmail: [] }
+
+  // 訂單：取消／失敗的不寄 —— 不能跟客人說「您的發票已開立」，他一看訂單是取消的
+  const orderIds = [...new Set(candidates.map((r: Record<string, unknown>) => r.order_id as string))]
+  const orders = new Map<
+    string,
+    { order_number: string; user_id: string | null; guest_email: string | null; status: string }
+  >()
+  for (let i = 0; i < orderIds.length; i += 50) {
+    const { data } = await supabase
+      .from("orders")
+      .select("id, order_number, user_id, guest_email, status")
+      .in("id", orderIds.slice(i, i + 50))
+      .is("deleted_at", null)
+    for (const o of (data ?? []) as Array<Record<string, unknown>>) {
+      orders.set(o.id as string, {
+        order_number: o.order_number as string,
+        user_id: (o.user_id as string) ?? null,
+        guest_email: (o.guest_email as string) ?? null,
+        status: o.status as string,
+      })
+    }
+  }
+
+  // 會員 email 在 auth.users，不在 user_profiles（user_profiles 根本沒有 email 欄位）
+  const { data: authList } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 })
+  const emailById = new Map<string, string>()
+  const nameById = new Map<string, string>()
+  for (const u of authList?.users ?? []) {
+    if (u.email) emailById.set(u.id, u.email)
+    const meta = (u.user_metadata ?? {}) as { display_name?: string; name?: string }
+    const n = meta.display_name || meta.name
+    if (n) nameById.set(u.id, n)
+  }
+
+  const byEmail = new Map<string, InvoiceNoticeTarget>()
+  const skippedNoEmail: string[] = []
+
+  for (const r of candidates as Array<Record<string, unknown>>) {
+    const o = orders.get(r.order_id as string)
+    if (!o) continue
+    if (o.status === "cancelled" || o.status === "failed") continue
+
+    const email = (o.guest_email ?? (o.user_id ? emailById.get(o.user_id) : null) ?? "").trim()
+    if (!email) {
+      skippedNoEmail.push(o.order_number)
+      continue
+    }
+    const key = email.toLowerCase()
+    if (OWNER_ACCOUNTS.has(key)) continue
+
+    const row: InvoiceNoticeRow = {
+      invoiceId: r.id as string,
+      invoiceNumber: r.invoice_number as string,
+      issuedDate: twInvoiceDate(r.issued_at as string),
+      amount: Math.round(Number(r.amount ?? 0)),
+      orderNumber: o.order_number,
+    }
+    const existing = byEmail.get(key)
+    if (existing) {
+      existing.invoices.push(row)
+    } else {
+      byEmail.set(key, {
+        email,
+        name: (o.user_id ? nameById.get(o.user_id) : "") ?? "",
+        invoices: [row],
+      })
+    }
+  }
+
+  return { targets: [...byEmail.values()], skippedNoEmail }
+}
+
+/** GET —— 預覽名單，不寄信。 */
+adminBroadcastRouter.get("/invoice-notice", async (_req, res) => {
+  try {
+    const [{ targets, skippedNoEmail }, cap, today] = await Promise.all([
+      invoiceNoticeTargets(),
+      dailySendCap(),
+      sentToday(),
+    ])
+    res.json({
+      recipients: targets.length,
+      invoices: targets.reduce((n, t) => n + t.invoices.length, 0),
+      daily_cap: cap,
+      sent_today: today,
+      remaining_today: Math.max(0, cap - today),
+      skipped_no_email: skippedNoEmail,
+      targets: targets.map((t) => ({
+        email: t.email,
+        name: t.name,
+        invoice_numbers: t.invoices.map((i) => i.invoiceNumber),
+      })),
+    })
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "名單產生失敗" })
+  }
+})
+
+const invoiceNoticeSchema = z.object({
+  /** 這一批最多寄幾位。不給就用今天剩下的額度。 */
+  limit: z.number().int().positive().max(500).optional(),
+})
+
+/** POST —— 真的寄，並把寄過的發票標記起來（分批時不會重寄）。 */
+adminBroadcastRouter.post("/invoice-notice", async (req, res) => {
+  const parsed = invoiceNoticeSchema.safeParse(req.body ?? {})
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() })
+    return
+  }
+
+  try {
+    const [{ targets }, cap, today] = await Promise.all([
+      invoiceNoticeTargets(),
+      dailySendCap(),
+      sentToday(),
+    ])
+    const remaining = Math.max(0, cap - today)
+    const limit = Math.min(parsed.data.limit ?? remaining, remaining)
+    if (limit <= 0) {
+      res.status(400).json({ error: `今天的寄送額度已用完（上限 ${cap}，已寄 ${today}）` })
+      return
+    }
+
+    const batch = targets.slice(0, limit)
+    const sent: string[] = []
+    const failed: string[] = []
+
+    for (const t of batch) {
+      try {
+        await sendEmail({
+          to: t.email,
+          subject: INVOICE_NOTICE_SUBJECT,
+          html: renderInvoiceNotice({
+            customerName: t.name,
+            invoices: t.invoices.map((i) => ({
+              invoiceNumber: i.invoiceNumber,
+              issuedDate: i.issuedDate,
+              amount: i.amount,
+              orderNumber: i.orderNumber,
+            })),
+          }),
+        })
+        // 寄成功才標記 —— 先標記再寄的話，寄失敗的那幾位會被當成已通知而永遠漏掉
+        const ids = t.invoices.map((i) => i.invoiceId)
+        const { error: markErr } = await supabase
+          .from("invoices")
+          .update({ notice_sent_at: new Date().toISOString() })
+          .in("id", ids)
+        if (markErr) {
+          console.error(`[broadcast] 發票通知已寄給 ${t.email} 但標記失敗:`, markErr)
+        }
+        sent.push(t.email)
+      } catch (err) {
+        console.error(`[broadcast] 發票補寄通知失敗 ${t.email}:`, err)
+        failed.push(t.email)
+      }
+      await new Promise((r) => setTimeout(r, 150))
+    }
+
+    res.json({
+      sent: sent.length,
+      failed,
+      remaining_recipients: Math.max(0, targets.length - sent.length),
+    })
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : "寄送失敗" })
   }
