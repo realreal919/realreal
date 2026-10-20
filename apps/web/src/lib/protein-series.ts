@@ -60,6 +60,17 @@ function variantNamesSayMixAndMatch(product: ProductForSeries): boolean {
 }
 
 export function classifyProteinProduct(product: ProductForSeries): ProteinSeries {
+  // 試飲組／體驗組排在最前面，連 recipe 都要讓它。
+  //
+  // 「全口味試飲11入組」的內容是我們配好的固定組合，所以它有 recipe 屬性，
+  // 照 recipe 判會被歸到「自由搭配」—— 但它的商品說明寫的正好相反：
+  // 「試飲組口味固定，如果偏好自己搭配口味，可選擇自由搭配10入組或30入組」。
+  // 擺在自由搭配那一區等於自打嘴巴。
+  //
+  // recipe 描述的是「裝了什麼」，描述不了「這組在賣什麼」—— 試飲組賣的是
+  // 「先各喝一點看看」，那是體驗組。這一點只有名稱講得出來。
+  if (/試飲|體驗組/.test(product.name)) return "trial"
+
   // 先看資料：有混搭規格就是任選組合，不管它叫什麼名字
   if (isMixAndMatchBundle(product)) return "steady"
   if (variantNamesSayMixAndMatch(product)) return "steady"

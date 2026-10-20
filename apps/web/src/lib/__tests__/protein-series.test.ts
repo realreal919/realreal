@@ -137,3 +137,24 @@ describe("會員限定組合（沒有 recipe 屬性的混搭組合）", () => {
     ).toBe("fruit")
   })
 })
+
+describe("試飲組", () => {
+  it("★ 全口味試飲11入組歸在多日體驗，不是自由搭配", () => {
+    expect(
+      classifyProteinProduct({
+        name: "探索誠真 | 全口味試飲11入組",
+        // 口味固定，所以它有 recipe —— 但那不該讓它變成「自由搭配」
+        variants: [{ name: "全口味 11 入", attributes: { recipe: { fixed: [{ variant_id: "x", qty: 2 }] } } }],
+      }),
+    ).toBe("trial")
+  })
+
+  it("自由搭配的混搭組合不受影響", () => {
+    expect(
+      classifyProteinProduct({
+        name: "探索誠真 | 50克隨身包混搭10入組",
+        variants: [{ name: "選擇風味: 任選10入（不含銀杏水蜜桃）" }],
+      }),
+    ).toBe("steady")
+  })
+})
