@@ -456,7 +456,10 @@ export function CartDrawer({
               {/* 加購商品（限量加購價）— 放在「你也可能喜歡」上方 */}
               <AddonStrip
                 excludeVariantIds={excludeIds}
-                limit={8}
+                // 加購區目前有 9 項（6 口味隨身包調整後剩 4 個 + 銀杏 300 克
+                // + 三果 + 兩個帆布袋 + 量匙）。限 8 的話最後一個會被切掉，
+                // 而且沒有任何提示 —— 店主以為自己設定沒生效。留一點餘裕。
+                limit={12}
                 title="🛍️ 加購商品"
                 notice="🌟 此區為限量加購，敬請把握機會 🌟"
                 onlyAddon
