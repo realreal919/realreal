@@ -257,7 +257,9 @@ export function AddToCartSection({
 
       <AddonStrip
         excludeVariantIds={variants.map((v) => v.id)}
-        limit={6}
+        // 加購區目前 9 項。限 6 的話後面三項（兩個帆布袋、量匙）永遠看不到，
+        // 而且畫面不會說它被截斷 —— 跟購物車那邊同一個問題（見 CartDrawer）。
+        limit={12}
         title="加購區"
       />
     </div>
