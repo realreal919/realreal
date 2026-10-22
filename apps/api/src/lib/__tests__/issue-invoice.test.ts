@@ -71,7 +71,7 @@ interface InvoiceRow {
 /** A transliteration of migration 0049's plpgsql, plus a settable clock. */
 class FakeInvoiceDb {
   invoices = new Map<string, InvoiceRow>()
-  orders = new Map<string, { order_number: string; order_items: any[] }>()
+  orders = new Map<string, { order_number: string; status: string; order_items: any[] }>()
   clock = 1_000_000
   /** When frozen, every write RPC fails — models a SIGKILLed process. */
   frozen = false
@@ -83,7 +83,8 @@ class FakeInvoiceDb {
    */
   failNextFinish = false
 
-  seedInvoice(over: Partial<InvoiceRow> = {}): InvoiceRow {
+  seedInvoice(over: Partial<InvoiceRow> & { orderStatus?: string } = {}): InvoiceRow {
+    const { orderStatus = "processing", ...invOver } = over
     const row: InvoiceRow = {
       id: INVOICE_ID,
       order_id: ORDER_ID,
@@ -104,11 +105,12 @@ class FakeInvoiceDb {
       love_code: null,
       tax_id: null,
       company_title: null,
-      ...over,
+      ...invOver,
     }
     this.invoices.set(row.id, row)
     this.orders.set(row.order_id, {
       order_number: ORDER_NUMBER,
+      status: orderStatus,
       order_items: [{ qty: 1, unit_price: 1650, product_snapshot: { name: "禮盒" } }],
     })
     return row
@@ -599,6 +601,58 @@ describe("6) 失敗路徑", () => {
         p_invoice_number: "ZA99999999",
       } as any),
     ).resolves.toMatchObject({ error: { message: expect.stringContaining("DOUBLE_ISSUE") } })
+  })
+})
+
+describe("6) 訂單已取消就不開票", () => {
+  // 2026-08-31 的批次補開替 6 張掛在已取消訂單上的待開發票開出了真發票，
+  // 其中 5 張（2,750 元）發現時已超過作廢期限。開票路徑原本從頭到尾只看發票
+  // 自己的狀態，從來沒問過訂單還在不在。
+  it("★ 取消的訂單不開發票，而且不是靜靜跳過 —— retry 推到上限，不會再被排進來", async () => {
+    db.seedInvoice({ orderStatus: "cancelled" })
+
+    const res = await runInvoiceIssueJob({ orderId: ORDER_ID })
+
+    expect(res).toMatchObject({ ok: false, skipped: true, reason: "order_cancelled" })
+    expect(amego.issueCalls).toHaveLength(0)
+
+    const row = db.invoices.get(INVOICE_ID)!
+    expect(row.status).toBe("pending")
+    expect(row.invoice_number).toBeNull()
+    expect(row.error_message).toMatch(/cancelled/)
+    // 下一次 claim 會回 retries_exhausted —— 單張重按、批次、佇列重試都進不來
+    expect(row.retry_count).toBeGreaterThanOrEqual(10)
+    const again = await runInvoiceIssueJob({ orderId: ORDER_ID })
+    expect(again).toMatchObject({ ok: false, reason: "retries_exhausted" })
+    expect(amego.issueCalls).toHaveLength(0)
+  })
+
+  it("failed / refunded 一樣擋", async () => {
+    db.seedInvoice({ orderStatus: "failed" })
+    await expect(runInvoiceIssueJob({ orderId: ORDER_ID })).resolves.toMatchObject({
+      reason: "order_failed",
+    })
+    expect(amego.issueCalls).toHaveLength(0)
+  })
+
+  it("正常的訂單照開 —— 守門不能把活訂單一起擋掉", async () => {
+    db.seedInvoice({ orderStatus: "processing" })
+    await expect(runInvoiceIssueJob({ orderId: ORDER_ID })).resolves.toMatchObject({ ok: true })
+    expect(amego.issueCalls).toHaveLength(1)
+  })
+
+  it("★ 前一次其實已經開成功 → 照樣認回號碼，不因為訂單取消就假裝沒開", async () => {
+    // 這是守門放在「反查之後」而不是 claim 之前的原因：發票客觀存在，
+    // 要先把號碼記下來，店主才有東西可以作廢。
+    const row = db.seedInvoice({ orderStatus: "cancelled" })
+    amego.byOrderId.set(ORDER_NUMBER, { invoiceNumber: "ZA88888888", randomNumber: "1234" })
+    row.issue_attempts = 1 // 下一次 claim 會是 attempt 2，才會觸發反查
+
+    const res = await runInvoiceIssueJob({ orderId: ORDER_ID })
+
+    expect(res).toMatchObject({ ok: true, adopted: true, invoiceNumber: "ZA88888888" })
+    expect(db.invoices.get(INVOICE_ID)!.status).toBe("issued")
+    expect(amego.issueCalls).toHaveLength(0)
   })
 })
 

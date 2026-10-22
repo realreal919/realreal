@@ -3,6 +3,7 @@ import { Router } from "express"
 import { supabase } from "../lib/supabase"
 import { voidInvoice, invoicePdfUrl } from "../lib/amego"
 import { invoiceQueue } from "../lib/queue"
+import { REFUSE_ISSUE_ORDER_STATUSES } from "../lib/issue-invoice"
 
 export const invoicesRouter = Router()
 
@@ -131,21 +132,30 @@ invoicesRouter.post("/reissue-batch", async (req, res) => {
     return
   }
 
-  // Resolve order numbers so legacy (WP-prefixed) orders can be held back.
+  // Resolve order numbers so legacy (WP-prefixed) orders can be held back,
+  // and order status so cancelled orders are held back too.
   const { data: orderRows } = await supabase
     .from("orders")
-    .select("id, order_number")
+    .select("id, order_number, status")
     .in("id", candidates.map((c) => c.order_id))
-  const numberById = new Map(
-    ((orderRows ?? []) as Array<{ id: string; order_number: string }>)
-      .map((o) => [o.id, o.order_number]),
+  const orderById = new Map(
+    ((orderRows ?? []) as Array<{ id: string; order_number: string; status: string }>)
+      .map((o) => [o.id, o]),
   )
 
   const targets: typeof candidates = []
   let skippedLegacy = 0
+  let skippedCancelled = 0
   for (const c of candidates) {
-    const isLegacy = (numberById.get(c.order_id) ?? "").startsWith("WP")
+    const o = orderById.get(c.order_id)
+    const isLegacy = (o?.order_number ?? "").startsWith("WP")
     if (isLegacy && !includeLegacy) { skippedLegacy++; continue }
+    // 取消／失敗的訂單不補開 —— 2026-08-31 這支跑過一次，替 6 張掛在已取消訂單
+    // 上的待開發票開出了真發票，其中 5 張超過作廢期限。開票路徑本身也有同一道
+    // 守門（issue-invoice.ts 的 REFUSE_ISSUE_ORDER_STATUSES），這裡再擋一次是
+    // 因為下面會把 retry_count 歸零：少了這一行，每跑一次批次都會把那些發票重新
+    // 排進佇列、清掉守門留下的錯誤訊息，然後再被擋一次。
+    if (o && REFUSE_ISSUE_ORDER_STATUSES.has(o.status)) { skippedCancelled++; continue }
     targets.push(c)
   }
 
@@ -182,6 +192,7 @@ invoicesRouter.post("/reissue-batch", async (req, res) => {
     message: `Enqueued ${enqueued.length} invoice job(s)`,
     enqueued: enqueued.length,
     skippedLegacy,
+    skippedCancelled,
     failed,
     invoiceIds: enqueued,
   })

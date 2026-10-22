@@ -68,6 +68,12 @@ const BENIGN_CLAIM_REASONS = new Set([
 ])
 
 /**
+ * 這些訂單狀態一律不開發票 —— 貨沒出、錢退了，開出去的是一張要再花力氣收回的
+ * 稅務憑證。發票列留在資料表裡是正常的（下單時就建好了），不代表該開。
+ */
+export const REFUSE_ISSUE_ORDER_STATUSES = new Set(["cancelled", "failed", "refunded"])
+
+/**
  * 開一張發票。拿到 claim 之後，每一條路徑都必須走到 finish 或 fail。
  *
  * Throws on failures that deserve a BullMQ retry; returns `{ ok:false,
@@ -196,7 +202,7 @@ async function issueWithClaim(
   const { data: invoice, error: invErr } = await supabase
     .from("invoices")
     .select(
-      "*, orders!invoices_order_id_fkey(order_number, total, user_id, guest_email, order_items(qty, unit_price, product_snapshot))",
+      "*, orders!invoices_order_id_fkey(order_number, status, total, user_id, guest_email, order_items(qty, unit_price, product_snapshot))",
     )
     .eq("id", invoiceId)
     .single()
@@ -231,6 +237,28 @@ async function issueWithClaim(
         `[invoice] order=${orderNumber} 重試前反查失敗（${found.msg}），改靠 OrderId 唯一性`,
       )
     }
+  }
+
+  // ---- 2.5) 訂單還在嗎？ ---------------------------------------------------
+  // 開票路徑從頭到尾只看發票自己的狀態，從來沒問過訂單還在不在。
+  // 2026-08-31 的批次補開（POST /admin/invoices/reissue-batch）就是這樣替 6 張
+  // 掛在**已取消、已退款**訂單上的待開發票開出了真發票；其中 5 張發現時已經
+  // 超過光貿的作廢期限，只能走折讓單或申報更正，2,750 元變成稅務問題。
+  //
+  // 守門放在這裡（claim 之後、真的開之前）而不是 claim 之前，是為了讓上面那段
+  // 「重試前反查 Amego」先跑完：如果前一次其實已經開成功，那張發票客觀存在，
+  // 要認回來記下號碼（才能作廢），不能假裝沒發生。反查說沒開，才攔。
+  //
+  // 攔下來用 permanent=true：狀態退回 pending 並把 retry_count 推到上限，之後
+  // 任何路徑（單張重按、批次、佇列重試）claim 都會回 retries_exhausted 而跳過。
+  // 訂單要是真的復活了，得有人手動清掉 retry_count —— 這是刻意的，寧可卡住等人
+  // 看，也不要自動替一張取消的訂單開稅務憑證。
+  const orderStatus = (order?.status as string | undefined) ?? null
+  if (orderStatus && REFUSE_ISSUE_ORDER_STATUSES.has(orderStatus)) {
+    const msg = `訂單 ${orderNumber || "(未知)"} 狀態為 ${orderStatus}，不開立發票`
+    console.warn(`[invoice] ${msg}`)
+    await failInvoice(invoiceId, msg, true)
+    return { ok: false, skipped: true, reason: `order_${orderStatus}`, invoiceId }
   }
 
   // Build line items from the order (name lives in product_snapshot JSON)
