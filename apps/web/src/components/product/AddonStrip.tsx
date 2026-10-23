@@ -65,6 +65,21 @@ function pickAddonVariant(p: ApiProduct): ApiVariant | undefined {
   return withAddon ?? p.default_variant ?? variants[0]
 }
 
+/**
+ * 規格名稱要不要印在卡片上。
+ *
+ * 卡片原本只有商品名和價格，所以「初心原味 50 克　加購價 385」看起來像一包
+ * 50 克賣 385 —— 實際上那是 7 入組。規格一旦不是第一個（單包），不講就看不出來。
+ *
+ * 「預設」是只有一種規格時的佔位名稱，對客人沒有意義，印出來只是雜訊。
+ */
+const PLACEHOLDER_VARIANT_NAMES = new Set(["預設", "default", "Default"])
+
+function variantLabel(name: string | null | undefined): string | null {
+  const n = (name ?? "").trim()
+  return n && !PLACEHOLDER_VARIANT_NAMES.has(n) ? n : null
+}
+
 async function fetchAddons(
   apiUrl: string,
   excludeVariantIds: string[],
@@ -248,6 +263,11 @@ export function AddonStrip({
             <Link href={`/shop/${p.slug}`}>
               <p className="text-xs font-medium leading-snug line-clamp-2 text-[#10305a]">{p.name}</p>
             </Link>
+            {variantLabel(p.variantName) && (
+              <p className="-mt-1 text-[10px] leading-tight text-zinc-500">
+                {variantLabel(p.variantName)}
+              </p>
+            )}
             <div className="flex items-center justify-between gap-1 mt-auto">
               {p.addonPrice != null ? (
                 <span className="flex min-w-0 flex-col leading-tight">
