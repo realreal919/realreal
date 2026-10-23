@@ -38,6 +38,33 @@ interface ApiProduct {
   variants?: Array<ApiVariant>
 }
 
+/**
+ * 這一區每個商品只顯示一個規格，而**加購價是掛在規格上的**（product_variants
+ * .addon_price），所以要挑「有加購價的那一個」，不能一律拿 variants[0]。
+ *
+ * 2026-10-23：店主把初心原味 50 克的加購從「單包」換成「7入組」（清掉單包的
+ * 加購價、給 7入組 設 385）。設定是對的，但 variants[0] 永遠是單包 ——
+ * variant-order.ts 認不出口味時依包數排序，單包視為 1 包排最前。結果商品頁
+ * 印出沒有加購價的單包 67 元，購物車加購區則因為「跳過沒有加購價的商品」
+ * 讓整個初心原味消失。兩邊都看不出設定哪裡錯，因為設定沒錯。
+ *
+ * 其他加購商品的加購價剛好都設在第一個規格上，所以這個 bug 一直沒被看見。
+ */
+function pickAddonVariant(p: ApiProduct): ApiVariant | undefined {
+  const variants = p.variants ?? []
+  const withAddon = variants.find((v) => {
+    const price = Number(v.price)
+    const addon = v.addon_price == null ? NaN : Number(v.addon_price)
+    return (
+      Number.isFinite(price) &&
+      Number.isFinite(addon) &&
+      addon < price &&
+      Number(v.stock_qty) > 0
+    )
+  })
+  return withAddon ?? p.default_variant ?? variants[0]
+}
+
 async function fetchAddons(
   apiUrl: string,
   excludeVariantIds: string[],
@@ -60,7 +87,7 @@ async function fetchAddons(
       const json = (await res.json()) as { data?: ApiProduct[] }
       const out: AddonProduct[] = []
       for (const p of json.data ?? []) {
-        const v = p.default_variant ?? p.variants?.[0]
+        const v = pickAddonVariant(p)
         if (!v) continue
         if (excludeVariantIds.includes(v.id)) continue
         const price = Number(v.price)
