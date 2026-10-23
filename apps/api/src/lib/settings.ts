@@ -18,18 +18,27 @@ import { supabase } from "./supabase"
 const ALGO = "aes-256-gcm"
 const TTL_MS = 30_000
 
-function getKey(): Buffer {
-  const raw = process.env.SETTINGS_ENCRYPTION_KEY ?? ""
-  if (!/^[0-9a-fA-F]{64}$/.test(raw)) {
+/** 64 個十六進位字元 → 32 bytes。格式不對就丟，不要默默用一把半截的金鑰。 */
+export function parseSettingsKey(raw: string | undefined | null): Buffer {
+  if (!/^[0-9a-fA-F]{64}$/.test(raw ?? "")) {
     throw new Error(
       "SETTINGS_ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes)",
     )
   }
-  return Buffer.from(raw, "hex")
+  return Buffer.from(raw as string, "hex")
 }
 
-export function encryptSetting(plain: string): string {
-  const key = getKey()
+function getKey(): Buffer {
+  return parseSettingsKey(process.env.SETTINGS_ENCRYPTION_KEY)
+}
+
+/**
+ * 指定金鑰的加解密。換金鑰的腳本（scripts/rotate-settings-key.ts）要同時拿著
+ * 新舊兩把，不能用讀 process.env 的版本 —— 但它也絕對不能自己複製一份演算法：
+ * 格式只要有一天在這裡改了而那邊沒跟上，換金鑰就會把每一筆設定寫成解不開的
+ * 密文，而原文只存在密文裡，救不回來。所以兩邊共用同一組函式。
+ */
+export function encryptWithKey(plain: string, key: Buffer): string {
   const iv = crypto.randomBytes(12)
   const cipher = crypto.createCipheriv(ALGO, key, iv)
   const enc = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()])
@@ -37,8 +46,7 @@ export function encryptSetting(plain: string): string {
   return Buffer.concat([iv, enc, tag]).toString("base64")
 }
 
-export function decryptSetting(b64: string): string {
-  const key = getKey()
+export function decryptWithKey(b64: string, key: Buffer): string {
   const buf = Buffer.from(b64, "base64")
   if (buf.length < 12 + 16 + 1) throw new Error("ciphertext too short")
   const iv = buf.subarray(0, 12)
@@ -47,6 +55,14 @@ export function decryptSetting(b64: string): string {
   const decipher = crypto.createDecipheriv(ALGO, key, iv)
   decipher.setAuthTag(tag)
   return Buffer.concat([decipher.update(enc), decipher.final()]).toString("utf8")
+}
+
+export function encryptSetting(plain: string): string {
+  return encryptWithKey(plain, getKey())
+}
+
+export function decryptSetting(b64: string): string {
+  return decryptWithKey(b64, getKey())
 }
 
 type CacheEntry = { value: string | null; expiresAt: number }
