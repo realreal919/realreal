@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express"
-import { supabase } from "../lib/supabase"
+import { authVerifier } from "../lib/auth-verifier"
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization
@@ -8,7 +8,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
   const token = authHeader.slice(7)
 
-  const { data: { user }, error } = await supabase.auth.getUser(token)
+  const { data: { user }, error } = await authVerifier.auth.getUser(token)
   if (error || !user) { res.status(401).json({ error: "Invalid token" }); return }
 
   res.locals.userId = user.id
@@ -29,7 +29,7 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
   }
   const token = authHeader.slice(7)
   try {
-    const { data: { user } } = await supabase.auth.getUser(token)
+    const { data: { user } } = await authVerifier.auth.getUser(token)
     if (user) {
       res.locals.userId = user.id
       res.locals.userEmail = user.email

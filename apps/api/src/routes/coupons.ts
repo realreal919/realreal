@@ -1,6 +1,7 @@
 import { Router } from "express"
 import { z } from "zod"
 import { supabase } from "../lib/supabase"
+import { authVerifier } from "../lib/auth-verifier"
 import { requireAuth } from "../middleware/auth"
 import { requireAdmin } from "../middleware/admin"
 
@@ -54,7 +55,7 @@ couponsRouter.post("/coupons/validate", async (req, res) => {
   let userId: string | undefined
   const authHeader = req.headers.authorization
   if (authHeader?.startsWith("Bearer ")) {
-    const { data: { user } } = await supabase.auth.getUser(authHeader.slice(7))
+    const { data: { user } } = await authVerifier.auth.getUser(authHeader.slice(7))
     userId = user?.id
   }
 
