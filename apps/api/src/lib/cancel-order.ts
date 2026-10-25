@@ -4,6 +4,7 @@ import { cancelEcpayLogistics } from "./ecpay-logistics"
 import { refundPayment } from "./refund-payment"
 import { refundOrderPoints } from "./points"
 import { decrementSpendOnRefund } from "./tier"
+import { getSetting } from "./settings"
 
 /**
  * Shared order-cancellation choreography.
@@ -231,10 +232,79 @@ type OrderRow = {
  * 呼叫端必須保證只在「這次更新真的把訂單從未失敗翻成 failed/cancelled」時呼叫一次
  * （update 加上狀態條件、看回傳列數），否則重複的失敗通知會重複退庫存。
  */
+/**
+ * 把「首購禮計量勺」的資格還給客人。
+ *
+ * 付款成功時 enqueue-post-payment 會把 user_profiles.received_scoop 標成 true，
+ * 代表「這位會員拿過勺子了，下一張不再送」。但取消流程從來沒有人把它還原 ——
+ * 庫存、優惠券、首購折扣、推薦獎勵都有各自的釋放，就是少了這一個。
+ *
+ * 於是「付款成功 → 退款取消」的客人，勺子永遠拿不到，而且畫面上完全看不出原因
+ * （#10000382，2026-10-25：客人退款後重買，系統判定她已經領過）。單純刷卡失敗
+ * 的訂單不會中，因為那種訂單根本沒跑到付款後流程、標記從來沒被設上。
+ *
+ * 只在「這張訂單確實附過勺子」而且「這位客人沒有別的還算數的訂單也附了勺子」時
+ * 才還原 —— 否則會把人家靠另一張有效訂單真正領到的那支一起取消掉。
+ */
+export async function releaseScoopGiftClaim(orderId: string): Promise<void> {
+  try {
+    const { data: order } = await supabase
+      .from("orders")
+      .select("user_id, free_items")
+      .eq("id", orderId)
+      .maybeSingle()
+    const userId = (order as { user_id?: string | null } | null)?.user_id
+    if (!userId) return
+
+    const scoopSlug = (await getSetting("membership.scoop_gift_slug")) || "measuring-spoon"
+    const { data: scoopProduct } = await supabase
+      .from("products")
+      .select("id")
+      .eq("slug", scoopSlug)
+      .maybeSingle()
+    const scoopId = (scoopProduct as { id?: string } | null)?.id
+    if (!scoopId) return
+
+    const hasScoop = (items: unknown) =>
+      Array.isArray(items) &&
+      (items as Array<{ product_id?: string }>).some((f) => f.product_id === scoopId)
+
+    if (!hasScoop((order as { free_items?: unknown } | null)?.free_items)) return
+
+    // 還算數的訂單：沒被取消／失敗、也沒被封存。其中只要還有一張附過勺子，
+    // 那支是真的送出去了，資格不能還。
+    const { data: others } = await supabase
+      .from("orders")
+      .select("id, free_items")
+      .eq("user_id", userId)
+      .is("deleted_at", null)
+      .not("status", "in", "(failed,cancelled)")
+      .neq("id", orderId)
+    if (((others ?? []) as Array<{ free_items?: unknown }>).some((o) => hasScoop(o.free_items))) {
+      return
+    }
+
+    const { error } = await supabase
+      .from("user_profiles")
+      .update({ received_scoop: false })
+      .eq("user_id", userId)
+      .eq("received_scoop", true)
+    if (error) {
+      console.warn(
+        `[cancel-order] releaseScoopGiftClaim failed for ${orderId} (non-fatal):`,
+        error.message,
+      )
+    }
+  } catch (err) {
+    console.warn(`[cancel-order] releaseScoopGiftClaim threw for ${orderId} (non-fatal):`, err)
+  }
+}
+
 export async function settleFailedPayment(orderId: string): Promise<void> {
   await restoreOrderStock(orderId)
   await refundCouponUsage(orderId)
   await releaseFirstPurchaseClaim(orderId)
+  await releaseScoopGiftClaim(orderId)
   await reverseReferralRewards(orderId)
 }
 
@@ -412,6 +482,7 @@ export async function cancelOrderById(
     } catch (err) {
       console.warn(`[cancel-order] releaseFirstPurchaseClaim threw for ${orderId} (non-fatal):`, err)
     }
+    await releaseScoopGiftClaim(orderId)
     await reverseReferralRewards(orderId)
   }
 
