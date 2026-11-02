@@ -58,12 +58,20 @@ type CvsDraft = {
   addressLine: string
   shippingMethod: ShippingMethod
   invoice: InvoiceData
+  notes: string
   expiresAt: number
   country: string
 }
 
 const CVS_DRAFT_KEY = "realreal-cvs-draft"
 const CVS_DRAFT_TTL_MS = 5 * 60_000
+
+/**
+ * 進行中的結帳內容（下一步時寫入，確認頁下單後清掉）。回上一步時要從這裡把
+ * 備註讀回來 —— 詳見下方 restore effect 的註解。
+ */
+const CHECKOUT_KEY = "realreal-checkout"
+const NOTES_RESTORE_TTL_MS = 2 * 60 * 60_000
 
 /**
  * Saved address book — written by /my-account (AccountSettingsSection).
@@ -288,6 +296,24 @@ export default function CheckoutPage() {
       }
     }
 
+    // 備註是整張表單裡唯一「回上一步就不見」的欄位。姓名、電話、地址、上次取貨
+    // 門市從 2026-10-17 起都會自動帶回來，表單看起來是滿的，只有備註是空的 ——
+    // 客人不會發現，按下一步就把 notes 蓋成 undefined。任選口味的訂單這樣就變成
+    // 沒有口味可撿：10000393（10/27）、10000404（10/30）都是這樣來的，兩筆都得
+    // 打電話或寄信回去問。所以回到這一頁時，把上一輪存下來的備註讀回來。
+    try {
+      const rawCheckout = typeof window !== "undefined" ? localStorage.getItem(CHECKOUT_KEY) : null
+      if (rawCheckout) {
+        const prev = JSON.parse(rawCheckout) as { notes?: string; savedAt?: number }
+        const fresh =
+          typeof prev.savedAt !== "number" || Date.now() - prev.savedAt < NOTES_RESTORE_TTL_MS
+        // 只填空的，客人已經打了字就不要蓋掉。
+        if (prev.notes && fresh) setNotes((cur) => cur || prev.notes!)
+      }
+    } catch {
+      // 壞掉的 json / 無痕模式 —— 當作沒有草稿，照原本流程走。
+    }
+
     const raw = typeof window !== "undefined" ? localStorage.getItem(CVS_DRAFT_KEY) : null
     if (!raw) {
       prefillFromAddressBook()
@@ -310,6 +336,7 @@ export default function CheckoutPage() {
       if (draft.addressLine) setAddressLine(draft.addressLine)
       if (draft.shippingMethod) setShippingMethod(draft.shippingMethod)
       if (draft.invoice) setInvoice(draft.invoice)
+      if (draft.notes) setNotes(draft.notes)
       if (draft.country) setCountry(draft.country)
     } catch {
       // bad json → fall through to cleanup + address book prefill
@@ -638,6 +665,7 @@ export default function CheckoutPage() {
       addressLine,
       shippingMethod,
       invoice,
+      notes,
       country,
       expiresAt: Date.now() + CVS_DRAFT_TTL_MS,
     }
@@ -658,6 +686,7 @@ export default function CheckoutPage() {
     addressLine,
     shippingMethod,
     invoice,
+    notes,
     country,
   ])
 
@@ -847,9 +876,10 @@ export default function CheckoutPage() {
       shippingFee: preview?.shipping ?? 0,
       invoice,
       notes: notes.trim() || undefined,
+      savedAt: Date.now(),
       ...(addressType === "cvs_cod" ? { forcedPaymentMethod: "cvs_cod" } : {}),
     }
-    localStorage.setItem("realreal-checkout", JSON.stringify(checkoutData))
+    localStorage.setItem(CHECKOUT_KEY, JSON.stringify(checkoutData))
     router.push("/checkout/payment")
   }
 
