@@ -1,4 +1,5 @@
 import { supabase } from "./supabase"
+import { isThresholdExcludedSlug } from "./threshold-exclusions"
 import type { ShippingBucket } from "./shipping"
 
 /* ============================================================================
@@ -9,6 +10,8 @@ export type CartItem = {
   product_id: string
   variant_id: string
   category_id: string | null
+  /** 商品 slug。門檻排除（湯匙加購品）用得到，orders.ts 本來就有帶。 */
+  product_slug?: string | null
   sku: string | null
   name: string
   /** Dollar amount (not cents). Evaluator math is done in dollars; orders.ts converts to cents. */
@@ -456,12 +459,19 @@ export async function evalFreebie(
   // 穩定補給 30 天／60 天這種本來就打到骨折的長期組合，再讓它把客人推過滿額贈
   // 門檻等於同一筆錢折兩次。排除的是「金額不計入」而不是「整筆不送」——
   // 客人另外買滿 3,600 的其他商品時照樣拿得到，才不會莫名其妙少了贈品。
+  // 注意：這裡重算時也要排除「不列入門檻」的品項（湯匙加購品）。ctx.cart.subtotal
+  // 已經扣掉它了，但一旦這檔活動設了 excluded_product_ids 就改走自己重算的路 ——
+  // 少了這一條，湯匙會在設了排除清單的活動上重新幫客人墊高金額。
   const excludedProductIds = asStringArray(cfg.excluded_product_ids)
   const eligibleSubtotal =
     excludedProductIds.length === 0
       ? ctx.cart.subtotal
       : ctx.cart.items
-          .filter((i) => !excludedProductIds.includes(i.product_id))
+          .filter(
+            (i) =>
+              !excludedProductIds.includes(i.product_id) &&
+              !isThresholdExcludedSlug(i.product_slug),
+          )
           .reduce((s, i) => s + i.unit_price * i.qty, 0)
 
   if (eligibleSubtotal < minOrder) {

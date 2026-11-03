@@ -35,6 +35,7 @@ import {
   type VariantPricingRow,
 } from "../lib/addon-pricing"
 import { isHiddenVariant } from "../lib/variant-order"
+import { excludedThresholdCents } from "../lib/threshold-exclusions"
 import { loadScoopGiftConfig, scoopGiftApplies } from "../lib/scoop-gift"
 import { applyMemberCoupon, type CouponCartItem } from "../lib/repurchase-coupon"
 import { resolveFirstPurchaseVsCoupon } from "../lib/discount-exclusivity"
@@ -371,6 +372,14 @@ ordersRouter.post("/preview", optionalAuth, async (req, res) => {
   )
   const subtotalCents = knownSubtotalCents + unknownSubtotalCents
 
+  // 門檻用的小計：扣掉不列入門檻的品項（湯匙加購品）。金額照收，只是不幫客人
+  // 跨過滿額贈、滿額折、優惠碼低消與免運門檻。見 lib/threshold-exclusions。
+  const thresholdSubtotalCents = Math.max(
+    0,
+    subtotalCents -
+      excludedThresholdCents(expandedItems, (id) => variantMap.get(id)?.products?.slug),
+  )
+
   // Per-variant blended line totals (from the expanded add-on/normal legs) so the
   // campaign evaluator's unit_price × qty === the line total it's actually charged.
   const lineTotalCentsByVariant = new Map<string, number>()
@@ -382,7 +391,8 @@ ordersRouter.post("/preview", optionalAuth, async (req, res) => {
   }
   const shippingRule = await getShippingRule(shippingMethod, paymentMethodHint)
   const feeDollars =
-    shippingRule.free_threshold > 0 && subtotalCents / 100 >= shippingRule.free_threshold
+    shippingRule.free_threshold > 0 &&
+    thresholdSubtotalCents / 100 >= shippingRule.free_threshold
       ? 0
       : shippingRule.fee
   let shippingFeeCents = Math.round(feeDollars * 100)
@@ -437,7 +447,7 @@ ordersRouter.post("/preview", optionalAuth, async (req, res) => {
     })),
   ]
 
-  const earlyCouponId = await resolveValidCouponId(couponCode, subtotalCents, profileTierId, userId)
+  const earlyCouponId = await resolveValidCouponId(couponCode, thresholdSubtotalCents, profileTierId, userId)
 
   const evaluatorCtx: EvaluatorContext = {
     user: {
@@ -448,7 +458,8 @@ ordersRouter.post("/preview", optionalAuth, async (req, res) => {
     },
     cart: {
       items: cartItems,
-      subtotal: subtotalCents / 100,
+      // 活動門檻一律看扣掉湯匙之後的金額
+      subtotal: thresholdSubtotalCents / 100,
       shipping_fee: shippingFeeCents / 100,
       shipping_bucket: shippingBucket(shippingMethod, paymentMethodHint),
     },
@@ -527,7 +538,7 @@ ordersRouter.post("/preview", optionalAuth, async (req, res) => {
     const usable =
       coupon &&
       (!coupon.expires_at || new Date(coupon.expires_at) >= now) &&
-      (minOrderCents == null || subtotalCents >= minOrderCents) &&
+      (minOrderCents == null || thresholdSubtotalCents >= minOrderCents) &&
       (coupon.max_uses == null || Number(coupon.used_count ?? 0) < coupon.max_uses) &&
       couponTierOk &&
       couponPerUserOk
@@ -841,7 +852,14 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
       (lineTotalCentsByVariant.get(e.variantId) ?? 0) + e.unitPriceCents * e.qty,
     )
   }
-  const feeDollars = await computeShipping(shippingMethod, subtotalCents / 100, paymentMethod)
+  // 門檻用的小計：扣掉不列入門檻的品項（湯匙加購品）。必須跟 /preview 一模一樣，
+  // 否則結帳頁顯示的運費與贈品會跟實際收的不同。見 lib/threshold-exclusions。
+  const thresholdSubtotalCents = Math.max(
+    0,
+    subtotalCents -
+      excludedThresholdCents(expandedItems, (id) => variantMap.get(id)?.products?.slug),
+  )
+  const feeDollars = await computeShipping(shippingMethod, thresholdSubtotalCents / 100, paymentMethod)
   let shippingFeeCents = Math.round(feeDollars * 100)
 
   // ---------------------------------------------------------------------------
@@ -935,7 +953,7 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
     }
   })
 
-  const earlyCouponId = await resolveValidCouponId(couponCode, subtotalCents, profileTierId, userId)
+  const earlyCouponId = await resolveValidCouponId(couponCode, thresholdSubtotalCents, profileTierId, userId)
 
   const evaluatorCtx: EvaluatorContext = {
     user: {
@@ -946,7 +964,8 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
     },
     cart: {
       items: cartItems,
-      subtotal: subtotalCents / 100,
+      // 活動門檻一律看扣掉湯匙之後的金額
+      subtotal: thresholdSubtotalCents / 100,
       shipping_fee: shippingFeeCents / 100,
       shipping_bucket: shippingBucket(shippingMethod, paymentMethod),
     },
@@ -1047,7 +1066,7 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
       coupon &&
       coupon.is_active !== false && // admin-disabled coupons must not apply
       (!coupon.expires_at || new Date(coupon.expires_at) >= now) &&
-      (minOrderCents == null || subtotalCents >= minOrderCents) &&
+      (minOrderCents == null || thresholdSubtotalCents >= minOrderCents) &&
       couponTierOk &&
       couponPerUserOk
     if (validPrecheck && coupon) {
