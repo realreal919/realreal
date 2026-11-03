@@ -65,6 +65,8 @@ configRouter.get("/", async (_req, res) => {
       .select("config, starts_at, ends_at")
       .eq("type", "free_shipping")
       .eq("is_active", true)
+      // 綁優惠碼的免運（例如得獎禮那張）不是對所有人說的話，不能上跑馬燈。
+      .is("coupon_id", null)
       .lte("starts_at", now)
     shippingCampaigns = (data ?? [])
       .filter((c) => !c.ends_at || (c.ends_at as string) > now)

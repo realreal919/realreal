@@ -405,9 +405,8 @@ export async function evalFreebie(
   // reflects the caller's full validity check (active/not expired/under
   // max_uses/tier), so a mismatch here also naturally covers "coupon expired
   // or invalid" — this campaign simply doesn't see itself as unlocked.
-  if (c.coupon_id && c.coupon_id !== ctx.couponId) {
-    return notApplied(c, "此贈品活動需要對應的優惠碼")
-  }
+  const freebieCouponGate = couponGateBlocked(c, ctx)
+  if (freebieCouponGate) return notApplied(c, freebieCouponGate)
 
   const cfg = getConfig(c)
   const minOrder = asNumber(cfg.min_order_amount)
@@ -1046,6 +1045,24 @@ export function weekdayBlocked(
   return `此活動限星期${allowed.map((d) => NAMES[d]).join("、")}，今天是星期${NAMES[today]}`
 }
 
+/**
+ * 綁定優惠碼的活動：coupon_id 有值時，只有「客人真的輸入了那一組碼」才生效。
+ *
+ * ctx.couponId 是呼叫端已經驗過的券（啟用中、沒過期、沒超過次數上限、等級符合），
+ * 所以這道閘門同時也擋掉了「碼打錯」「碼過期」—— 活動就只是沒被解鎖。
+ *
+ * 這道閘門原本只寫在 evalFreebie 裡，於是「輸入某組碼才免運」這種活動設了
+ * coupon_id 也不會被檢查，等於全站免運。跟星期限制同理，擋在 dispatcher 才不會
+ * 有下一個類型再忘記加一次。
+ */
+export function couponGateBlocked(
+  c: CampaignRow,
+  ctx: EvaluatorContext,
+): string | null {
+  if (c.coupon_id && c.coupon_id !== ctx.couponId) return "此活動需要對應的優惠碼"
+  return null
+}
+
 export async function evaluateCampaign(
   c: CampaignRow,
   ctx: EvaluatorContext,
@@ -1054,6 +1071,10 @@ export async function evaluateCampaign(
   // 早晚會有一個新類型忘記加。
   const blocked = weekdayBlocked(c)
   if (blocked) return notApplied(c, blocked)
+
+  // 綁定優惠碼的活動同樣一視同仁，理由見 couponGateBlocked 的註解。
+  const needsCoupon = couponGateBlocked(c, ctx)
+  if (needsCoupon) return notApplied(c, needsCoupon)
 
   switch (c.type) {
     case "discount":
