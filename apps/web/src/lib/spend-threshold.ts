@@ -129,28 +129,35 @@ export function firstPurchaseProductMessage(
 }
 
 export type SpendThreshold = { minAmount: number; discount: number }
-export type SpendGift = { minOrder: number; giftName: string; qty?: number }
+export type SpendGift = {
+  minOrder: number
+  giftName: string
+  qty?: number
+  /** 一檔活動送多種贈品時的完整清單；舊的 payload 沒有這個欄位。 */
+  items?: Array<{ name: string; qty: number }>
+}
 
 /** 階梯上的一格：滿 minAmount 可得 reward（「折 100」或「送 帆布環保袋 (大)」）。 */
 export type SpendTier = { minAmount: number; reward: string; short: string }
 
 /**
- * 贈品名稱在文案裡要短，而且夾鏈袋**不講口味**（2026-10-16 店主指定）：
+ * 贈品名稱在文案裡要短，而且**一律不講口味**（夾鏈袋 2026-10-16 指定，
+ * 隨身包 2026-11-03 跟上）：
  *   「初心原味 – 300克夾鏈袋」→「300克夾鏈袋」
- *   「銀杏水蜜桃 – 50克隨身包」→「銀杏水蜜桃 50克隨身包」
+ *   「銀杏水蜜桃 – 50克隨身包」→「50克隨身包」
  *   「誠真生活禮袋．帆布環保袋 (大)」→「帆布環保袋 (大)」
  *
- * 滿額贈的夾鏈袋系統上出原味，但文案不寫口味——寫了就是對客人的承諾，
- * 日後送完或改口味就對不上。隨身包贈品是 KOL／活動券綁定的指定口味，
- * 照舊講口味。
+ * 寫了口味就是對客人的承諾，日後送完或改口味就對不上。而且 1111 的滿 3,000
+ * 一檔裡同時送原味與銀杏水蜜桃，講口味等於要在跑馬燈上列兩種 —— 拿掉口味之後
+ * 兩包的短名相同，剛好併成「50克隨身包2包」。
+ *
+ * 口味是在「–」前面的那一段；沒有「–」的名稱（帆布袋）原樣保留。
  */
 function shortGiftName(name: string): string {
   const base = name.replace(/^誠真生活禮袋．/, "").trim()
-  if (base.includes("夾鏈袋")) {
-    const tail = base.split(/\s*[–—]\s*/).pop()
-    if (tail) return tail.trim()
-  }
-  return base.replace(/\s*[–—]\s*/g, " ").trim()
+  const parts = base.split(/\s*[–—]\s*/)
+  const tail = parts.length > 1 ? parts[parts.length - 1].trim() : ""
+  return tail || base
 }
 
 function giftQtySuffix(name: string, qty: number | undefined): string {
@@ -164,16 +171,27 @@ export function spendTiers(thresholds: SpendThreshold[], gifts: SpendGift[] = []
     .filter((t) => t.minAmount > 0 && t.discount > 0)
     .map((t) => ({ minAmount: t.minAmount, reward: `折 ${t.discount}`, short: `折${t.discount}` }))
   const fromGifts = gifts
-    .filter((g) => g.minOrder > 0 && g.giftName)
+    .filter((g) => g.minOrder > 0 && (g.items?.length ? true : !!g.giftName))
     .map((g) => {
-      const name = shortGiftName(g.giftName)
-      const suffix = giftQtySuffix(name, g.qty)
+      // 口味拿掉之後同一種贈品的短名會一樣（原味隨身包、銀杏水蜜桃隨身包都是
+      // 「50克隨身包」），所以併成一筆講數量，而不是列兩次同樣的名字。
+      const items = g.items?.length ? g.items : [{ name: g.giftName, qty: g.qty ?? 1 }]
+      const merged = new Map<string, number>()
+      for (const it of items) {
+        const short = shortGiftName(it.name)
+        if (!short) continue
+        merged.set(short, (merged.get(short) ?? 0) + (it.qty || 1))
+      }
+      const label = Array.from(merged.entries())
+        .map(([name, qty]) => `${name}${giftQtySuffix(name, qty)}`)
+        .join("＋")
       return {
         minAmount: g.minOrder,
-        reward: `送 ${name}${suffix}`,
-        short: `送${name}${suffix}`,
+        reward: `送 ${label}`,
+        short: `送${label}`,
       }
     })
+    .filter((t) => t.short !== "送")
   return [...fromDiscounts, ...fromGifts].sort((a, b) => a.minAmount - b.minAmount)
 }
 

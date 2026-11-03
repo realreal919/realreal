@@ -32,16 +32,19 @@ describe("marqueeSpendMessage", () => {
     )
   })
 
-  it("★ 隨身包贈品照舊講口味 —— KOL／活動券綁的是指定口味的 SKU", () => {
+  // 2026-11-03 店主指定：隨身包也不講口味了（原本只有夾鏈袋不講）。理由跟夾鏈袋
+  // 一樣——寫了就是承諾，而且 1111 的滿 3,000 一檔同時送原味與銀杏水蜜桃，講口味
+  // 就得在跑馬燈上列兩種。
+  it("★ 隨身包贈品也不講口味", () => {
     expect(spendTiers([], [{ minOrder: 1400, giftName: "銀杏水蜜桃 – 50克隨身包" }])[0].reward).toBe(
-      "送 銀杏水蜜桃 50克隨身包",
+      "送 50克隨身包",
     )
   })
 
   it("★ 送兩份以上要講數量，單位看品名（夾鏈袋論袋、其餘論包）", () => {
     const sachet = spendTiers([], [{ minOrder: 1800, giftName: "初心原味 – 50克隨身包", qty: 2 }])[0]
-    expect(sachet.short).toBe("送初心原味 50克隨身包2包")
-    expect(sachet.reward).toBe("送 初心原味 50克隨身包2包")
+    expect(sachet.short).toBe("送50克隨身包2包")
+    expect(sachet.reward).toBe("送 50克隨身包2包")
     expect(spendTiers([], [{ minOrder: 3600, giftName: "初心原味 – 300克夾鏈袋", qty: 3 }])[0].short).toBe(
       "送300克夾鏈袋3袋",
     )
@@ -49,8 +52,40 @@ describe("marqueeSpendMessage", () => {
 
   it("只送一份時不寫數量", () => {
     expect(spendTiers([], [{ minOrder: 1800, giftName: "初心原味 – 50克隨身包", qty: 1 }])[0].short).toBe(
-      "送初心原味 50克隨身包",
+      "送50克隨身包",
     )
+  })
+
+  // 一檔活動送多種贈品（1111 滿 3,000：原味 1 包 + 銀杏水蜜桃 1 包）。口味拿掉後
+  // 兩者的短名相同，所以要併成「50克隨身包2包」，不能列成「50克隨身包＋50克隨身包」。
+  it("★ 一檔兩種口味的隨身包 → 併成一筆講總數", () => {
+    const t = spendTiers([], [{
+      minOrder: 3000,
+      giftName: "初心原味 – 50克隨身包",
+      qty: 1,
+      items: [
+        { name: "初心原味 – 50克隨身包", qty: 1 },
+        { name: "銀杏水蜜桃 – 50克隨身包", qty: 1 },
+      ],
+    }])[0]
+    expect(t.short).toBe("送50克隨身包2包")
+  })
+
+  it("一檔兩種不同贈品 → 用＋串起來", () => {
+    const t = spendTiers([], [{
+      minOrder: 5000,
+      giftName: "初心原味 – 50克隨身包",
+      qty: 1,
+      items: [
+        { name: "初心原味 – 50克隨身包", qty: 2 },
+        { name: "初心原味 – 300克夾鏈袋", qty: 1 },
+      ],
+    }])[0]
+    expect(t.short).toBe("送50克隨身包2包＋300克夾鏈袋")
+  })
+
+  it("items 是空陣列時當作沒有贈品，不要產出「送」這種半句", () => {
+    expect(spendTiers([], [{ minOrder: 3000, giftName: "", qty: 1, items: [] }])).toEqual([])
   })
 })
 

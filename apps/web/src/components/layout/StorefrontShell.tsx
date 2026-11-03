@@ -62,7 +62,6 @@ function AnnouncementBar() {
     ...marqueeShippingMessages(shipping),
     ...campaignShippingMessages(campaigns),
     "港澳寄件可順豐運費到付",
-    "銀杏水蜜桃口味新上市",
   ]
   // 兩份一模一樣的內容接在一起，動畫平移 -50% 就剛好接回起點（無縫循環）。
   // 第二份是純視覺的複製品：aria-hidden 讓螢幕報讀器不要唸兩次，而且關掉動態

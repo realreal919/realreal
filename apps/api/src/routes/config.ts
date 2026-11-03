@@ -115,7 +115,14 @@ configRouter.get("/", async (_req, res) => {
   // 滿額贈（freebie）：跟滿額折扣一起講給客人聽。
   // 只收「所有人、不用輸入折扣碼」的 —— 綁 coupon_id 的活動（例：ZUMBA100 送隨身包）
   // 是輸入代碼才有的，放進全站文案會變成對所有人的承諾。
-  let spendGifts: Array<{ minOrder: number; giftName: string; qty: number }> = []
+  // items：一檔活動可以送多種贈品（1111 滿 3,000 送原味 1 包 + 銀杏水蜜桃 1 包）。
+  // giftName／qty 留著是為了相容 —— 舊的前端只讀這兩個欄位，拿第一項仍然講得通。
+  let spendGifts: Array<{
+    minOrder: number
+    giftName: string
+    qty: number
+    items: Array<{ name: string; qty: number }>
+  }> = []
   try {
     const now = new Date().toISOString()
     const { data } = await supabase
@@ -130,14 +137,27 @@ configRouter.get("/", async (_req, res) => {
       .filter((c) => !c.ends_at || (c.ends_at as string) > now)
       .map((c) => {
         const cfg = (c.config ?? {}) as Record<string, unknown>
+        const raw = Array.isArray(cfg.gifts)
+          ? (cfg.gifts as unknown[])
+          : [{ name: cfg.gift_name, qty: cfg.gift_qty }]
+        const items = raw
+          .map((g) => {
+            const o = (g ?? {}) as Record<string, unknown>
+            return {
+              name: String(o.name ?? "").trim(),
+              // 數量要跟著走：送兩包的活動，文案不講數量就等於只承諾一包。
+              qty: Number(o.qty ?? 1),
+            }
+          })
+          .filter((g) => g.name && g.qty > 0)
         return {
           minOrder: Number(cfg.min_order_amount ?? 0),
-          giftName: String(cfg.gift_name ?? "").trim(),
-          // 數量要跟著走：送兩包的活動，文案不講數量就等於只承諾一包。
-          qty: Number(cfg.gift_qty ?? 1),
+          giftName: items[0]?.name ?? "",
+          qty: items[0]?.qty ?? 1,
+          items,
         }
       })
-      .filter((g) => g.minOrder > 0 && g.giftName)
+      .filter((g) => g.minOrder > 0 && g.items.length > 0)
       .sort((a, b) => a.minOrder - b.minOrder)
   } catch (err) {
     console.warn("[config] freebie campaign lookup failed (non-fatal):", err)

@@ -343,6 +343,40 @@ function asStringArray(v: unknown): string[] {
   return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []
 }
 
+/**
+ * 滿額贈的贈品清單。
+ *
+ * 原本一檔活動只能送一種 sku（gift_sku／gift_qty／gift_name），所以「滿 3,000 送
+ * 原味 1 包 + 銀杏水蜜桃 1 包」無法表達 —— 同類型活動只會生效一個，拆成兩檔
+ * 也只會送到其中一檔。新寫法是 config.gifts: [{ sku, qty, name }, ...]。
+ *
+ * 舊的單一贈品寫法照舊支援：既有活動還在用，而且一種贈品的情況下它更好讀。
+ * 任何一筆不合法就整個回 null，由呼叫端 notApplied —— 贈品設錯寧可不送，
+ * 也不要送出一筆 sku 是空字串的贈品到出貨單上。
+ */
+function parseGifts(
+  cfg: Record<string, unknown>,
+): Array<{ sku: string; qty: number; name: string }> | null {
+  const raw = cfg.gifts
+  if (Array.isArray(raw)) {
+    if (raw.length === 0) return null
+    const out: Array<{ sku: string; qty: number; name: string }> = []
+    for (const g of raw) {
+      if (!g || typeof g !== "object") return null
+      const o = g as Record<string, unknown>
+      const sku = asString(o.sku)
+      const qty = asNumber(o.qty)
+      if (!sku || qty === undefined || qty <= 0) return null
+      out.push({ sku, qty, name: asString(o.name) ?? "" })
+    }
+    return out
+  }
+  const sku = asString(cfg.gift_sku)
+  const qty = asNumber(cfg.gift_qty)
+  if (!sku || qty === undefined || qty <= 0) return null
+  return [{ sku, qty, name: asString(cfg.gift_name) ?? "" }]
+}
+
 /* ============================================================================
  * 11 evaluators
  * ========================================================================== */
@@ -410,15 +444,13 @@ export async function evalFreebie(
 
   const cfg = getConfig(c)
   const minOrder = asNumber(cfg.min_order_amount)
-  const giftSku = asString(cfg.gift_sku)
-  const giftQty = asNumber(cfg.gift_qty)
-  const giftName = asString(cfg.gift_name)
+  const gifts = parseGifts(cfg)
 
   if (minOrder === undefined) {
     return notApplied(c, "config.min_order_amount 缺失或非法")
   }
-  if (!giftSku || giftQty === undefined || giftQty <= 0) {
-    return notApplied(c, "config.gift_sku / gift_qty 缺失或非法")
+  if (!gifts) {
+    return notApplied(c, "config.gifts / gift_sku / gift_qty 缺失或非法")
   }
   // 指定商品不列入門檻計算（config.excluded_product_ids）。
   // 穩定補給 30 天／60 天這種本來就打到骨折的長期組合，再讓它把客人推過滿額贈
@@ -439,40 +471,44 @@ export async function evalFreebie(
   // Fetch gift retail price so pickBestPerType can score 同 type 多 freebie
   // 競爭時用實際價值決勝負（audit H1/H2 — 之前不寫 unit_price 全部以 0 分
   // 平手，第一筆任意勝出）。Use sale_price 如果有設，否則 price。
-  let unitPrice = 0
+  // 一次查完所有贈品的 sku —— 多贈品的活動不要變成 N 次往返。
+  const priceBySku = new Map<string, number>()
   try {
-    const { data: variant } = await supabase
+    const { data: variants } = await supabase
       .from("product_variants")
-      .select("price, sale_price")
-      .eq("sku", giftSku)
-      .maybeSingle()
-    if (variant) {
-      const v = variant as { price: number | string | null; sale_price: number | string | null }
+      .select("sku, price, sale_price")
+      .in("sku", gifts.map((g) => g.sku))
+    for (const v of (variants ?? []) as Array<{
+      sku: string | null
+      price: number | string | null
+      sale_price: number | string | null
+    }>) {
+      if (!v.sku) continue
       // Audit L1 (round 2): sale_price=0 is treated as "no sale" rather
       // than "free freebie" — fall back to price when sale_price <= 0.
       const sale = Number(v.sale_price ?? 0)
       const regular = Number(v.price ?? 0)
-      unitPrice = sale > 0 ? sale : regular
+      priceBySku.set(v.sku, sale > 0 ? sale : regular)
     }
   } catch (err) {
     // Audit M1 (round 2): log so silent freebie-fetch failures are
     // observable (pickBestPerType still tiebreaks via deterministic
     // sort below).
     console.warn(
-      `[evalFreebie] product_variants lookup failed for gift_sku=${giftSku}:`,
+      `[evalFreebie] product_variants lookup failed for gift_sku=${gifts.map((g) => g.sku).join(",")}:`,
       err,
     )
   }
 
   return {
     ...applied(c),
-    free_items: [{
-      sku: giftSku,
-      qty: giftQty,
-      name: giftName,
-      unit_price: unitPrice,
+    free_items: gifts.map((g) => ({
+      sku: g.sku,
+      qty: g.qty,
+      name: g.name,
+      unit_price: priceBySku.get(g.sku) ?? 0,
       via_coupon: !!c.coupon_id,
-    }],
+    })),
   }
 }
 
