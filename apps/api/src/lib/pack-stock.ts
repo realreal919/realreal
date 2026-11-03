@@ -120,6 +120,18 @@ export function withDerivedStock<T extends StockVariantRow>(
   })
 }
 
+/**
+ * 一次要查回來的庫存 id（商品列表用）。
+ *
+ * 關鍵是「不排除同一頁其他商品持有的 id」。withDerivedStock 是逐個商品呼叫的，
+ * 看得到的只有那個商品自己的規格；配方指向別的商品時，就算那個商品也在同一頁，
+ * 換算時一樣查不到，組合規格會退回資料庫存的 stock_qty（pack_of 存 0）→ 卡片
+ * 變成已售完。商品頁不會有這個問題，因為那裡本來就只傳自己的規格進去。
+ */
+export function stockIdsToFetch(rowsVariants: StockVariantRow[][]): string[] {
+  return [...new Set(rowsVariants.flatMap((vs) => referencedVariantIds(vs)))]
+}
+
 /** 配方裡提到的所有規格 id（用來一次把外部庫存查回來）。 */
 export function referencedVariantIds(variants: StockVariantRow[]): string[] {
   const ids = new Set<string>()

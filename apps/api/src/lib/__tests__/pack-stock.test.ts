@@ -5,7 +5,7 @@
  * 兩邊不一致的話，客人加得進購物車、結帳才被擋 —— 那比直接顯示缺貨更糟。
  */
 import { describe, it, expect } from "vitest"
-import { readPackOf, withDerivedStock } from "../pack-stock"
+import { readPackOf, stockIdsToFetch, withDerivedStock } from "../pack-stock"
 
 const unit = { id: "u1", stock_qty: 20, attributes: null }
 const pack5 = { id: "p5", stock_qty: 100, attributes: { pack_of: { variant_id: "u1", qty: 5 } } }
@@ -131,5 +131,45 @@ describe("readRecipe / referencedVariantIds", () => {
       { id: "p", stock_qty: 1, attributes: { pack_of: { variant_id: "d", qty: 5 } } },
     ])
     expect(ids.sort()).toEqual(["a", "b", "c", "d"])
+  })
+})
+
+/**
+ * 跨商品的配方：1111 限時組合是獨立商品，配方（pack_of）指向「銀杏水蜜桃 50克」
+ * 那個商品的單包規格。
+ *
+ * 這組測試鎖的是列表頁的查詢範圍。withDerivedStock 是逐個商品呼叫的，所以
+ * 「要查哪些庫存」不能因為同一頁有別的商品持有那個 id 就跳過 —— 跳過的話組合
+ * 規格退回存在資料庫裡的 stock_qty（pack_of 的規格存 0），商品頁顯示 23 組、
+ * 列表卡片卻顯示已售完。
+ */
+describe("跨商品配方的庫存查詢範圍", () => {
+  const ginkgoUnit = { id: "gp-unit", stock_qty: 1401, attributes: null }
+  const pack60 = {
+    id: "gp-60",
+    stock_qty: 0,
+    attributes: { pack_of: { variant_id: "gp-unit", qty: 60 } },
+  }
+
+  it("★ 配方指向的 id 要查，就算同一頁的其他商品持有它", () => {
+    // 第一個商品是銀杏水蜜桃（持有單包），第二個是限時組合（配方指向它）。
+    expect(stockIdsToFetch([[ginkgoUnit], [pack60]])).toEqual(["gp-unit"])
+  })
+
+  it("★ 查回來之後，逐個商品換算也要算得出 23 組", () => {
+    const external = new Map([["gp-unit", 1401]])
+    const [p] = withDerivedStock([pack60], external)
+    expect(p.stock_qty).toBe(23) // 1401 ÷ 60
+  })
+
+  it("沒把外部庫存傳進去就會退回 0 —— 這就是卡片顯示售完的成因", () => {
+    const [p] = withDerivedStock([pack60])
+    expect(p.stock_qty).toBe(0)
+  })
+
+  it("同商品自己的規格優先，不會被外部查到的舊值蓋掉", () => {
+    const external = new Map([["u1", 999]])
+    const [, p] = withDerivedStock([unit, pack5], external)
+    expect(p.stock_qty).toBe(4) // 用同商品的 20，不是外部的 999
   })
 })

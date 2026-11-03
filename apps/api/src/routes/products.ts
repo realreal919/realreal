@@ -6,7 +6,7 @@ import { requireEditor } from "../middleware/editor"
 import { enrichProducts } from "../lib/enrich-products"
 import { visibleSortedVariants } from "../lib/variant-order"
 import { z } from "zod"
-import { withDerivedStock, referencedVariantIds } from "../lib/pack-stock"
+import { withDerivedStock, stockIdsToFetch } from "../lib/pack-stock"
 
 export const productsRouter = Router()
 export const productsAdminRouter = Router()
@@ -28,10 +28,17 @@ type StockVariant = {
  * 商品各查一次。
  */
 async function externalStockFor(rowsVariants: StockVariant[][]): Promise<Map<string, number>> {
-  const own = new Set(rowsVariants.flat().map((v) => v.id))
-  const need = [...new Set(rowsVariants.flatMap((vs) => referencedVariantIds(vs)))].filter(
-    (id) => !own.has(id),
-  )
+  // 每個 id 都查，不要因為「這一頁有別的商品持有它」就跳過。
+  //
+  // withDerivedStock 是**逐個商品**呼叫的，看得到的只有那個商品自己的規格 ——
+  // 所以配方指向別的商品時，就算那個商品剛好也在同一頁，換算的時候一樣查不到，
+  // 組合規格會退回資料庫裡存的 stock_qty（pack_of 的規格存 0），卡片直接變成
+  // 已售完。1111 限時組合（配方指向銀杏水蜜桃單包）就是這樣：商品頁顯示 23 組，
+  // 列表卡片顯示售完。
+  //
+  // 同商品的規格留在結果裡也無害 —— withDerivedStock 會用該商品自己的 stock_qty
+  // 覆蓋同名 key。多查幾個 id 是一次 in() 查詢，比對不起來的庫存便宜太多。
+  const need = stockIdsToFetch(rowsVariants)
   if (need.length === 0) return new Map()
   const { data } = await supabase
     .from("product_variants")
