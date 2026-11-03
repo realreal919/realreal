@@ -8,6 +8,7 @@
 import { describe, it, expect } from "vitest"
 import {
   excludedThresholdCents,
+  HIDE_SPEND_GIFT_PROMO_SLUGS,
   isThresholdExcludedSlug,
   THRESHOLD_EXCLUDED_SLUGS,
   unadvertisableProductIds,
@@ -106,5 +107,33 @@ describe("哪些商品頁不該印滿額好禮", () => {
 
   it("同一檔重複填同一個 id 不會讓它出現兩次", () => {
     expect(unadvertisableProductIds([[PACK, PACK], [PACK]])).toEqual([PACK])
+  })
+})
+
+/**
+ * 「拿不到」與「拿得到但不在自己頁面上講」是兩件事，只是剛好共用同一個前端開關。
+ * 這組測試鎖的是它們不要混在一起 —— 把文案清單接到門檻計算裡，客人就真的少拿贈品。
+ */
+describe("指定不印滿額好禮的頁面（只影響文案）", () => {
+  it("★ 銀杏水蜜桃 50克 在文案清單裡", () => {
+    expect(HIDE_SPEND_GIFT_PROMO_SLUGS).toContain("vegan-protein-ginkgo-peach50")
+  })
+
+  it("★ 但它不在門檻排除清單裡 —— 它照樣計入滿額門檻", () => {
+    expect(THRESHOLD_EXCLUDED_SLUGS).not.toContain("vegan-protein-ginkgo-peach50")
+    expect(isThresholdExcludedSlug("vegan-protein-ginkgo-peach50")).toBe(false)
+  })
+
+  it("★ 買它的金額不會被扣掉", () => {
+    const cents = excludedThresholdCents(
+      [{ variantId: "gp", qty: 10, unitPriceCents: 7500 }],
+      () => "vegan-protein-ginkgo-peach50",
+    )
+    expect(cents).toBe(0)
+  })
+
+  it("湯匙反過來：兩份清單裡都算不印，但它是真的不計入門檻", () => {
+    expect(THRESHOLD_EXCLUDED_SLUGS).toContain("measuring-spoon")
+    expect(HIDE_SPEND_GIFT_PROMO_SLUGS).not.toContain("measuring-spoon")
   })
 })

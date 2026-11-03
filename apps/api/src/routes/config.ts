@@ -4,7 +4,11 @@ import { supabase } from "../lib/supabase"
 import { getSetting } from "../lib/settings"
 import { loadScoopGiftConfig } from "../lib/scoop-gift"
 import { mapBuyGetOffers, type BuyGetOffer } from "../lib/buy-get-offers"
-import { THRESHOLD_EXCLUDED_SLUGS, unadvertisableProductIds } from "../lib/threshold-exclusions"
+import {
+  HIDE_SPEND_GIFT_PROMO_SLUGS,
+  THRESHOLD_EXCLUDED_SLUGS,
+  unadvertisableProductIds,
+} from "../lib/threshold-exclusions"
 
 export const configRouter = Router()
 
@@ -261,16 +265,19 @@ configRouter.get("/", async (_req, res) => {
     console.warn("[config] scoop gift lookup failed (non-fatal):", err)
   }
 
-  // 哪些商品頁不該印「滿額好禮」：被每一個宣傳中的檔次都排除的商品（1111 限時
-  // 組合），加上不列入門檻的商品（湯匙加購品）。印了就是一句做不到的承諾 ——
-  // 買 3,600 元的限時組合其實什麼都拿不到。
+  // 哪些商品頁不該印「滿額好禮」。三種來源：
+  //   1. 被每一個宣傳中的檔次都排除的商品（1111 限時組合）—— 印了就是做不到的承諾
+  //   2. 不列入門檻的商品（湯匙加購品）—— 同上
+  //   3. 店主指定不要印的（銀杏水蜜桃 50克）—— 它拿得到，只是不在自己的頁面上宣傳
+  // 前兩種是「拿不到」，第三種是「拿得到但不講」，金額上完全不同，只是剛好共用
+  // 同一個前端開關。
   let noSpendGiftProductIds: string[] = []
   try {
     const ids = new Set(unadvertisableProductIds(tierExclusions))
     const { data: excludedBySlug } = await supabase
       .from("products")
       .select("id")
-      .in("slug", [...THRESHOLD_EXCLUDED_SLUGS])
+      .in("slug", [...THRESHOLD_EXCLUDED_SLUGS, ...HIDE_SPEND_GIFT_PROMO_SLUGS])
     for (const row of (excludedBySlug ?? []) as Array<{ id: string }>) ids.add(row.id)
     noSpendGiftProductIds = [...ids]
   } catch (err) {
