@@ -31,3 +31,22 @@ export function excludedThresholdCents(
   }
   return cents
 }
+
+/**
+ * 不該在商品頁宣傳「滿額好禮」的商品 id。
+ *
+ * 傳入的是每一個**對外宣傳中**的滿額檔次各自的排除清單。只有被**每一個**檔次都
+ * 排除的商品才算 —— 只被其中一檔排除的商品還是拿得到其他檔次的好禮，隱藏那行字
+ * 會讓客人以為完全沒有。
+ *
+ * 為什麼要有這個：商品頁的滿額好禮那一塊原本是「只要有檔次就印」，所以 1111
+ * 限時組合（已排除在三檔之外）跟湯匙（不列入門檻）的頁面也印著「滿1500送…」，
+ * 那是一句做不到的承諾 —— 買 3,600 元的限時組合什麼都拿不到。
+ *
+ * 沒有任何宣傳中的檔次時回空陣列：那塊本來就不會出現，不需要排除誰。
+ */
+export function unadvertisableProductIds(tierExclusions: string[][]): string[] {
+  if (tierExclusions.length === 0) return []
+  const [first, ...rest] = tierExclusions
+  return [...new Set(first)].filter((id) => rest.every((ex) => ex.includes(id)))
+}

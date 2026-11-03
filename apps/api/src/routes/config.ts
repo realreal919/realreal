@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase"
 import { getSetting } from "../lib/settings"
 import { loadScoopGiftConfig } from "../lib/scoop-gift"
 import { mapBuyGetOffers, type BuyGetOffer } from "../lib/buy-get-offers"
+import { THRESHOLD_EXCLUDED_SLUGS, unadvertisableProductIds } from "../lib/threshold-exclusions"
 
 export const configRouter = Router()
 
@@ -90,6 +91,17 @@ configRouter.get("/", async (_req, res) => {
   // 生效中的滿額折扣（spend_threshold），給跑馬燈與購物車「再買 NT$X 折 Y」用。
   // 跟免運活動同一個理由：文案由條件組出來，不寫死，後台改金額就自己跟著變。
   // 限定等級的活動不放進來 —— 這裡是對所有訪客說的話，不能承諾他拿不到的折扣。
+  // 每一個對外宣傳中的滿額檔次，各自的排除清單。用來算出「哪些商品頁不該印
+  // 滿額好禮」—— 見 unadvertisableProductIds。
+  const tierExclusions: string[][] = []
+  const collectExclusions = (cfg: Record<string, unknown>) => {
+    tierExclusions.push(
+      Array.isArray(cfg.excluded_product_ids)
+        ? (cfg.excluded_product_ids as unknown[]).filter((x): x is string => typeof x === "string")
+        : [],
+    )
+  }
+
   let spendThresholds: Array<{ minAmount: number; discount: number }> = []
   try {
     const now = new Date().toISOString()
@@ -104,6 +116,7 @@ configRouter.get("/", async (_req, res) => {
       .filter((c) => !c.ends_at || (c.ends_at as string) > now)
       .map((c) => {
         const cfg = (c.config ?? {}) as Record<string, unknown>
+        collectExclusions(cfg)
         return { minAmount: Number(cfg.min_amount ?? 0), discount: Number(cfg.discount_amount ?? 0) }
       })
       .filter((t) => t.minAmount > 0 && t.discount > 0)
@@ -137,6 +150,7 @@ configRouter.get("/", async (_req, res) => {
       .filter((c) => !c.ends_at || (c.ends_at as string) > now)
       .map((c) => {
         const cfg = (c.config ?? {}) as Record<string, unknown>
+        collectExclusions(cfg)
         const raw = Array.isArray(cfg.gifts)
           ? (cfg.gifts as unknown[])
           : [{ name: cfg.gift_name, qty: cfg.gift_qty }]
@@ -247,6 +261,22 @@ configRouter.get("/", async (_req, res) => {
     console.warn("[config] scoop gift lookup failed (non-fatal):", err)
   }
 
+  // 哪些商品頁不該印「滿額好禮」：被每一個宣傳中的檔次都排除的商品（1111 限時
+  // 組合），加上不列入門檻的商品（湯匙加購品）。印了就是一句做不到的承諾 ——
+  // 買 3,600 元的限時組合其實什麼都拿不到。
+  let noSpendGiftProductIds: string[] = []
+  try {
+    const ids = new Set(unadvertisableProductIds(tierExclusions))
+    const { data: excludedBySlug } = await supabase
+      .from("products")
+      .select("id")
+      .in("slug", [...THRESHOLD_EXCLUDED_SLUGS])
+    for (const row of (excludedBySlug ?? []) as Array<{ id: string }>) ids.add(row.id)
+    noSpendGiftProductIds = [...ids]
+  } catch (err) {
+    console.warn("[config] 滿額好禮排除清單讀取失敗（非致命）:", err)
+  }
+
   // GA4 的評估 ID。放在公開的 /config 是刻意的 —— 它本來就會出現在每一頁的
   // 原始碼裡，不是秘密。讓前台從這裡讀，店主就能在後台改 ID，
   // 不必動 Vercel 的環境變數（那是建置時烘進去的，改了要重新部署）。
@@ -265,6 +295,7 @@ configRouter.get("/", async (_req, res) => {
     shippingCampaigns,
     spendThresholds,
     spendGifts,
+    noSpendGiftProductIds,
     buyGetOffers,
     firstPurchase,
     scoopGift,

@@ -25,6 +25,7 @@ export function AddToCartSection({
   memberOnly = false,
   variantNote,
   showScoopGift = false,
+  productId,
 }: {
   productName: string
   variants: Variant[]
@@ -36,6 +37,8 @@ export function AddToCartSection({
   variantNote?: string
   /** 夾鏈袋商品：價格下方那行要一併講送量匙。由頁面比對贈勺 slug 清單後傳入。 */
   showScoopGift?: boolean
+  /** 用來比對「這個商品拿不到滿額好禮」（GET /config 的 noSpendGiftProductIds）。 */
+  productId?: string
 }) {
   const [selectedVariantId, setSelectedVariantId] = useState<string>(
     variants[0]?.id ?? ""
@@ -46,14 +49,18 @@ export function AddToCartSection({
   const [spendGifts, setSpendGifts] = useState<SpendGift[]>([])
   const [buyGetOffers, setBuyGetOffers] = useState<BuyGetOffer[]>([])
   const [firstPurchase, setFirstPurchase] = useState<FirstPurchase | null>(null)
+  // 拿不到滿額好禮的商品（限時組合、湯匙加購品）。這一塊是刻意預設「不排除」——
+  // /config 掛掉時少印一行承諾比多印一行做不到的承諾好，但也不該讓整頁空掉。
+  const [noGiftProductIds, setNoGiftProductIds] = useState<string[]>([])
   useEffect(() => {
     let cancelled = false
     fetch(`${API_URL}/config`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((json: { spendThresholds?: SpendThreshold[]; spendGifts?: SpendGift[]; buyGetOffers?: BuyGetOffer[]; firstPurchase?: FirstPurchase | null } | null) => {
+      .then((json: { spendThresholds?: SpendThreshold[]; spendGifts?: SpendGift[]; buyGetOffers?: BuyGetOffer[]; firstPurchase?: FirstPurchase | null; noSpendGiftProductIds?: string[] } | null) => {
         if (cancelled) return
         if (Array.isArray(json?.spendThresholds)) setSpendTiers(json.spendThresholds)
         if (Array.isArray(json?.spendGifts)) setSpendGifts(json.spendGifts)
+        if (Array.isArray(json?.noSpendGiftProductIds)) setNoGiftProductIds(json.noSpendGiftProductIds)
         if (Array.isArray(json?.buyGetOffers)) setBuyGetOffers(json.buyGetOffers)
         if (json?.firstPurchase) setFirstPurchase(json.firstPurchase)
       })
@@ -62,7 +69,10 @@ export function AddToCartSection({
       cancelled = true
     }
   }, [])
-  const spendMessage = marqueeSpendMessage(spendTiers, spendGifts)
+  // 這個商品被所有滿額檔次排除（或根本不列入門檻）時就不印那一塊 —— 見
+  // api/lib/threshold-exclusions 的 unadvertisableProductIds。
+  const earnsSpendGift = !productId || !noGiftProductIds.includes(productId)
+  const spendMessage = earnsSpendGift ? marqueeSpendMessage(spendTiers, spendGifts) : null
   // 標題與說明成對：標題講「買10送1」，說明講「任選 11 件、最低價 1 件免費」。
   // 兩個陣列都由 validOffers 過濾，順序一致，所以可以用索引配對。
   const buyGetLines = buyGetMessages(buyGetOffers)
