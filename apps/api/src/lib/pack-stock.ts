@@ -121,6 +121,35 @@ export function withDerivedStock<T extends StockVariantRow>(
 }
 
 /**
+ * 商品卡「總庫存」裡這一個規格該算幾個 —— 總庫存為 0 就是卡片上的「已售完」。
+ *
+ * 有配方的組合規格原則上算 0：它不是另一批貨，是同一批貨換個包裝賣法。加總的話
+ * 「草莓 300克」會變成 單袋20 + 3入組100 + 5入組100 = 220，實際只有 20 袋。
+ *
+ * **但配方指向別的商品時不能算 0。** 那個商品自己沒有任何規格代表這批貨，全部
+ * 算 0 的話總庫存就是 0，卡片直接蓋上「已售完」—— 1111 限時組合（獨立商品，配方
+ * 指向銀杏水蜜桃單包）就是這樣：商品頁顯示 23 組、卡片顯示售完。這種情況算
+ * 換算後的可售組數，跟商品頁看到的同一個數字。
+ *
+ * 查不到來源規格時保留自己存的值 —— 配方填錯不該讓商品整個變成缺貨。
+ */
+export function cardStockContribution(
+  variant: StockVariantRow,
+  /** 同一個商品底下所有規格的 id。 */
+  siblingIds: Set<string>,
+  /** 跨商品來源規格的庫存。 */
+  externalStock: Map<string, number>,
+): number {
+  const own = Number(variant.stock_qty) || 0
+  const pack = readPackOf(variant.attributes)
+  if (!pack) return own
+  if (siblingIds.has(pack.variant_id)) return 0
+  const base = externalStock.get(pack.variant_id)
+  if (base === undefined) return own
+  return Math.floor(base / pack.qty)
+}
+
+/**
  * 一次要查回來的庫存 id（商品列表用）。
  *
  * 關鍵是「不排除同一頁其他商品持有的 id」。withDerivedStock 是逐個商品呼叫的，

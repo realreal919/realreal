@@ -5,7 +5,7 @@
  * 兩邊不一致的話，客人加得進購物車、結帳才被擋 —— 那比直接顯示缺貨更糟。
  */
 import { describe, it, expect } from "vitest"
-import { readPackOf, stockIdsToFetch, withDerivedStock } from "../pack-stock"
+import { cardStockContribution, readPackOf, stockIdsToFetch, withDerivedStock } from "../pack-stock"
 
 const unit = { id: "u1", stock_qty: 20, attributes: null }
 const pack5 = { id: "p5", stock_qty: 100, attributes: { pack_of: { variant_id: "u1", qty: 5 } } }
@@ -171,5 +171,45 @@ describe("跨商品配方的庫存查詢範圍", () => {
     const external = new Map([["u1", 999]])
     const [, p] = withDerivedStock([unit, pack5], external)
     expect(p.stock_qty).toBe(4) // 用同商品的 20，不是外部的 999
+  })
+})
+
+/**
+ * 商品卡的「總庫存」—— 為 0 就蓋上「已售完」。
+ *
+ * 組合規格算 0 的規則是為了避免同一批貨被重複計（「草莓 300克」的單袋 20 +
+ * 3入組 100 + 5入組 100 = 220，實際只有 20 袋）。但它預設組合規格一定跟單品
+ * 在同一個商品底下 —— 1111 限時組合是獨立商品，配方指向銀杏水蜜桃單包，整個
+ * 商品只有那一個規格，全部算 0 就變成已售完（商品頁卻顯示 23 組）。
+ */
+describe("cardStockContribution", () => {
+  const ginkgoUnitId = "gp-unit"
+  const pack60 = {
+    id: "gp-60",
+    stock_qty: 0,
+    attributes: { pack_of: { variant_id: ginkgoUnitId, qty: 60 } },
+  }
+  const external = new Map([[ginkgoUnitId, 1401]])
+
+  it("★ 配方指向別的商品 → 算換算後的可售組數，不是 0", () => {
+    expect(cardStockContribution(pack60, new Set(["gp-60"]), external)).toBe(23)
+  })
+
+  it("★ 配方指向同商品的單品 → 算 0，同一批貨不重複計", () => {
+    const siblings = new Set(["u1", "p5"])
+    expect(cardStockContribution(pack5, siblings, new Map())).toBe(0)
+  })
+
+  it("沒有配方的規格照自己的庫存算", () => {
+    expect(cardStockContribution(unit, new Set(["u1"]), new Map())).toBe(20)
+  })
+
+  it("跨商品但來源查不到 → 保留自己存的值，填錯不該讓商品變缺貨", () => {
+    const orphan = { id: "x", stock_qty: 42, attributes: { pack_of: { variant_id: "nope", qty: 5 } } }
+    expect(cardStockContribution(orphan, new Set(["x"]), new Map())).toBe(42)
+  })
+
+  it("來源賣完時跨商品的組合也是 0", () => {
+    expect(cardStockContribution(pack60, new Set(["gp-60"]), new Map([[ginkgoUnitId, 59]]))).toBe(0)
   })
 })
