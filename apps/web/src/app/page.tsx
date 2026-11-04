@@ -351,7 +351,7 @@ function RetailSection() {
       name: "中華電信信義總部",
       type: "出攤活動",
       address: "台北市信義區 中華電信信義總部",
-      dates: "2026/10/14（三）、10/28（三）",
+      dates: "2026/11/11（三）、11/25（三）",
       hours: "11:00–14:00",
       mapUrl: "https://share.google/Wy0bHclnkgfaVtxD1",
       icon: "🏢",
