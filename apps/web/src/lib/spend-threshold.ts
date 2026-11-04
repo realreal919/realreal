@@ -13,7 +13,7 @@
  * 滿額優惠文案前面的活動標語。跑馬燈與商品頁共用，改這一行兩邊一起變。
  * 想換季節主題（例：🎄 聖誕小禮）就改這裡。
  */
-export const SPEND_HEADLINE = "滿額好禮"
+export const SPEND_HEADLINE = "1111限時加碼"
 
 /**
  * 買 X 送 Y 活動（GET /config 的 buyGetOffers）。跟滿額優惠分開講 —— 它不是
