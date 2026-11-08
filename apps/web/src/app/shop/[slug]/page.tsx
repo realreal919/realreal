@@ -223,11 +223,17 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
         {/* Top: image + purchase info side by side */}
         <div className="grid grid-cols-1 md:grid-cols-[5fr_6fr] gap-8 lg:gap-12 md:items-start">
-          <div className="md:sticky md:top-4">
+          {/* min-w-0 不能拿掉：格線項目的自動最小寬度等於內容的 min-content，而
+              縮圖列是一排 flex-shrink-0 的方塊 —— 圖多的商品（12 張就是
+              12×64 + 11×8 = 856px）會把這一欄撐開，主圖跟著變成兩倍大、整個
+              版面擠出 max-w-5xl。縮圖列自己的 overflow-x-auto 不會解除這個
+              最小寬度，要在格線項目這一層加 min-w-0 才會改成水平捲動。
+              2026-11-08 店主回報「11 入／10 入那幾頁的圖特別大、看起來很糊」就是這個。 */}
+          <div className="min-w-0 md:sticky md:top-4">
             <ImageGallery images={images} productName={product.name} />
           </div>
 
-          <div className="flex flex-col">
+          <div className="flex min-w-0 flex-col">
             {product.badge_text && (
               <Badge className="mb-2 w-fit" style={{ backgroundColor: "#F4617A" }}>
                 {product.badge_text}
