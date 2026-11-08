@@ -4,6 +4,7 @@ import Image from "next/image"
 import { ChevronRight } from "lucide-react"
 import { getProductBySlug, getCategories, getScoopGiftConfig } from "@/lib/catalog"
 import { limitedOfferFor } from "@/lib/limited-offers"
+import { labReportSrc } from "@/lib/lab-report"
 import { LimitedOfferCountdown } from "@/components/product/LimitedOfferCountdown"
 import { AddToCartSection } from "@/components/product/AddToCartSection"
 import { Badge } from "@/components/ui/badge"
@@ -445,6 +446,21 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                 unoptimized
               />
             </Link>
+            {/* 第三方實驗室檢驗報告 —— 排在「真實回饋」那張的下方（2026-11-08 店主指定）。
+                依口味各有一張；混合口味的組合商品用草莓那張（見 lib/lab-report）。
+                原圖是 1920x640 的橫幅，不套商品圖那套正方形尺寸 —— 報告編號那種
+                小字裁成正方就看不清楚了。 */}
+            <Image
+              src={labReportSrc(product.name)}
+              alt={`第三方實驗室檢驗報告：${product.name}`}
+              width={1920}
+              height={640}
+              sizes="(max-width: 960px) 100vw, 960px"
+              style={{ width: "100%", height: "auto" }}
+              className="block"
+              unoptimized
+            />
+
             {/* Image 11 is 安心保證 */}
             <Image
               src="/product-info/protein/11.jpg"
