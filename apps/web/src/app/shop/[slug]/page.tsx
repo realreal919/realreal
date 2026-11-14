@@ -5,6 +5,7 @@ import { ChevronRight } from "lucide-react"
 import { getProductBySlug, getCategories, getScoopGiftConfig } from "@/lib/catalog"
 import { limitedOfferFor } from "@/lib/limited-offers"
 import { labReportSrc } from "@/lib/lab-report"
+import { badgeColor } from "@/lib/badge-tone"
 import { LimitedOfferCountdown } from "@/components/product/LimitedOfferCountdown"
 import { AddToCartSection } from "@/components/product/AddToCartSection"
 import { Badge } from "@/components/ui/badge"
@@ -235,7 +236,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
           <div className="flex min-w-0 flex-col">
             {product.badge_text && (
-              <Badge className="mb-2 w-fit" style={{ backgroundColor: "#F4617A" }}>
+              <Badge className="mb-2 w-fit" style={{ backgroundColor: badgeColor(product.badge_text) }}>
                 {product.badge_text}
               </Badge>
             )}

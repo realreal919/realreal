@@ -2,6 +2,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import type { Product } from "@/lib/catalog"
+import { badgeColor } from "@/lib/badge-tone"
 
 export function ProductCard({
   product,
@@ -50,7 +51,7 @@ export function ProductCard({
           {product.badge_text ? (
             <div
               className="absolute top-2 left-2 px-2 py-0.5 text-xs font-bold text-white"
-              style={{ backgroundColor: "#F4617A" }}
+              style={{ backgroundColor: badgeColor(product.badge_text) }}
             >
               {product.badge_text}
             </div>
