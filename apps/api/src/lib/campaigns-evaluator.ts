@@ -141,15 +141,54 @@ async function getCategoryIdBySlug(slug: string): Promise<string | undefined> {
   return undefined
 }
 
+/** 已經成立的訂單狀態 —— 走到這幾個狀態就是真的買過了。 */
+const FULFILLED_STATUSES = ["processing", "shipped", "completed"] as const
+
+/**
+ * 線上金流：下單後客人被導到金流頁，可能根本沒付完就關掉。
+ *
+ * 貨到付款不在這裡 —— 它的 payment_status 一路 pending 到取貨，但訂單本身是成立的，
+ * 一定要繼續擋住首購資格（否則同一個人可以開一堆貨到付款訂單，每筆都折 50）。
+ */
+export const FIRST_PURCHASE_IN_FLIGHT_GATEWAYS = ["pchomepay", "linepay", "jkopay"] as const
+
+export type FirstPurchaseGuardRow = {
+  status: string | null
+  payment_status: string | null
+  payment_method: string | null
+  first_purchase_applied: boolean | null
+}
+
+/**
+ * 這筆既有訂單會不會用掉使用者的首購資格。
+ *
+ * 2026-11-14 #10000473／#10000474：客人選信用卡、開了支付連的付款頁沒付完，
+ * 一分鐘後改用貨到付款重下一筆。前一筆那時還是 pending、首購旗標還壓在上面，
+ * 所以新訂單被判定「不是首購」，客人白白多付 50 元 —— 而前一筆要到 15 分鐘後
+ * 被支付連判逾時（notifyType=order_expired）才會釋放旗標。這種「開了付款頁沒付完」
+ * 不罕見：7/23 以來 26 筆付款失敗裡有 17 筆是這樣。
+ *
+ * 所以規則改成：**只有真的付了錢或已經出貨的訂單才算用掉首購資格**。還在金流頁
+ * 等付款的訂單讓位給重下的那筆。
+ *
+ * 沒列在 FIRST_PURCHASE_IN_FLIGHT_GATEWAYS 裡的付款方式（含未來新接的金流、以及 payment_method
+ * 是 null 的舊資料）一律照舊擋住 —— 寧可沿用舊行為，也不要默默讓人折兩次。
+ */
+export function blocksFirstPurchase(o: FirstPurchaseGuardRow): boolean {
+  // 失敗／取消的訂單從來就不算數，呼叫端已經先濾掉，這裡再擋一次。
+  if (o.status === "failed" || o.status === "cancelled") return false
+  if (o.status && (FULFILLED_STATUSES as readonly string[]).includes(o.status)) return true
+  if (o.payment_status === "paid") return true
+  if (!o.first_purchase_applied) return false
+  const inFlight =
+    o.payment_status === "pending" &&
+    !!o.payment_method &&
+    (FIRST_PURCHASE_IN_FLIGHT_GATEWAYS as readonly string[]).includes(o.payment_method)
+  return !inFlight
+}
+
 async function isFirstPurchase(userId: string | null | undefined): Promise<boolean> {
   if (!userId) return false // guest 不算首購
-  // Disqualify the user if ANY prior order either (a) reached a fulfilled
-  // status — they already had a real first purchase, OR (b) is still in
-  // pending and ALREADY claimed first_purchase_applied=true — without this
-  // clause a user could place several pending orders in quick succession
-  // and each one would re-claim the first-purchase discount (the migration
-  // 0028 partial unique index `uniq_first_purchase_per_user` then trips on
-  // the second INSERT/UPDATE, breaking admin status changes too).
   //
   // A failed/cancelled order must NOT disqualify anyone. Those orders never
   // became a purchase, so the claim they made has to be released — otherwise a
@@ -166,18 +205,20 @@ async function isFirstPurchase(userId: string | null | undefined): Promise<boole
   // order from the admin list used to leave it holding the claim forever:
   // #10000071 was archived on 2026-08-02 and was still eating that customer's
   // NT$50 a month later, with nothing on screen to show why.
-  const { count, error } = await supabase
+  //
+  // 剩下的判斷交給 blocksFirstPurchase()：一個人的訂單筆數很少，與其把條件塞進
+  // PostgREST 的巢狀 or()，不如抓回來用一個看得懂、測得到的函式決定。
+  const { data, error } = await supabase
     .from("orders")
-    .select("id", { count: "exact", head: true })
+    .select("status, payment_status, payment_method, first_purchase_applied")
     .eq("user_id", userId)
     .is("deleted_at", null)
     .not("status", "in", "(failed,cancelled)")
-    .or("status.in.(processing,shipped,completed),first_purchase_applied.eq.true")
   if (error) {
     console.warn("[first-purchase] check failed:", error.message)
     return false // fail closed
   }
-  return (count ?? 0) === 0
+  return !(data ?? []).some((o) => blocksFirstPurchase(o as FirstPurchaseGuardRow))
 }
 
 async function resolveScopeItems(

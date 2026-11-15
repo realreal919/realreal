@@ -11,6 +11,7 @@ import {
   type CartItem,
   type EvaluatorContext,
   type FreeItem,
+  FIRST_PURCHASE_IN_FLIGHT_GATEWAYS,
 } from "../lib/campaigns-evaluator"
 import { createPayment as pchomepayCreatePayment } from "../lib/pchomepay"
 import { requestPayment as linePayRequestPayment } from "../lib/linepay"
@@ -1016,13 +1017,33 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
   // one choke point covers every route to failed/cancelled (four webhook files
   // today) plus every historical row that predates this fix. Non-fatal: if the
   // cleanup errors we still attempt the insert.
+  //
+  // 2026-11-14 加上「還在金流頁等付款」這一類：#10000473 選了信用卡沒付完，客人
+  // 一分鐘後改用貨到付款重下 #10000474。那時前一筆還是 pending（要 15 分鐘後才
+  // 被支付連判逾時），旗標壓著不放，新訂單就拿不到首購折。blocksFirstPurchase()
+  // 已經放行這種訂單，這裡要一起把旗標讓出來，否則唯一索引會直接擋掉 INSERT。
+  //
+  // 代價：舊那筆的總額仍然是折過的，萬一客人後來又回去把它付掉，就會折到兩次 50
+  // 元。但那同時也代表同樣的東西被買了兩筆，本來就要人工處理 —— 比起每次重下單
+  // 都默默少折 50 元（7/23 以來 17 次），這個方向划算得多。
   if (firstPurchaseApplied && userId) {
-    const { error: releaseError } = await supabase
-      .from("orders")
-      .update({ first_purchase_applied: false })
-      .eq("user_id", userId)
-      .eq("first_purchase_applied", true)
-      .in("status", ["failed", "cancelled"])
+    const [{ error: deadError }, { error: inFlightError }] = await Promise.all([
+      supabase
+        .from("orders")
+        .update({ first_purchase_applied: false })
+        .eq("user_id", userId)
+        .eq("first_purchase_applied", true)
+        .in("status", ["failed", "cancelled"]),
+      supabase
+        .from("orders")
+        .update({ first_purchase_applied: false })
+        .eq("user_id", userId)
+        .eq("first_purchase_applied", true)
+        .eq("status", "pending")
+        .eq("payment_status", "pending")
+        .in("payment_method", [...FIRST_PURCHASE_IN_FLIGHT_GATEWAYS]),
+    ])
+    const releaseError = deadError ?? inFlightError
     if (releaseError) {
       console.warn(
         `[orders] releasing stale first-purchase claim failed for user ${userId} (non-fatal):`,
