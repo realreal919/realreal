@@ -13,6 +13,7 @@ import {
   type FreeItem,
   FIRST_PURCHASE_IN_FLIGHT_GATEWAYS,
 } from "../lib/campaigns-evaluator"
+import { stripReleasedFirstPurchase, type RepayOrderRow } from "../lib/repay-adjust"
 import { createPayment as pchomepayCreatePayment } from "../lib/pchomepay"
 import { requestPayment as linePayRequestPayment } from "../lib/linepay"
 import { initiatePayment as jkoPayInitiatePayment } from "../lib/jkopay"
@@ -1665,7 +1666,7 @@ ordersRouter.get("/:orderNumber/repay", async (req, res) => {
 
   const { data: order } = await supabase
     .from("orders")
-    .select("id, order_number, status, payment_status, payment_method, total, deleted_at")
+    .select("id, order_number, status, payment_status, payment_method, total, deleted_at, subtotal, discount_amount, campaign_discount, applied_campaign_ids, first_purchase_applied")
     .eq("order_number", orderNumber)
     .maybeSingle()
 
@@ -1676,8 +1677,49 @@ ordersRouter.get("/:orderNumber/repay", async (req, res) => {
   }
 
   const method = order.payment_method as string
-  const amount = Math.round(Number(order.total ?? 0))
   const apiUrl = getApiBaseUrl()
+
+  // 首購折可能已經讓給客人後來重下的那筆（blocksFirstPurchase 不再讓「等付款中」
+  // 的訂單鎖住首購資格）。這筆既然還付得掉，就要用沒有首購折的金額去開付款頁，
+  // 否則同一個人會折到兩次 50 元。重開付款單本來就是用 order.total，所以先把
+  // 訂單金額改正，下面的流程不用動。
+  let payableTotal = Number(order.total ?? 0)
+  const { data: fpCampaigns } = await supabase
+    .from("campaigns")
+    .select("id, config")
+    .eq("type", "first_purchase")
+  const fpRows = (fpCampaigns ?? []) as Array<{ id: string; config: Record<string, unknown> | null }>
+  const fpConfigured = Number(fpRows[0]?.config?.discount_amount ?? 50)
+  const adjustment = stripReleasedFirstPurchase(
+    order as unknown as RepayOrderRow,
+    fpRows.map((c) => c.id),
+    fpConfigured,
+  )
+  if (adjustment) {
+    const { error: adjustError } = await supabase
+      .from("orders")
+      .update({
+        total: adjustment.total,
+        discount_amount: adjustment.discountAmount,
+        campaign_discount: adjustment.campaignDiscount,
+        applied_campaign_ids: adjustment.appliedCampaignIds,
+      })
+      .eq("id", order.id)
+    if (adjustError) {
+      // 改不動金額就不要讓客人用舊價錢付掉 —— 轉回訂單頁，由人工處理。
+      console.error(
+        `[orders/repay] first-purchase re-adjust failed for ${orderNumber}:`,
+        adjustError.message,
+      )
+      res.redirect(302, confirmUrl); return
+    }
+    payableTotal = adjustment.total
+    console.info(
+      `[orders/repay] ${orderNumber}: 首購折 NT$${adjustment.removedAmount} 已讓給其他訂單，` +
+      `重新付款金額改為 NT$${adjustment.total}`,
+    )
+  }
+  const amount = Math.round(payableTotal)
 
   let paymentUrl: string
   let gatewayTxId: string | null = null
