@@ -9,7 +9,7 @@
  * 的第一個反應是「我不是付過了嗎？是不是被扣兩次？」
  */
 import { describe, it, expect } from "vitest"
-import { renderOrderShipped } from "../OrderShipped"
+import { renderOrderShipped, SHIPPING_NOTE } from "../OrderShipped"
 
 describe("renderOrderShipped", () => {
   it("★ 超商取貨付款：信裡寫出取貨要付的金額與門市", () => {
@@ -51,5 +51,22 @@ describe("renderOrderShipped", () => {
   it("沒有取件資訊時不留下空白欄位", () => {
     const html = renderOrderShipped({ orderNumber: "10000001", customerName: "顧客" })
     expect(html).not.toContain("取件資訊")
+  })
+
+  // 這批出貨的臨時附註。這兩題鎖住的是「可以關掉」—— 公告留在信裡太久比沒公告
+  // 更糟，所以關掉的那條路必須有測試守著，不能只靠記得去改常數。
+  it("預設會附上這批出貨的附註", () => {
+    const html = renderOrderShipped({ orderNumber: "10000480", customerName: "顧客" })
+    expect(html).toContain(SHIPPING_NOTE)
+  })
+
+  it("note 傳空字串時整段附註都不出現", () => {
+    const html = renderOrderShipped({
+      orderNumber: "10000480",
+      customerName: "顧客",
+      note: "",
+    })
+    expect(html).not.toContain(SHIPPING_NOTE)
+    expect(html).not.toContain("border-left:3px solid #10305a")
   })
 })

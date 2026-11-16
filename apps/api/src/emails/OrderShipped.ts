@@ -10,6 +10,18 @@
  * 所以 COD 訂單的出貨信必須自己帶著金額與門市。非 COD 訂單維持原樣（錢已經付
  * 過了，再提金額只會讓人以為要再付一次）。
  */
+/**
+ * 這一批出貨的臨時附註（2026-11-16 店主交代：這批有第一次上工的小幫手幫忙包裝）。
+ *
+ * **下一批出貨前要改回空字串。** 留著不改的話，三個月後的客人還會收到「第一次
+ * 上工的小幫手」—— 那時候它既不是事實，也沒人看得懂為什麼要道歉。
+ *
+ * 寫成常數而不是直接塞進 HTML：關掉只要改這一行（或呼叫端傳 note: ""），
+ * 不必動模板本身，也看得出這句話是暫時的。
+ */
+export const SHIPPING_NOTE =
+  "這次出貨有第一次上工的小幫手幫忙，可能包裝得不夠整齊，請您見諒。"
+
 export function renderOrderShipped(data: {
   orderNumber: string
   customerName: string
@@ -21,6 +33,8 @@ export function renderOrderShipped(data: {
   invoiceNumber?: string | null
   /** 發票開立日期（YYYY-MM-DD，台灣時間）。 */
   invoiceDate?: string | null
+  /** 這批出貨的臨時附註。不傳＝用 SHIPPING_NOTE；傳空字串＝這封不加附註。 */
+  note?: string | null
 }): string {
   const codAmount = Number(data.codAmount ?? 0)
   const isCod = codAmount > 0
@@ -57,6 +71,11 @@ export function renderOrderShipped(data: {
     </div>`
     : ""
 
+  const note = (data.note ?? SHIPPING_NOTE).trim()
+  const noteBlock = note
+    ? `<p style="background:#f7f9fc;border-left:3px solid #10305a;border-radius:4px;padding:12px 14px;margin:20px 0;color:#48515c;line-height:1.9">${note}</p>`
+    : ""
+
   const closing = isCod
     ? `<p>包裹到達門市後，超商會發簡訊通知您，屆時請攜帶手機至門市取貨並完成付款。</p>`
     : `<p>請留意手機通知到貨訊息。</p>`
@@ -72,6 +91,7 @@ export function renderOrderShipped(data: {
     ${codBlock}
     ${invoiceBlock}
     ${closing}
+    ${noteBlock}
     <p>如有任何問題，歡迎與我們聯繫。</p>
     <p>我們會用誠真，回覆您。</p>
     <hr style="margin:24px 0;border:none;border-top:1px solid #eee">
