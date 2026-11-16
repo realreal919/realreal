@@ -228,3 +228,64 @@ describe("兩種超商取貨同門檻時合併標籤", () => {
     expect(marqueeShippingMessages(same)).toEqual(["全站消費滿999元免運"])
   })
 })
+
+/**
+ * 兩家超商的免運門檻從 2026-11-17 起不同（7-11 699、全家 1200）。
+ *
+ * 這一段鎖的是「不能再用一句『超商取貨』講兩家」—— 全家的客人看到 699 會以為
+ * 自己免運，結帳被收 80 元才發現。這正是這個檔案開頭那兩次事故的同一種錯：
+ * 畫面上的數字與結帳實際算的不是同一件事。
+ */
+describe("7-11 與全家門檻不同", () => {
+  const CHAINS: ShippingConfig = {
+    cvs: { fee: 80, free_threshold: 699 },
+    cvsCod: { fee: 80, free_threshold: 699 },
+    cvsFamily: { fee: 80, free_threshold: 1200 },
+    cvsFamilyCod: { fee: 80, free_threshold: 1200 },
+    home: { fee: 150, free_threshold: 1200 },
+  }
+
+  it("★ 跑馬燈分成兩句，而且全家跟宅配合在同一句", () => {
+    expect(marqueeShippingMessages(CHAINS)).toEqual([
+      "7-11 超商取貨滿699元免運",
+      "全家超商取貨、宅配滿1200元免運",
+    ])
+  })
+
+  it("★ FAQ 講的是同一組數字", () => {
+    const answer = shippingFeeAnswer(CHAINS)
+    expect(answer).toContain("消費滿 NT$699 7-11 超商取貨免運")
+    expect(answer).toContain("消費滿 NT$1200 全家超商取貨、宅配免運")
+  })
+
+  it("★ 購物車提示講最快的那條路，並指名是 7-11", () => {
+    const h = cartFreeShippingHint(CHAINS, 650)!
+    expect(h.threshold).toBe(699)
+    expect(h.remaining).toBe(49)
+    expect(h.methods).toBe("7-11 超商取貨")
+  })
+
+  it("★ 活動的 cvs 分組不分超商，兩家都要跟著降", () => {
+    // API 的 shippingBucket() 把 7-11 與全家都算成 cvs，所以「超商取貨滿600
+    // 免運」的活動兩家都吃得到。少了這層對照，全家客人會看到自己沒有的門檻。
+    const h = cartFreeShippingHint(
+      CHAINS,
+      500,
+      [{ minOrder: 600, buckets: ["cvs"], weekdays: [] }],
+    )!
+    expect(h.threshold).toBe(600)
+    expect(h.methods).toBe("7-11 超商取貨、全家超商取貨")
+  })
+
+  it("舊版 API 還沒回全家欄位時，維持原本的「超商取貨」講法", () => {
+    const legacy: ShippingConfig = {
+      cvs: { fee: 80, free_threshold: 699 },
+      cvsCod: { fee: 80, free_threshold: 699 },
+      home: { fee: 150, free_threshold: 1200 },
+    }
+    expect(marqueeShippingMessages(legacy)).toEqual([
+      "超商取貨滿699元免運",
+      "宅配滿1200元免運",
+    ])
+  })
+})

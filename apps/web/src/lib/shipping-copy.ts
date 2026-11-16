@@ -12,10 +12,57 @@
  */
 import { API_URL } from "./api-url"
 
+type Rule = { fee: number; free_threshold: number }
+
+/**
+ * cvs / cvsCod 指的是 **7-11**。全家從 2026-11-17 起有自己的免運門檻
+ * （7-11 699、全家 1200），所以兩家不能再共用同一句文案。
+ *
+ * cvsFamily / cvsFamilyCod 是可選的：前台可能比 API 早部署，舊版 /config 還
+ * 沒有這兩個欄位。拿不到時退回 7-11 的數字 —— 那是這次改動之前的事實，寧可
+ * 暫時少講一個差異，也不要憑空生出一個沒人設定過的數字。
+ */
 export type ShippingConfig = {
-  cvs: { fee: number; free_threshold: number }
-  cvsCod: { fee: number; free_threshold: number }
-  home: { fee: number; free_threshold: number }
+  cvs: Rule
+  cvsCod: Rule
+  cvsFamily?: Rule
+  cvsFamilyCod?: Rule
+  home: Rule
+}
+
+export type ShippingMethodKey = "cvs" | "cvsCod" | "cvsFamily" | "cvsFamilyCod" | "home"
+
+type MethodRow = { key: ShippingMethodKey; label: string; threshold: number }
+
+/**
+ * 寄送方式與它們各自的門檻。文案與購物車提示都從這一份長出來。
+ *
+ * 兩家超商門檻相同時**不分家** —— 講成「7-11 超商取貨、全家超商取貨滿650元
+ * 免運」只是把同一個數字說兩次，客人還得自己比對兩句話一不一樣。只有數字真的
+ * 不同（2026-11-17 起 7-11 699 / 全家 1200）才拆開，因為那時候不拆就是講錯。
+ */
+function shippingMethods(s: ShippingConfig): MethodRow[] {
+  const family = s.cvsFamily ?? s.cvs
+  const familyCod = s.cvsFamilyCod ?? s.cvsCod
+  const sameAsSeven =
+    family.free_threshold === s.cvs.free_threshold &&
+    familyCod.free_threshold === s.cvsCod.free_threshold
+
+  if (sameAsSeven) {
+    return [
+      { key: "cvs", label: "超商取貨", threshold: s.cvs.free_threshold },
+      { key: "cvsCod", label: "超商取貨付款", threshold: s.cvsCod.free_threshold },
+      { key: "home", label: "宅配", threshold: s.home.free_threshold },
+    ]
+  }
+
+  return [
+    { key: "cvs", label: "7-11 超商取貨", threshold: s.cvs.free_threshold },
+    { key: "cvsCod", label: "7-11 超商取貨付款", threshold: s.cvsCod.free_threshold },
+    { key: "cvsFamily", label: "全家超商取貨", threshold: family.free_threshold },
+    { key: "cvsFamilyCod", label: "全家超商取貨付款", threshold: familyCod.free_threshold },
+    { key: "home", label: "宅配", threshold: s.home.free_threshold },
+  ]
 }
 
 export type FreeShippingGroup = {
@@ -47,11 +94,7 @@ export async function fetchShippingConfig(): Promise<ShippingConfig | null> {
 export function freeShippingGroups(s: ShippingConfig | null): FreeShippingGroup[] {
   if (!s) return []
 
-  const methods = [
-    { label: "超商取貨", threshold: s.cvs.free_threshold },
-    { label: "超商取貨付款", threshold: s.cvsCod.free_threshold },
-    { label: "宅配", threshold: s.home.free_threshold },
-  ]
+  const methods = shippingMethods(s)
 
   // 依門檻分組，維持門檻第一次出現的順序。
   const groups = new Map<number, string[]>()
@@ -69,15 +112,33 @@ export function freeShippingGroups(s: ShippingConfig | null): FreeShippingGroup[
 }
 
 /**
- * 兩種超商取貨同門檻時，寫成「超商取貨」就好。
+ * 同一家超商的「取貨」與「取貨付款」同門檻時，寫成那家的名字就好。
  *
- * 並列成「超商取貨、超商取貨付款滿666元免運」讀起來像是兩個不同的條件，
- * 而且在跑馬燈那種一瘩而過的介面上特別容易讓人以為「只有取貨付款才算」。
- * 活動文案（bucketLabels）本來就是這樣合併的，這裡跟上。
+ * 並列成「7-11 超商取貨、7-11 超商取貨付款滿666元免運」讀起來像是兩個不同的
+ * 條件，而且在跑馬燈那種一瞥而過的介面上特別容易讓人以為「只有取貨付款才算」。
+ *
+ * 合併只在同一家超商內發生 —— 7-11 與全家的門檻不同，合成一句「超商取貨」
+ * 就會變成對其中一家說謊，那正是這次改門檻要避免的事。
  */
+const CHAIN_PAIRS: ReadonlyArray<readonly [string, string, string]> = [
+  ["超商取貨", "超商取貨付款", "超商取貨"],
+  ["7-11 超商取貨", "7-11 超商取貨付款", "7-11 超商取貨"],
+  ["全家超商取貨", "全家超商取貨付款", "全家超商取貨"],
+]
+
 function collapseCvsLabels(labels: string[]): string[] {
-  if (!labels.includes("超商取貨") || !labels.includes("超商取貨付款")) return labels
-  return ["超商取貨", ...labels.filter((l) => l !== "超商取貨" && l !== "超商取貨付款")]
+  const out: string[] = []
+  for (const l of labels) {
+    const pair = CHAIN_PAIRS.find(([a, b]) => l === a || l === b)
+    if (!pair) {
+      out.push(l)
+      continue
+    }
+    const [a, b, merged] = pair
+    const text = labels.includes(a) && labels.includes(b) ? merged : l
+    if (!out.includes(text)) out.push(text)
+  }
+  return out
 }
 
 /** 跑馬燈用：短句，口語的「元」。 */
@@ -141,6 +202,22 @@ function bucketLabels(buckets: string[]): string {
 }
 
 /**
+ * 活動的 buckets 用的是 API 的分組（cvs / cvsCod / home），那一組**不分超商**
+ * —— apps/api 的 shippingBucket() 把 7-11 與全家都算成 cvs。所以一個「超商取貨
+ * 滿 666 免運」的活動，兩家都吃得到，購物車的提示也要照這個事實展開。
+ *
+ * 少了這層對照，全家的客人在活動日會看到自己沒有的 1200 門檻。
+ */
+function campaignMethodKeys(buckets: string[]): ShippingMethodKey[] {
+  const map: Record<string, ShippingMethodKey[]> = {
+    cvs: ["cvs", "cvsFamily"],
+    cvsCod: ["cvsCod", "cvsFamilyCod"],
+    home: ["home"],
+  }
+  return buckets.flatMap((b) => map[b] ?? [])
+}
+
+/**
  * 免運活動的跑馬燈文案，由活動條件產生，不寫死。
  *
  * 常態門檻那句寫死過一次（649/999 對不上後台實際設定，害客人在 999 被收運費），
@@ -193,37 +270,38 @@ export function cartFreeShippingHint(
 ): CartFreeShippingHint | null {
   if (!s) return null
 
-  const thresholds: Record<string, number> = {
-    cvs: s.cvs.free_threshold,
-    cvsCod: s.cvsCod.free_threshold,
-    home: s.home.free_threshold,
-  }
-  const keys = Object.keys(thresholds)
+  const methods = shippingMethods(s)
+  const thresholds = new Map<ShippingMethodKey, number>(
+    methods.map((m) => [m.key, m.threshold]),
+  )
 
   for (const c of campaigns) {
     if (c.minOrder <= 0) continue
     if (c.weekdays.length > 0 && !c.weekdays.includes(now.getDay())) continue
-    const buckets = c.buckets.length > 0 ? c.buckets : keys
-    for (const b of buckets) {
-      if (!(b in thresholds)) continue
+    const keys = c.buckets.length > 0 ? campaignMethodKeys(c.buckets) : [...thresholds.keys()]
+    for (const k of keys) {
+      const current = thresholds.get(k)
+      if (current === undefined) continue
       // 門檻 0 代表「這個方式不提供免運」，活動不該把它變成有免運。
-      if (thresholds[b] <= 0) continue
-      thresholds[b] = Math.min(thresholds[b], c.minOrder)
+      if (current <= 0) continue
+      thresholds.set(k, Math.min(current, c.minOrder))
     }
   }
 
-  const usable = keys.filter((k) => thresholds[k] > 0)
+  const usable = methods.filter((m) => (thresholds.get(m.key) ?? 0) > 0)
   if (usable.length === 0) return null
 
-  const threshold = Math.min(...usable.map((k) => thresholds[k]))
-  const group = usable.filter((k) => thresholds[k] === threshold)
-  const coversEveryMethod = group.length === keys.length
+  const threshold = Math.min(...usable.map((m) => thresholds.get(m.key) as number))
+  const group = usable.filter((m) => thresholds.get(m.key) === threshold)
 
   return {
     reached: subtotal >= threshold,
     remaining: Math.max(0, threshold - subtotal),
     pct: Math.min(100, Math.round((subtotal / threshold) * 100)),
     threshold,
-    methods: coversEveryMethod ? null : bucketLabels(group),
+    methods:
+      group.length === methods.length
+        ? null
+        : collapseCvsLabels(group.map((m) => m.label)).join("、"),
   }
 }

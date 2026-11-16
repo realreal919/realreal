@@ -8,6 +8,7 @@ type ShippingMethod = "home_delivery" | "cvs_711" | "cvs_family" | "overseas_cod
  *
  *   shipping.fee_home_delivery / shipping.fee_cvs            — base fee
  *   shipping.free_threshold_home / shipping.free_threshold_cvs — free over X
+ *   shipping.free_threshold_cvs_family — 全家專屬門檻（取貨與取貨付款共用）
  *
  * When the threshold is 0 (or unset), free shipping is disabled.
  */
@@ -18,11 +19,28 @@ export async function getShippingRule(
   // 海外到付：運費由司機收取，線上顯示 0
   if (method === "overseas_cod") return { fee: 0, free_threshold: 0 }
 
+  const isCod =
+    (method === "cvs_711" || method === "cvs_family") && paymentMethod === "cvs_cod"
+
+  // 全家：免運門檻跟著「哪一家超商」走，不跟著付款方式走。
+  //
+  // 2026-11-17 店主定案：7-11 滿 699、全家與宅配滿 1200。全家的店到店成本比
+  // 7-11 高，但客人眼中兩家是同一件事，所以差別只能出現在門檻上 —— 取貨與取貨
+  // 付款共用同一個數字，不然同一家超商會出現兩個免運標準，客服解釋不完。
+  //
+  // 運費本身沒有分家（兩家都讀 fee_cvs / fee_cvs_cod），只有門檻分。
+  if (method === "cvs_family") {
+    const fee = Number(
+      (await getSetting(isCod ? "shipping.fee_cvs_cod" : "shipping.fee_cvs")) ?? "80",
+    )
+    const threshold = Number(
+      (await getSetting("shipping.free_threshold_cvs_family")) ?? "1200",
+    )
+    return { fee, free_threshold: threshold }
+  }
+
   // 超商取貨付款（代收貨款）：使用專屬費率，滿專屬門檻同樣享免運
-  if (
-    (method === "cvs_711" || method === "cvs_family") &&
-    paymentMethod === "cvs_cod"
-  ) {
+  if (isCod) {
     const fee = Number((await getSetting("shipping.fee_cvs_cod")) ?? "80")
     const threshold = Number((await getSetting("shipping.free_threshold_cvs_cod")) ?? "999")
     return { fee, free_threshold: threshold }

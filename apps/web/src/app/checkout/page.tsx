@@ -251,9 +251,12 @@ export default function CheckoutPage() {
   const [selectedAddressId, setSelectedAddressId] = useState<string>("")
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null)
   // Live free-shipping thresholds, so the COD hint below can name real numbers.
+  // cvs / cvsCod 是 7-11，cvsFamily* 是全家 —— 兩家門檻不同（699 / 1200）。
   const [shippingCfg, setShippingCfg] = useState<{
     cvs: { free_threshold: number }
     cvsCod: { free_threshold: number }
+    cvsFamily?: { free_threshold: number }
+    cvsFamilyCod?: { free_threshold: number }
   } | null>(null)
   useEffect(() => {
     let cancelled = false
@@ -1277,17 +1280,49 @@ export default function CheckoutPage() {
                     <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm text-blue-800">
                       💵 到超商取貨時當場以現金付款（代收貨款），不需要事先線上付款。
                     </div>
-                    {/* 貨到付款的免運門檻比一般超商取貨高（代收貨款有額外成本）。
-                        金額落在兩個門檻中間時客人只會看到「我明明有到免運卻被收運費」，
-                        所以在這裡就把兩個數字講清楚，讓他當下能自己選。 */}
-                    {shippingCfg &&
-                      (preview?.subtotal ?? subtotal) >= shippingCfg.cvs.free_threshold &&
-                      (preview?.subtotal ?? subtotal) < shippingCfg.cvsCod.free_threshold && (
-                        <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
-                          💡 目前金額改選「超商取貨」可享免運（滿 {shippingCfg.cvs.free_threshold.toLocaleString()} 元）；
-                          超商取貨付款需滿 {shippingCfg.cvsCod.free_threshold.toLocaleString()} 元才免運。
-                        </div>
-                      )}
+                    {/* 金額落在兩個門檻中間時，客人只會看到「我明明有到免運卻被收運費」。
+                        兩種情況都在這裡講清楚，讓他當下就能自己選：
+                          1. 選了全家，但這筆金額在 7-11 就免運（7-11 699 / 全家 1200）
+                          2. 取貨付款的門檻比一般取貨高（代收貨款有額外成本） */}
+                    {shippingCfg && (() => {
+                      const amount = preview?.subtotal ?? subtotal
+                      const cvsSeven =
+                        addressType === "cvs_cod"
+                          ? shippingCfg.cvsCod.free_threshold
+                          : shippingCfg.cvs.free_threshold
+                      const family =
+                        addressType === "cvs_cod"
+                          ? (shippingCfg.cvsFamilyCod ?? shippingCfg.cvsCod).free_threshold
+                          : (shippingCfg.cvsFamily ?? shippingCfg.cvs).free_threshold
+
+                      if (
+                        shippingMethod === "family" &&
+                        cvsSeven > 0 &&
+                        amount >= cvsSeven &&
+                        amount < family
+                      ) {
+                        return (
+                          <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+                            💡 目前金額改選「7-11 取貨」可享免運（滿 {cvsSeven.toLocaleString()} 元）；
+                            全家取貨需滿 {family.toLocaleString()} 元才免運。
+                          </div>
+                        )
+                      }
+
+                      if (
+                        addressType === "cvs_cod" &&
+                        amount >= shippingCfg.cvs.free_threshold &&
+                        amount < shippingCfg.cvsCod.free_threshold
+                      ) {
+                        return (
+                          <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+                            💡 目前金額改選「超商取貨」可享免運（滿 {shippingCfg.cvs.free_threshold.toLocaleString()} 元）；
+                            超商取貨付款需滿 {shippingCfg.cvsCod.free_threshold.toLocaleString()} 元才免運。
+                          </div>
+                        )
+                      }
+                      return null
+                    })()}
                     <div className="space-y-2">
                       {(Object.entries(SHIPPING_LABELS) as [ShippingMethod, string][])
                         .filter(([v]) => v !== "home_delivery" && v !== "overseas_cod")

@@ -35,18 +35,26 @@ configRouter.get("/", async (_req, res) => {
   //
   // Non-fatal: a settings hiccup must never break the storefront shell, so a
   // failure returns nulls and the caller falls back to omitting the numbers.
+  //
+  // cvs / cvsCod 指的是 **7-11**，全家另外給 cvsFamily / cvsFamilyCod。
+  // 兩家超商的免運門檻從 2026-11-17 起不同（7-11 699、全家 1200），所以前台
+  // 不能再用同一個「超商取貨」的數字講兩家 —— 選了全家的客人會以為 699 就免運。
   let shipping: {
     cvs: { fee: number; free_threshold: number }
     cvsCod: { fee: number; free_threshold: number }
+    cvsFamily: { fee: number; free_threshold: number }
+    cvsFamilyCod: { fee: number; free_threshold: number }
     home: { fee: number; free_threshold: number }
   } | null = null
   try {
-    const [cvs, cvsCod, home] = await Promise.all([
+    const [cvs, cvsCod, cvsFamily, cvsFamilyCod, home] = await Promise.all([
       getShippingRule("cvs_711"),
       getShippingRule("cvs_711", "cvs_cod"),
+      getShippingRule("cvs_family"),
+      getShippingRule("cvs_family", "cvs_cod"),
       getShippingRule("home_delivery"),
     ])
-    shipping = { cvs, cvsCod, home }
+    shipping = { cvs, cvsCod, cvsFamily, cvsFamilyCod, home }
   } catch (err) {
     console.warn("[config] shipping rule lookup failed (non-fatal):", err)
   }

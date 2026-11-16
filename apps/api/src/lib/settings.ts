@@ -244,6 +244,7 @@ export const ALLOWED_KEYS = new Set<string>([
   "shipping.free_threshold_home",
   "shipping.free_threshold_cvs",
   "shipping.free_threshold_cvs_cod",
+  "shipping.free_threshold_cvs_family",
   "shipping.fee_overseas_cod",
   // Logistics
   "logistics.skip_ecpay",
@@ -404,6 +405,7 @@ export const SECTIONS: Record<string, { label: string; keys: string[] }> = {
       "shipping.free_threshold_home",
       "shipping.free_threshold_cvs",
       "shipping.free_threshold_cvs_cod",
+      "shipping.free_threshold_cvs_family",
       "shipping.fee_overseas_cod",
     ],
   },
@@ -430,6 +432,7 @@ export const SETTING_DEFAULTS: Record<string, string> = {
   "shipping.free_threshold_home": "999",
   "shipping.free_threshold_cvs": "649",
   "shipping.free_threshold_cvs_cod": "999",
+  "shipping.free_threshold_cvs_family": "1200",
   "shipping.fee_overseas_cod": "0",
   "logistics.skip_ecpay": "true",
 }
