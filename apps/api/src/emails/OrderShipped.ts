@@ -20,7 +20,7 @@
  * 不必動模板本身，也看得出這句話是暫時的。
  */
 export const SHIPPING_NOTE =
-  "這次出貨有第一次上工的小幫手幫忙，可能包裝得不夠整齊，請您見諒。"
+  "這次出貨有第一次上工的小幫手幫忙，可能包裝得不夠整齊，我們下次會再多用心，請您見諒。"
 
 export function renderOrderShipped(data: {
   orderNumber: string
