@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import { MARKETING_TABS } from "../../_components/marketing-tabs"
 import { Save, Settings as SettingsIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -29,16 +30,6 @@ import { AdminTabs } from "../../_components/AdminTabs"
  * 4 sibling tabs (campaigns / coupons / tiers / points) share the same
  * AdminTabs strip so users can hop between them.
  */
-
-const MARKETING_TABS = [
-  { href: "/admin/campaigns", label: "行銷活動" },
-  { href: "/admin/coupons", label: "優惠券" },
-  { href: "/admin/marketing/tiers", label: "會員等級" },
-  { href: "/admin/marketing/points", label: "點數規則" },
-  { href: "/admin/marketing/share-reports", label: "分享回報" },
-  { href: "/admin/marketing/recall", label: "召回名單" },
-  { href: "/admin/marketing/broadcast", label: "寄信給客人" },
-]
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
 

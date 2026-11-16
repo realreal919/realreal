@@ -1,15 +1,6 @@
 import { AdminTabs } from "../../_components/AdminTabs"
+import { MARKETING_TABS } from "../../_components/marketing-tabs"
 import { RecallClient } from "./_client"
-
-const MARKETING_TABS = [
-  { href: "/admin/campaigns", label: "行銷活動" },
-  { href: "/admin/coupons", label: "優惠券" },
-  { href: "/admin/marketing/tiers", label: "會員等級" },
-  { href: "/admin/marketing/points", label: "點數規則" },
-  { href: "/admin/marketing/share-reports", label: "分享回報" },
-  { href: "/admin/marketing/recall", label: "召回名單" },
-  { href: "/admin/marketing/broadcast", label: "寄信給客人" },
-]
 
 export const metadata = { title: "召回名單 | Admin" }
 

@@ -5,6 +5,7 @@ import { Minus, Plus, PencilLine, ShoppingCart, Sparkles } from "lucide-react"
 import { useCart } from "@/lib/cart"
 import { API_URL } from "@/lib/api-url"
 import { buyGetDetailLines, buyGetMessages, firstPurchaseProductMessage, marqueeSpendMessage, SPEND_HEADLINE, type BuyGetOffer, type FirstPurchase, type SpendGift, type SpendThreshold } from "@/lib/spend-threshold"
+import { RestockNotify } from "@/components/product/RestockNotify"
 import { Badge } from "@/components/ui/badge"
 import { AddonStrip } from "./AddonStrip"
 
@@ -87,6 +88,11 @@ export function AddToCartSection({
     minVariantPrice,
     showScoopGift,
   )
+  // 每個規格都買不到才算缺貨 —— 單包賣完但 5 入組還有的話，這一頁仍然成交得了，
+  // 這時候請人留信箱等於把能買的人推走。
+  const allOutOfStock =
+    variants.length > 0 && variants.every((v) => Number(v.stock_qty) === 0)
+
   const addItem = useCart((s) => s.addItem)
   const updatePrice = useCart((s) => s.updatePrice)
   const cartItems = useCart((s) => s.items)
@@ -264,6 +270,12 @@ export function AddToCartSection({
           {outOfStock ? "目前缺貨" : tierLocked ? "會員限定商品" : "加入購物車"}
         </button>
       </div>
+
+      {allOutOfStock && productId && (
+        <div className="mt-3">
+          <RestockNotify productId={productId} />
+        </div>
+      )}
 
       <AddonStrip
         excludeVariantIds={variants.map((v) => v.id)}

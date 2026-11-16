@@ -11,6 +11,7 @@ const ALLOWED_ORIGINS = [
 ]
 import healthRouter from "./routes/health"
 import { contactRouter } from "./routes/contact"
+import { restockRouter, restockAdminRouter } from "./routes/restock"
 import { configRouter } from "./routes/config"
 import { shareReportsRouter } from "./routes/share-reports"
 import { adminShareReportsRouter } from "./routes/admin-share-reports"
@@ -94,6 +95,8 @@ app.use(
 app.use(cookieParser())
 app.use("/health", healthRouter)
 app.use("/contact", publicWriteLimiter, contactRouter)
+app.use("/restock", publicWriteLimiter, restockRouter)
+app.use("/admin/restock", restockAdminRouter)
 app.use("/config", configRouter)
 app.use("/share-reports", publicWriteLimiter, shareReportsRouter)
 app.use("/categories", categoriesRouter)
