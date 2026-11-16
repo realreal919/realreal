@@ -98,6 +98,68 @@ const SHIPPING_LABELS: Record<ShippingMethod, string> = {
   "overseas_cod": "港澳寄送（到付）",
 }
 
+type ShippingCfg = {
+  cvs: { free_threshold: number }
+  cvsCod: { free_threshold: number }
+  cvsFamily?: { free_threshold: number }
+  cvsFamilyCod?: { free_threshold: number }
+}
+
+/**
+ * 「換一個選項就免運」的提示。
+ *
+ * 金額落在兩個門檻中間時，客人只會看到「我明明有到免運卻被收運費」。兩種情況
+ * 都要講：
+ *   1. 選了全家，但這筆金額在 7-11 就免運（2026-11-17 起 7-11 699 / 全家 1200）
+ *   2. 取貨付款的門檻比一般取貨高（代收貨款有額外成本）
+ *
+ * 寫成元件而不是直接塞在某一區 —— 超商取貨與超商取貨付款是兩塊各自獨立的
+ * JSX，只放一邊的話，另一邊的客人就看不到（第一版就是這樣漏掉的）。
+ */
+function FreeShippingSwitchHint({
+  cfg,
+  amount,
+  chain,
+  isCod,
+}: {
+  cfg: ShippingCfg | null
+  amount: number
+  chain: ShippingMethod
+  isCod: boolean
+}) {
+  if (!cfg) return null
+
+  const seven = isCod ? cfg.cvsCod.free_threshold : cfg.cvs.free_threshold
+  const family = isCod
+    ? (cfg.cvsFamilyCod ?? cfg.cvsCod).free_threshold
+    : (cfg.cvsFamily ?? cfg.cvs).free_threshold
+
+  if (chain === "family" && seven > 0 && amount >= seven && amount < family) {
+    return (
+      <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+        💡 目前金額改選「7-11 取貨」可享免運（滿 {seven.toLocaleString()} 元）；
+        全家取貨需滿 {family.toLocaleString()} 元才免運。
+      </div>
+    )
+  }
+
+  if (
+    isCod &&
+    cfg.cvs.free_threshold > 0 &&
+    amount >= cfg.cvs.free_threshold &&
+    amount < cfg.cvsCod.free_threshold
+  ) {
+    return (
+      <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+        💡 目前金額改選「超商取貨」可享免運（滿 {cfg.cvs.free_threshold.toLocaleString()} 元）；
+        超商取貨付款需滿 {cfg.cvsCod.free_threshold.toLocaleString()} 元才免運。
+      </div>
+    )
+  }
+
+  return null
+}
+
 const STEPS = [
   { num: 1, label: "收件資訊" },
   { num: 2, label: "付款方式" },
@@ -1191,6 +1253,12 @@ export default function CheckoutPage() {
 
                 {addressType === "cvs" && (
                   <div className="space-y-3">
+                    <FreeShippingSwitchHint
+                      cfg={shippingCfg}
+                      amount={preview?.subtotal ?? subtotal}
+                      chain={shippingMethod}
+                      isCod={false}
+                    />
                     <div className="space-y-2">
                       {(Object.entries(SHIPPING_LABELS) as [ShippingMethod, string][])
                         .filter(([v]) => v !== "home_delivery" && v !== "overseas_cod")
@@ -1280,49 +1348,12 @@ export default function CheckoutPage() {
                     <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm text-blue-800">
                       💵 到超商取貨時當場以現金付款（代收貨款），不需要事先線上付款。
                     </div>
-                    {/* 金額落在兩個門檻中間時，客人只會看到「我明明有到免運卻被收運費」。
-                        兩種情況都在這裡講清楚，讓他當下就能自己選：
-                          1. 選了全家，但這筆金額在 7-11 就免運（7-11 699 / 全家 1200）
-                          2. 取貨付款的門檻比一般取貨高（代收貨款有額外成本） */}
-                    {shippingCfg && (() => {
-                      const amount = preview?.subtotal ?? subtotal
-                      const cvsSeven =
-                        addressType === "cvs_cod"
-                          ? shippingCfg.cvsCod.free_threshold
-                          : shippingCfg.cvs.free_threshold
-                      const family =
-                        addressType === "cvs_cod"
-                          ? (shippingCfg.cvsFamilyCod ?? shippingCfg.cvsCod).free_threshold
-                          : (shippingCfg.cvsFamily ?? shippingCfg.cvs).free_threshold
-
-                      if (
-                        shippingMethod === "family" &&
-                        cvsSeven > 0 &&
-                        amount >= cvsSeven &&
-                        amount < family
-                      ) {
-                        return (
-                          <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
-                            💡 目前金額改選「7-11 取貨」可享免運（滿 {cvsSeven.toLocaleString()} 元）；
-                            全家取貨需滿 {family.toLocaleString()} 元才免運。
-                          </div>
-                        )
-                      }
-
-                      if (
-                        addressType === "cvs_cod" &&
-                        amount >= shippingCfg.cvs.free_threshold &&
-                        amount < shippingCfg.cvsCod.free_threshold
-                      ) {
-                        return (
-                          <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
-                            💡 目前金額改選「超商取貨」可享免運（滿 {shippingCfg.cvs.free_threshold.toLocaleString()} 元）；
-                            超商取貨付款需滿 {shippingCfg.cvsCod.free_threshold.toLocaleString()} 元才免運。
-                          </div>
-                        )
-                      }
-                      return null
-                    })()}
+                    <FreeShippingSwitchHint
+                      cfg={shippingCfg}
+                      amount={preview?.subtotal ?? subtotal}
+                      chain={shippingMethod}
+                      isCod
+                    />
                     <div className="space-y-2">
                       {(Object.entries(SHIPPING_LABELS) as [ShippingMethod, string][])
                         .filter(([v]) => v !== "home_delivery" && v !== "overseas_cod")
