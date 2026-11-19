@@ -43,7 +43,6 @@ export default function MembershipPage() {
             width={img.width}
             height={img.height}
             className="w-full h-auto rounded-[10px]"
-            unoptimized
           />
         ))}
       </div>

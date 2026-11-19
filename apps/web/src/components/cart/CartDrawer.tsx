@@ -153,7 +153,7 @@ function SafeProductImage({
         className="relative shrink-0 overflow-hidden rounded-[10px] bg-zinc-100"
         style={{ width: size, height: size }}
       >
-        <Image src={src} alt={alt} fill sizes={`${size}px`} className="object-cover" unoptimized />
+        <Image src={src} alt={alt} fill sizes={`${size}px`} className="object-cover" />
       </div>
     )
   }

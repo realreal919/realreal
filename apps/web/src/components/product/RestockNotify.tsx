@@ -44,7 +44,7 @@ export function RestockNotify({ productId }: { productId: string }) {
   if (state === "done") {
     return (
       <div className="rounded-lg border border-[#10305a]/15 bg-[#f7f9fc] p-4 text-sm" style={{ color: "#10305a" }}>
-        <p className="font-semibold">已經記下來了 🌱</p>
+        <p className="font-semibold">已經記下來了</p>
         <p className="mt-1" style={{ color: "#48515c" }}>
           到貨時我們會寄一封信到 {email}，只會寄這一次。
         </p>

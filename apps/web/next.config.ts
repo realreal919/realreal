@@ -3,6 +3,16 @@ import { withSentryConfig } from "@sentry/nextjs"
 
 const nextConfig: NextConfig = {
   images: {
+    // 最佳化後的圖片在 Vercel 上保留 31 天。
+    //
+    // Next 16 的預設是 4 小時，而 Supabase Storage 回的是
+    // `Cache-Control: private, no-cache` —— 等於每 4 小時、每個尺寸都要回頭跟
+    // Supabase 重抓一次原圖。2026-11 的 Cached Egress 就是這樣燒到 7.3GB／5GB
+    // 配額的（147%），11/21 起會開始擋請求。
+    //
+    // 商品圖換圖時檔名會帶新的 timestamp（網址跟著變），所以快取久一點不會讓
+    // 客人看到舊圖。
+    minimumCacheTTL: 2678400,
     remotePatterns: [
       { protocol: "https", hostname: "*.supabase.co" },
       { protocol: "https", hostname: "realreal.cc" },

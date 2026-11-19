@@ -324,7 +324,6 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                 sizes="(max-width: 960px) 100vw, 960px"
                 style={{ width: "100%", height: "auto" }}
                 className="block"
-                unoptimized
               />
             ))}
           </div>
@@ -436,7 +435,6 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                   sizes="(max-width: 960px) 100vw, 960px"
                   style={{ width: "100%", height: "auto" }}
                   className="block"
-                  unoptimized
                 />
               )
             })}
@@ -450,7 +448,6 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                 sizes="(max-width: 960px) 100vw, 960px"
                 style={{ width: "100%", height: "auto" }}
                 className="block"
-                unoptimized
               />
             </Link>
             {/* 第三方實驗室檢驗報告 —— 排在「真實回饋」那張的下方（2026-11-08 店主指定）。
@@ -465,7 +462,6 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               sizes="(max-width: 960px) 100vw, 960px"
               style={{ width: "100%", height: "auto" }}
               className="block"
-              unoptimized
             />
 
             {/* Image 11 is 安心保證 */}
@@ -477,7 +473,6 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               sizes="(max-width: 960px) 100vw, 960px"
               style={{ width: "100%", height: "auto" }}
               className="block"
-              unoptimized
             />
 
             {/* 三個並列按鈕 — protein */}
