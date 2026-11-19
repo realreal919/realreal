@@ -54,12 +54,31 @@ type HeroContent = {
   image_position_y?: number // 0–100, default 50
 }
 
+// 主視覺的預設比例（目前那張 1672×941）。width/height 在這裡只負責
+// 「載入前先把位置佔好」與算 srcset，實際寬高由 CSS 的 w-full / h-auto 決定，
+// 所以換一張不同比例的 banner 不會變形，最多是載入瞬間的位移。
+const HERO_RATIO_W = 1672
+const HERO_RATIO_H = 941
+
 function HeroSection({ content }: { content?: HeroContent | null }) {
   const banner = content?.image || "/home/banner.jpg"
 
   return (
     <section>
-      <img src={banner} alt="" className="w-full block" />
+      {/* 首頁流量最大的一張圖。用 next/image 而不是 <img>：主視覺放在
+          Supabase Storage，而那邊回的是 `Cache-Control: private, no-cache`，
+          直接 <img> 等於每個訪客、每次重整都去 Supabase 重抓一次原檔
+          （2026-11 的 Cached Egress 超額就是這樣來的）。走 next/image 之後
+          由 Vercel 抓一次、轉檔縮圖，再從它的 CDN 送出去。 */}
+      <Image
+        src={banner}
+        alt=""
+        width={HERO_RATIO_W}
+        height={HERO_RATIO_H}
+        sizes="100vw"
+        priority
+        className="w-full h-auto block"
+      />
     </section>
   )
 }
