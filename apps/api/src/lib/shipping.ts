@@ -24,7 +24,7 @@ export async function getShippingRule(
 
   // 全家：免運門檻跟著「哪一家超商」走，不跟著付款方式走。
   //
-  // 2026-11-17 店主定案：7-11 滿 699、全家與宅配滿 1200。全家的店到店成本比
+  // 2026-11-20 店主定案：7-11 滿 699、全家與宅配滿 1500（原本 1200）。全家的店到店成本比
   // 7-11 高，但客人眼中兩家是同一件事，所以差別只能出現在門檻上 —— 取貨與取貨
   // 付款共用同一個數字，不然同一家超商會出現兩個免運標準，客服解釋不完。
   //
@@ -34,7 +34,7 @@ export async function getShippingRule(
       (await getSetting(isCod ? "shipping.fee_cvs_cod" : "shipping.fee_cvs")) ?? "80",
     )
     const threshold = Number(
-      (await getSetting("shipping.free_threshold_cvs_family")) ?? "1200",
+      (await getSetting("shipping.free_threshold_cvs_family")) ?? "1500",
     )
     return { fee, free_threshold: threshold }
   }

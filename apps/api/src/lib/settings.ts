@@ -429,10 +429,10 @@ export const SETTING_DEFAULTS: Record<string, string> = {
   "shipping.fee_home_delivery": "150",
   "shipping.fee_cvs": "80",
   "shipping.fee_cvs_cod": "80",
-  "shipping.free_threshold_home": "999",
+  "shipping.free_threshold_home": "1500",
   "shipping.free_threshold_cvs": "649",
   "shipping.free_threshold_cvs_cod": "999",
-  "shipping.free_threshold_cvs_family": "1200",
+  "shipping.free_threshold_cvs_family": "1500",
   "shipping.fee_overseas_cod": "0",
   "logistics.skip_ecpay": "true",
 }

@@ -16,7 +16,7 @@ type Rule = { fee: number; free_threshold: number }
 
 /**
  * cvs / cvsCod 指的是 **7-11**。全家從 2026-11-17 起有自己的免運門檻
- * （7-11 699、全家 1200），所以兩家不能再共用同一句文案。
+ * （7-11 699、全家 1500），所以兩家不能再共用同一句文案。
  *
  * cvsFamily / cvsFamilyCod 是可選的：前台可能比 API 早部署，舊版 /config 還
  * 沒有這兩個欄位。拿不到時退回 7-11 的數字 —— 那是這次改動之前的事實，寧可
@@ -39,7 +39,7 @@ type MethodRow = { key: ShippingMethodKey; label: string; threshold: number }
  *
  * 兩家超商門檻相同時**不分家** —— 講成「7-11 超商取貨、全家超商取貨滿650元
  * 免運」只是把同一個數字說兩次，客人還得自己比對兩句話一不一樣。只有數字真的
- * 不同（2026-11-17 起 7-11 699 / 全家 1200）才拆開，因為那時候不拆就是講錯。
+ * 不同（2026-11-20 起 7-11 699 / 全家 1500）才拆開，因為那時候不拆就是講錯。
  */
 function shippingMethods(s: ShippingConfig): MethodRow[] {
   const family = s.cvsFamily ?? s.cvs
@@ -206,7 +206,7 @@ function bucketLabels(buckets: string[]): string {
  * —— apps/api 的 shippingBucket() 把 7-11 與全家都算成 cvs。所以一個「超商取貨
  * 滿 666 免運」的活動，兩家都吃得到，購物車的提示也要照這個事實展開。
  *
- * 少了這層對照，全家的客人在活動日會看到自己沒有的 1200 門檻。
+ * 少了這層對照，全家的客人在活動日會看到自己沒有的 1500 門檻。
  */
 function campaignMethodKeys(buckets: string[]): ShippingMethodKey[] {
   const map: Record<string, ShippingMethodKey[]> = {
