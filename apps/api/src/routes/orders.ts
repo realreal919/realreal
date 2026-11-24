@@ -1,4 +1,5 @@
 import { Router } from "express"
+import { preorderVariantIds } from "../lib/preorder"
 import * as Sentry from "@sentry/node"
 import { randomBytes } from "crypto"
 import { z } from "zod"
@@ -1232,8 +1233,18 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
   // Use mergedItems so a variant sent as two lines deducts its TOTAL qty once
   // (expandedItems must NOT be used here — its add-on/normal split would
   // double-count the variant in stock math).
-  const variantsPayload = mergedItems.map((i) => ({ id: i.variantId, qty: i.qty }))
-  const stockResp = await supabase.rpc("atomic_deduct_stock", { p_variants: variantsPayload })
+  //
+  // 預購商品整批排除：它的組合規格在資料庫端會展開成單品，而那些單品正是
+  // 缺貨的那幾種 —— 照扣會被 insufficient_stock 擋下來，客人根本下不了單。
+  // 排除之後 atomic_restore_stock 也吃同一份 payload，所以取消時不會回補
+  // 從來沒扣過的量。
+  const preorderIds = await preorderVariantIds(mergedItems.map((i) => i.variantId))
+  const variantsPayload = mergedItems
+    .filter((i) => !preorderIds.has(i.variantId))
+    .map((i) => ({ id: i.variantId, qty: i.qty }))
+  const stockResp = variantsPayload.length
+    ? await supabase.rpc("atomic_deduct_stock", { p_variants: variantsPayload })
+    : { error: null }
   if (stockResp.error) {
     console.error("[orders] atomic_deduct_stock failed:", stockResp.error)
     res.status(409).json({ error: "商品庫存不足" }); return

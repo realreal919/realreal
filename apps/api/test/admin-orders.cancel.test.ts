@@ -204,6 +204,17 @@ function setupSupabaseMocks(
         }),
       } as never
     }
+    if (table === "product_variants") {
+      // preorderVariantIds：restoreOrderStock 先問這一批有沒有預購規格
+      // （預購結帳時沒扣庫存，取消就不該回補）。這裡一筆都沒有 ＝ 全是現貨。
+      return {
+        select: vi.fn().mockReturnValue({
+          in: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        }),
+      } as never
+    }
     return {} as never
   })
 

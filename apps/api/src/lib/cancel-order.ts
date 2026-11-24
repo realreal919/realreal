@@ -1,4 +1,5 @@
 import { supabase } from "./supabase"
+import { preorderVariantIds } from "./preorder"
 import { voidInvoice } from "./amego"
 import { cancelEcpayLogistics } from "./ecpay-logistics"
 import { refundPayment } from "./refund-payment"
@@ -55,8 +56,12 @@ export async function restoreOrderStock(orderId: string): Promise<void> {
     .from("order_items")
     .select("variant_id, qty")
     .eq("order_id", orderId)
+  // 預購商品結帳時就沒扣（見 routes/orders.ts），回補會憑空多出庫存。
+  const preorderIds = await preorderVariantIds(
+    (items ?? []).map((i) => i.variant_id as string).filter(Boolean),
+  )
   const variants = (items ?? [])
-    .filter((i) => i.variant_id && Number(i.qty) > 0)
+    .filter((i) => i.variant_id && Number(i.qty) > 0 && !preorderIds.has(i.variant_id as string))
     .map((i) => ({ id: i.variant_id, qty: Number(i.qty) }))
   if (variants.length === 0) return
   const { error } = await supabase.rpc("atomic_restore_stock", { p_variants: variants })

@@ -14,6 +14,7 @@ type Row = {
   is_active: boolean
   is_featured?: boolean
   is_addon?: boolean
+  is_preorder?: boolean
   is_recommended?: boolean
   display_priority?: number
   created_at: string
@@ -112,7 +113,7 @@ export default function AdminProductsClient({
   // its own /feature endpoint (it also carries display_priority).
   async function toggleFlag(
     id: string,
-    field: "is_active" | "is_addon" | "is_recommended",
+    field: "is_active" | "is_addon" | "is_recommended" | "is_preorder",
     next: boolean,
   ) {
     const prev = rows
@@ -335,6 +336,24 @@ export default function AdminProductsClient({
                     >
                       加購
                     </button>
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => toggleFlag(p.id, "is_preorder", !p.is_preorder)}
+                      title={
+                        p.is_preorder
+                          ? "點擊改回現貨（結帳會檢查庫存）"
+                          : "點擊改成預購（不檢查庫存、結帳不扣庫存）"
+                      }
+                      aria-pressed={!!p.is_preorder}
+                      className={`inline-flex h-8 items-center rounded-md border px-2 text-xs font-medium transition-colors disabled:opacity-50 ${
+                        p.is_preorder
+                          ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                          : "border-zinc-200 text-zinc-400 hover:bg-zinc-100"
+                      }`}
+                    >
+                      預購
+                    </button>
                   </>
                 )}
                 {archived && (
@@ -343,6 +362,7 @@ export default function AdminProductsClient({
                       {p.is_active ? "上架" : "下架"}
                     </Badge>
                     {p.is_addon && <Badge variant="outline">加購</Badge>}
+                    {p.is_preorder && <Badge variant="outline">預購</Badge>}
                     {p.is_recommended && <Badge variant="outline">推薦</Badge>}
                     <Badge variant="outline">已封存</Badge>
                   </>

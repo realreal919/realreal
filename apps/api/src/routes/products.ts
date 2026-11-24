@@ -62,7 +62,14 @@ async function withVisibleVariants<T extends { product_variants?: unknown }>(
     ...row,
     // 先換算可售數量，再過濾停售與排序 —— 換算需要看到同商品的單品規格，
     // 順序反過來的話單品可能已經被濾掉，組合就算不出來。
-    product_variants: visibleSortedVariants(withDerivedStock(allVariants[i], external)),
+    //
+    // 預購商品跳過換算：它賣的就是「現在沒有、等到貨」，照配方回推會讓缺貨
+    // 的口味整個消失，而那正是要預購的那幾種。
+    product_variants: visibleSortedVariants(
+      (row as { is_preorder?: boolean }).is_preorder
+        ? allVariants[i]
+        : withDerivedStock(allVariants[i], external),
+    ),
   }))
 }
 
@@ -92,6 +99,7 @@ const productSchema = z.object({
   is_active: z.boolean().optional(),
   is_featured: z.boolean().optional(),
   is_addon: z.boolean().optional(),
+  is_preorder: z.boolean().optional(),
   is_recommended: z.boolean().optional(),
   // 不公開：照常上架可買，但不出現在任何列表（見 0062 migration）。
   is_unlisted: z.boolean().optional(),
@@ -154,7 +162,7 @@ productsRouter.get("/", async (req, res) => {
 
   let query = supabase
     .from("products")
-    .select("id, name, slug, description, category_id, images, is_active, is_featured, is_addon, is_recommended, is_unlisted, display_priority, created_at, min_tier_id, badge_text, delist_at, membership_tiers!min_tier_id(id, name, min_spend), product_variants(id, sku, name, price, sale_price, addon_price, addon_limit, stock_qty, attributes)", { count: "exact" })
+    .select("id, name, slug, description, category_id, images, is_active, is_featured, is_addon, is_recommended, is_unlisted, is_preorder, display_priority, created_at, min_tier_id, badge_text, delist_at, membership_tiers!min_tier_id(id, name, min_spend), product_variants(id, sku, name, price, sale_price, addon_price, addon_limit, stock_qty, attributes)", { count: "exact" })
     .eq("is_active", true)
     .is("deleted_at", null)
 
@@ -227,7 +235,7 @@ productsRouter.get("/:slug", async (req, res) => {
   const { data, error } = await supabase
     .from("products")
     .select(`
-      id, name, slug, description, excerpt, category_id, images, is_active, is_unlisted, created_at, min_tier_id, badge_text, delist_at,
+      id, name, slug, description, excerpt, category_id, images, is_active, is_unlisted, is_preorder, created_at, min_tier_id, badge_text, delist_at,
       membership_tiers!min_tier_id(id, name, min_spend),
       product_variants (id, sku, name, price, sale_price, addon_price, addon_limit, stock_qty, weight, attributes)
     `)
@@ -256,9 +264,11 @@ productsRouter.get("/:slug", async (req, res) => {
   }
 
   const ownVariants = (product_variants ?? []) as StockVariant[]
-  const externalStock = await externalStockFor([ownVariants])
+  const isPreorder = Boolean((rest as { is_preorder?: boolean }).is_preorder)
+  // 預購商品不從配方回推可售數量 —— 見 lib/preorder.ts
+  const externalStock = isPreorder ? new Map<string, number>() : await externalStockFor([ownVariants])
   const variants = visibleSortedVariants(
-    withDerivedStock(ownVariants, externalStock) as Array<{
+    (isPreorder ? ownVariants : withDerivedStock(ownVariants, externalStock)) as Array<{
       name: string
       attributes?: Record<string, unknown> | null
     }>,
@@ -478,14 +488,19 @@ const toggleSchema = z
     is_addon: z.boolean().optional(),
     is_recommended: z.boolean().optional(),
     is_unlisted: z.boolean().optional(),
+    is_preorder: z.boolean().optional(),
   })
   .refine(
     (v) =>
       v.is_active !== undefined ||
       v.is_addon !== undefined ||
       v.is_recommended !== undefined ||
-      v.is_unlisted !== undefined,
-    { message: "At least one of is_active / is_addon / is_recommended / is_unlisted is required" },
+      v.is_unlisted !== undefined ||
+      v.is_preorder !== undefined,
+    {
+      message:
+        "At least one of is_active / is_addon / is_recommended / is_unlisted / is_preorder is required",
+    },
   )
 
 productsAdminRouter.patch("/:id/toggle", requireAuth, requireEditor, async (req, res) => {
@@ -496,7 +511,7 @@ productsAdminRouter.patch("/:id/toggle", requireAuth, requireEditor, async (req,
     .from("products")
     .update(parsed.data)
     .eq("id", req.params.id)
-    .select("id, is_active, is_addon, is_recommended, is_unlisted")
+    .select("id, is_active, is_addon, is_recommended, is_unlisted, is_preorder")
     .single()
 
   if (error) { res.status(500).json({ error: error.message }); return }
