@@ -1,5 +1,14 @@
 import { renderMembershipCta } from "./membership-cta"
 
+/** 備註是客人自己打的字，一定要跳脫後才能塞進 HTML。 */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+}
+
 export function renderPaymentConfirmed(data: {
   orderNumber: string
   amount: string
@@ -19,6 +28,12 @@ export function renderPaymentConfirmed(data: {
    * `email-template-db-override` memory. Confirmed empty as of 2026-08-30.
    */
   isGuestOrder?: boolean
+  /**
+   * 客人在結帳頁填的備註。2026-11-24 加上：在這之前客人送出之後就再也看不到
+   * 自己寫了什麼 —— 而「任選 3 袋／5 袋／30 包」的口味全靠這一欄，想核對只能
+   * 寫信問客服。沒填就整段不顯示。
+   */
+  notes?: string | null
 }): string {
   const itemRows = data.items.map(item =>
     `<tr>
@@ -36,6 +51,11 @@ export function renderPaymentConfirmed(data: {
 
   const membershipCtaHtml = data.isGuestOrder ? renderMembershipCta(data.orderNumber) : ""
 
+  const note = (data.notes ?? "").trim()
+  const notesRow = note
+    ? `<tr><td style="padding:6px 0;color:#687279;vertical-align:top">您的備註</td><td style="padding:6px 0;white-space:pre-wrap">${escapeHtml(note)}</td></tr>`
+    : ""
+
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:sans-serif;color:#333;max-width:600px;margin:0 auto;padding:20px">
     <h1 style="color:#10305a;border-bottom:2px solid #10305a;padding-bottom:8px">誠真生活 RealReal</h1>
     <p>親愛的 ${data.customerName}，</p>
@@ -46,6 +66,7 @@ export function renderPaymentConfirmed(data: {
       <tr><td style="padding:6px 0;color:#687279;vertical-align:top">付款方式</td><td style="padding:6px 0">線上付款</td></tr>
       <tr><td style="padding:6px 0;color:#687279;vertical-align:top">取貨方式</td><td style="padding:6px 0">${data.pickupInfo}</td></tr>
       <tr><td style="padding:6px 0;color:#687279;vertical-align:top">商品</td><td style="padding:6px 0"><table style="width:100%">${itemRows}</table></td></tr>
+      ${notesRow}
     </table>
     ${codNoticeHtml}
     ${membershipCtaHtml}

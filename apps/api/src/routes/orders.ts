@@ -1885,6 +1885,9 @@ ordersRouter.get("/:id", requireAuth, async (req, res) => {
       charity_points: charityPoints,
       member_tier: memberTier,
       metadata: (order as Record<string, unknown>).metadata ?? null,
+      // 客人在結帳頁填的備註。這是白名單式回傳，2026-11-24 之前沒有這一欄，
+      // 所以客人送出訂單後就再也看不到自己寫了什麼。
+      notes: (order as Record<string, unknown>).notes ?? null,
       campaign_names: campaignNames,
       member_coupon: usedCoupon
         ? { code: (usedCoupon as { code: string | null }).code, amount: Number((usedCoupon as { amount: number }).amount) }

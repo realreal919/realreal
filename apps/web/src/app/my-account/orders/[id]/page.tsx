@@ -47,6 +47,11 @@ type OrderDetail = {
   member_tier?: { name: string; rebate_rate: number } | null
   metadata?: { coupon_code?: string | null; coupon_discount?: number | null } | null
   campaign_names?: string[]
+  /**
+   * 客人結帳時自己填的備註。2026-11-24 加上 —— 在這之前他送出訂單後就再也
+   * 看不到自己寫了什麼，而「任選 3 袋／5 袋／30 包」的口味全靠這一欄。
+   */
+  notes?: string | null
   /** 會員券（感謝券／回購券），API 由 member_coupons.used_order_id 反查 */
   member_coupon?: { code?: string | null; amount: number } | null
   /**
@@ -361,6 +366,14 @@ export default async function OrderDetailPage({
             )}
           </div>
         </div>
+        {order.notes?.trim() && (
+          <div>
+            <h2 className="text-lg font-semibold mb-3 text-[#10305a]">訂單備註</h2>
+            <div className="p-4 bg-zinc-50 rounded-lg text-sm whitespace-pre-wrap text-zinc-700">
+              {order.notes.trim()}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

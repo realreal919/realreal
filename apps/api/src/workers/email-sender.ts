@@ -5,7 +5,6 @@
  */
 import { sendEmail } from "../lib/email"
 import { supabase } from "../lib/supabase"
-import { renderOrderConfirmation } from "../emails/OrderConfirmation"
 import { renderPaymentConfirmed } from "../emails/PaymentConfirmed"
 import { renderOrderShipped } from "../emails/OrderShipped"
 import { renderPaymentReminder } from "../emails/PaymentReminder"
@@ -20,8 +19,7 @@ import { renderSubscriptionBilled } from "../emails/SubscriptionBilled"
 import { renderSubscriptionFailed } from "../emails/SubscriptionFailed"
 
 export type EmailJobData =
-  | { template: "order-confirmation"; to: string; data: { orderNumber: string; items: any[]; total: string; address: string } }
-  | { template: "payment-confirmed"; to: string; data: { orderNumber: string; amount: string; customerName: string; items: Array<{ name: string; qty: number; price: string }>; pickupInfo: string; codNotice?: string; isGuestOrder?: boolean } }
+  | { template: "payment-confirmed"; to: string; data: { orderNumber: string; amount: string; customerName: string; items: Array<{ name: string; qty: number; price: string }>; pickupInfo: string; codNotice?: string; isGuestOrder?: boolean; notes?: string | null } }
   // invoiceNumber / invoiceDate 不是派送端填的，是寄信前由 attachInvoiceInfo()
   // 去資料庫補上的（見 renderAndSendEmail）。
   | { template: "order-shipped"; to: string; data: { orderNumber: string; customerName: string; codAmount?: number | null; pickupInfo?: string | null; invoiceNumber?: string | null; invoiceDate?: string | null } }
@@ -43,7 +41,6 @@ function replaceTemplateVars(html: string, data: Record<string, string>): string
 
 /** Map template name to site_contents key */
 const TEMPLATE_KEY_MAP: Record<string, string> = {
-  "order-confirmation": "email_order_confirmation",
   "payment-confirmed": "email_payment_confirmed",
   "order-shipped": "email_order_shipped",
   "tier-upgrade": "email_tier_upgrade",
@@ -111,11 +108,6 @@ function flattenData(template: string, data: Record<string, any>): Record<string
   }
   if (template === "tier-downgraded" && typeof data.nextRequalifyAmount === "number") {
     vars.formattedRequalifyAmount = data.nextRequalifyAmount.toLocaleString("en-US")
-  }
-  if (template === "order-confirmation" && Array.isArray(data.items)) {
-    vars.itemRows = data.items.map((item: any) =>
-      `<tr><td style="padding:8px;border-bottom:1px solid #eee">${item.name}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${item.qty}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">NT$${item.price}</td></tr>`
-    ).join("")
   }
   return vars
 }
@@ -186,10 +178,6 @@ export async function renderAndSendEmail(jobData: EmailJobData): Promise<void> {
   let html: string
 
   switch (template) {
-    case "order-confirmation":
-      subject = `訂單確認 #${data.orderNumber}`
-      html = renderOrderConfirmation(data)
-      break
     case "payment-confirmed":
       subject = `付款成功 #${data.orderNumber}`
       html = renderPaymentConfirmed(data)

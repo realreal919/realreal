@@ -222,6 +222,7 @@ export async function enqueuePostPaymentJobs(
             pickupInfo,
             codNotice,
             isGuestOrder: !order.user_id,
+            notes: (order as { notes?: string | null }).notes ?? null,
           },
         })
       } catch (err) {

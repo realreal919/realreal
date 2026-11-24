@@ -26,3 +26,23 @@ describe("renderPaymentConfirmed — membership CTA", () => {
     expect(html).toContain("/checkout/confirm?order=RR20260830001")
   })
 })
+
+describe("renderPaymentConfirmed — 客人的訂單備註", () => {
+  it("沒填備註時整列不出現", () => {
+    expect(renderPaymentConfirmed(baseData)).not.toContain("您的備註")
+    expect(renderPaymentConfirmed({ ...baseData, notes: "   " })).not.toContain("您的備註")
+    expect(renderPaymentConfirmed({ ...baseData, notes: null })).not.toContain("您的備註")
+  })
+
+  it("有填就原樣顯示 —— 任選組合的口味全靠這一欄", () => {
+    const html = renderPaymentConfirmed({ ...baseData, notes: "草莓2、可可1、火龍果1、芝麻1" })
+    expect(html).toContain("您的備註")
+    expect(html).toContain("草莓2、可可1、火龍果1、芝麻1")
+  })
+
+  it("跳脫 HTML，客人打的角括號不會變成標籤", () => {
+    const html = renderPaymentConfirmed({ ...baseData, notes: '<script>alert("x")</script>' })
+    expect(html).not.toContain("<script>")
+    expect(html).toContain("&lt;script&gt;")
+  })
+})
