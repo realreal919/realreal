@@ -173,14 +173,11 @@ export default async function CategoryLandingPage({
             {preorderProducts.length > 0 && (
               <div className="mt-14 border-t border-zinc-100 pt-12">
                 <h2
-                  className="text-2xl md:text-3xl font-semibold"
+                  className="text-2xl md:text-3xl font-semibold mb-6"
                   style={{ color: "#10305a" }}
                 >
                   預購商品區
                 </h2>
-                <p className="text-sm md:text-base text-zinc-500 mt-1 mb-6">
-                  獨立商品入口，供固定飲用、有大量囤貨需求且願意等待的消費者選購。
-                </p>
                 <ProductGrid products={preorderProducts} categories={categories} />
               </div>
             )}
