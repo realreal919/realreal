@@ -170,17 +170,23 @@ export default async function CategoryLandingPage({
                 </div>
               )
             })}
-            {preorderProducts.length > 0 && (
-              <div className="mt-14 border-t border-zinc-100 pt-12">
-                <h2
-                  className="text-2xl md:text-3xl font-semibold mb-6"
-                  style={{ color: "#10305a" }}
-                >
-                  預購商品區
-                </h2>
+            {/*
+              * 預購商品區。商品還沒開賣時這一段照樣出現 —— 標題加一句「規劃中，
+              * 即將推出」，讓逛蛋白粉的人先知道有這件事；有商品了就換成商品格。
+              */}
+            <div className="mt-14 border-t border-zinc-100 pt-12">
+              <h2
+                className="text-2xl md:text-3xl font-semibold mb-6"
+                style={{ color: "#10305a" }}
+              >
+                預購商品區
+              </h2>
+              {preorderProducts.length > 0 ? (
                 <ProductGrid products={preorderProducts} categories={categories} />
-              </div>
-            )}
+              ) : (
+                <p className="text-sm md:text-base text-zinc-500">規劃中，即將推出。</p>
+              )}
+            </div>
           </>
         ) : (
           <>
@@ -190,7 +196,12 @@ export default async function CategoryLandingPage({
             >
               {category.name}
             </h2>
-            <ProductGrid products={products ?? []} categories={categories} />
+            {(products ?? []).length > 0 ? (
+              <ProductGrid products={products ?? []} categories={categories} />
+            ) : (
+              // 空分類本來會印一塊什麼都沒有的格子，看起來像壞掉。
+              <p className="text-sm md:text-base text-zinc-500">規劃中，即將推出。</p>
+            )}
           </>
         )}
       </section>
