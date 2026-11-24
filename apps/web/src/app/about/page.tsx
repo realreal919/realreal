@@ -131,7 +131,8 @@ export default async function AboutPage() {
             </div>
 
             {/* 收尾句：整個故事區塊只有這一句是這個份量。 */}
-            <p className="mt-8 text-xl md:text-[1.375rem] font-semibold leading-[1.8] text-[#10305a]">
+            {/* 比區塊標題（text-2xl）小一階：它是收尾句，不是另一個標題。 */}
+            <p className="mt-8 text-lg md:text-xl font-semibold leading-[1.8] text-[#10305a]">
               從好好照顧自己開始，讓美好的事一點一點發生。
             </p>
 
@@ -150,7 +151,7 @@ export default async function AboutPage() {
             品牌願景 <span className="font-normal text-[#a09080]">Our Vision</span>
           </h2>
 
-          <h3 className="mt-8 mb-10 text-center text-xl md:text-2xl font-semibold leading-[1.8] text-[#10305a]">
+          <h3 className="mt-8 mb-10 text-center text-lg md:text-xl font-semibold leading-[1.8] text-[#10305a]">
             願更多人在照顧自己的同時，<br className="sm:hidden" />也有餘裕照亮他人。
           </h3>
 
