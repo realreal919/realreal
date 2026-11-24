@@ -57,21 +57,6 @@ export default async function AboutPage() {
       {/* ── 品牌故事 ── */}
       <section className="container mx-auto px-4 pt-16 pb-14">
 
-        <h2 className="text-2xl font-bold text-[#10305a] text-center">
-          品牌故事 <span className="font-normal text-[#a09080]">Our Story</span>
-        </h2>
-
-        {/* 開場：業界前輩的那段話。整個故事從這裡長出來，所以它不是內文的一部分。 */}
-        <figure className="mx-auto mt-10 mb-12 max-w-2xl text-center">
-          <blockquote className="text-lg md:text-xl leading-[2] text-[#10305a]">
-            「食品業要賺錢啊，不是要做得好吃，就是要 CP 值高，<br className="hidden md:block" />
-            所以就算我有能力做養生的東西，我也不敢做啊。」
-          </blockquote>
-          <figcaption className="mt-5 text-sm text-[#a09080]">
-            —— 一場與食品業大老的對話
-          </figcaption>
-        </figure>
-
         <div className="flex flex-col md:flex-row gap-10 md:gap-16 items-start">
 
           {/* 創辦人照片。桌機黏在側邊，讓長文往上捲時臉還在。 */}
@@ -92,13 +77,27 @@ export default async function AboutPage() {
 
           <div className="flex-1 min-w-0">
 
+            <h2 className="text-2xl font-bold text-[#10305a]">
+              品牌故事 <span className="font-normal text-[#a09080]">Our Story</span>
+            </h2>
+
+            {/* 開場：業界前輩的那段話。整個故事從這裡長出來，所以它不是內文的一部分。 */}
+            <figure className="mt-7 mb-8 border-l-2 border-[#10305a]/25 pl-5">
+              <blockquote className="text-lg md:text-xl leading-[2] text-[#10305a]">
+                「食品業要賺錢啊，不是要做得好吃，就是要 CP 值高，所以就算我有能力做養生的東西，我也不敢做啊。」
+              </blockquote>
+              <figcaption className="mt-4 text-sm text-[#a09080]">
+                —— 一場與食品業大老的對話
+              </figcaption>
+            </figure>
+
             <div className="space-y-5 text-[#687279] leading-[1.9]">
               <p>這番話讓我開始思考，也埋下了創辦誠真生活的種子。</p>
               <p>
                 在乎健康、願意為自己的身體付諸行動的人，或許仍是市場上的少數。但如果市場始終沒有更多兼顧品質與價格的選擇，又要如何讓更多人開始實踐健康生活？
               </p>
               <p>
-                不是每個人都有足夠的預算購買昂貴的食品，也不是每個人都有時間與能力為自己料理一日三餐。
+                不是每個人都有足夠的預算購買有機食品，也不是每個人都有時間與能力為自己料理一日三餐。
               </p>
               <p className="text-[#10305a] font-medium text-[1.0625rem]">
                 難道想好好照顧自己，就只能在品質、價格與便利之間不斷妥協嗎？
@@ -138,7 +137,7 @@ export default async function AboutPage() {
 
             <hr className="my-8 border-zinc-200" />
 
-            <p className="text-sm text-[#a09080]">創辦人 尹昕</p>
+            <p className="text-right text-sm text-[#a09080]">創辦人 尹昕</p>
           </div>
         </div>
       </section>
@@ -157,9 +156,16 @@ export default async function AboutPage() {
 
           <div className="mx-auto max-w-2xl space-y-5 text-center text-[#687279] leading-[1.9]">
             <p>我們相信，健康不只是身體的狀態，更是一種與自己、與世界相處的方式。</p>
-            <p>當身體得到滋養，內心有了餘裕，我們便更有力量去愛、去分享，也去關懷那些需要幫助的人。</p>
+            {/* 斷句是店主指定的（2026-11-24）。手機寬度放不下，讓它自然斷行就好。 */}
             <p>
-              誠真生活希望透過滋養身心的產品、知識與行動，降低實踐健康生活的門檻，讓照顧自己與善待世界，成為可以同時存在的選擇。
+              當身體得到滋養，內心有了餘裕，我們便更有力量去愛、去分享，
+              <br className="hidden md:inline" />
+              也去關懷那些需要幫助的人。
+            </p>
+            <p>
+              誠真生活希望透過滋養身心的產品、知識與行動，降低實踐健康生活的門檻，
+              <br className="hidden md:inline" />
+              讓照顧自己與善待世界，成為可以同時存在的選擇。
             </p>
           </div>
 
