@@ -115,10 +115,16 @@ export default async function CategoryLandingPage({
   const isProtein = slug === "plant-based-powder"
   const isFruit = slug === "freeze-dried"
 
-  const [{ data: products }, categories] = await Promise.all([
+  const [{ data: products }, categories, preorder] = await Promise.all([
     getProducts({ category: slug, limit: 24, sort: "price_desc" }),
     getCategories(),
+    // 預購商品自己是一個分類（獨立入口），但蛋白粉頁要在最後帶到它 —— 會買
+    // 整箱的人是從蛋白粉逛進來的，不會先知道有這個分類。
+    isProtein
+      ? getProducts({ category: "preorder", limit: 12, sort: "price_desc" })
+      : Promise.resolve({ data: [] }),
   ])
+  const preorderProducts = preorder.data ?? []
 
   const blocks = category.feature_blocks ?? []
   const tagline = category.tagline ?? category.name
@@ -164,6 +170,20 @@ export default async function CategoryLandingPage({
                 </div>
               )
             })}
+            {preorderProducts.length > 0 && (
+              <div className="mt-14 border-t border-zinc-100 pt-12">
+                <h2
+                  className="text-2xl md:text-3xl font-semibold"
+                  style={{ color: "#10305a" }}
+                >
+                  預購商品區
+                </h2>
+                <p className="text-sm md:text-base text-zinc-500 mt-1 mb-6">
+                  獨立商品入口，供固定飲用、有大量囤貨需求且願意等待的消費者選購。
+                </p>
+                <ProductGrid products={preorderProducts} categories={categories} />
+              </div>
+            )}
           </>
         ) : (
           <>
