@@ -24,7 +24,7 @@ export async function getShippingRule(
 
   // 全家：免運門檻跟著「哪一家超商」走，不跟著付款方式走。
   //
-  // 2026-11-20 店主定案：7-11 滿 699、全家與宅配滿 1500（原本 1200）。全家的店到店成本比
+  // 2026-11-26 店主定案：7-11 滿 899（原本 699）、全家與宅配滿 1500。全家的店到店成本比
   // 7-11 高，但客人眼中兩家是同一件事，所以差別只能出現在門檻上 —— 取貨與取貨
   // 付款共用同一個數字，不然同一家超商會出現兩個免運標準，客服解釋不完。
   //
@@ -42,7 +42,7 @@ export async function getShippingRule(
   // 超商取貨付款（代收貨款）：使用專屬費率，滿專屬門檻同樣享免運
   if (isCod) {
     const fee = Number((await getSetting("shipping.fee_cvs_cod")) ?? "80")
-    const threshold = Number((await getSetting("shipping.free_threshold_cvs_cod")) ?? "999")
+    const threshold = Number((await getSetting("shipping.free_threshold_cvs_cod")) ?? "899")
     return { fee, free_threshold: threshold }
   }
 
@@ -53,7 +53,12 @@ export async function getShippingRule(
     : "shipping.free_threshold_cvs"
 
   const fee = Number((await getSetting(feeKey)) ?? "80")
-  const threshold = Number((await getSetting(thresholdKey)) ?? "0")
+  // 7-11 的退路是 899、宅配是 1500 —— 跟 SETTING_DEFAULTS 一致。原本 7-11 寫 "0"
+  // （等於「沒有免運」），Supabase 停權那次 getSetting 全部回 null，前台就顯示
+  // 成完全沒有免運門檻。退路寫成現行政策，至少掉線時講的還是對的數字。
+  const threshold = Number(
+    (await getSetting(thresholdKey)) ?? (isHome ? "1500" : "899"),
+  )
 
   return { fee, free_threshold: threshold }
 }

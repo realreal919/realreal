@@ -90,10 +90,12 @@ export function StorefrontShell({
   children,
   categories,
   headerUser,
+  hasInstockOffers = false,
 }: {
   children: React.ReactNode
   categories: Category[]
   headerUser: { initial: string } | null
+  hasInstockOffers?: boolean
 }) {
   const pathname = usePathname()
   const isAdmin = pathname.startsWith("/admin")
@@ -105,7 +107,7 @@ export function StorefrontShell({
   return (
     <>
       <AnnouncementBar />
-      <Header categories={categories} headerUser={headerUser} />
+      <Header categories={categories} headerUser={headerUser} hasInstockOffers={hasInstockOffers} />
       <main className="min-h-[calc(100vh-4rem)]">{children}</main>
       <Footer />
     </>

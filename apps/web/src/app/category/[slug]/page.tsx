@@ -10,6 +10,7 @@ import {
   PROTEIN_SERIES_ORDER,
   classifyProteinProduct,
 } from "@/lib/protein-series"
+import { INSTOCK_ANCHOR } from "@/lib/instock-offers"
 
 const FRUIT_SLIDES = [
   {
@@ -156,7 +157,13 @@ export default async function CategoryLandingPage({
               if (group.length === 0) return null
               const meta = PROTEIN_SERIES_META[series]
               return (
-                <div key={series} className="mb-14 last:mb-0">
+                <div
+                  key={series}
+                  // 導覽列與首頁都連到「現貨優惠組合」這一區。scroll-mt 是給
+                  // sticky header 讓位的，不然錨點會把標題頂到表頭底下看不見。
+                  id={series === "instock" ? INSTOCK_ANCHOR : undefined}
+                  className="mb-14 last:mb-0 scroll-mt-28"
+                >
                   <h2
                     className="text-2xl md:text-3xl font-semibold"
                     style={{ color: "#10305a" }}

@@ -7,6 +7,7 @@ import { ReferralCapture } from "@/components/ReferralCapture"
 import { Analytics } from "@/components/Analytics"
 import { API_URL } from "@/lib/api-url"
 import { getCategories } from "@/lib/catalog"
+import { getInstockOffers } from "@/lib/instock-offers"
 import { createClient } from "@/lib/supabase/server"
 import "./globals.css"
 
@@ -82,8 +83,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // through StorefrontShell so Header/Footer can render the right dropdown +
   // an avatar-style account chip when the user is logged in.
   const supabase = await createClient()
-  const [categories, { data: { user } }, ga4MeasurementId] = await Promise.all([
+  const [categories, instockOffers, { data: { user } }, ga4MeasurementId] = await Promise.all([
     getCategories(),
+    getInstockOffers(),
     supabase.auth.getUser(),
     getGa4MeasurementId(),
   ])
@@ -108,7 +110,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <KolRefCapture />
           <ReferralCapture />
         </Suspense>
-        <StorefrontShell categories={categories} headerUser={headerUser}>
+        <StorefrontShell
+          categories={categories}
+          headerUser={headerUser}
+          hasInstockOffers={instockOffers.length > 0}
+        >
           {children}
         </StorefrontShell>
         <Toaster />

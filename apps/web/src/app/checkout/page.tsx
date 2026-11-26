@@ -110,7 +110,7 @@ type ShippingCfg = {
  *
  * 金額落在兩個門檻中間時，客人只會看到「我明明有到免運卻被收運費」。兩種情況
  * 都要講：
- *   1. 選了全家，但這筆金額在 7-11 就免運（2026-11-20 起 7-11 699 / 全家 1500）
+ *   1. 選了全家，但這筆金額在 7-11 就免運（2026-11-26 起 7-11 899 / 全家 1500）
  *   2. 取貨付款的門檻比一般取貨高（代收貨款有額外成本）
  *
  * 寫成元件而不是直接塞在某一區 —— 超商取貨與超商取貨付款是兩塊各自獨立的
@@ -313,7 +313,7 @@ export default function CheckoutPage() {
   const [selectedAddressId, setSelectedAddressId] = useState<string>("")
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null)
   // Live free-shipping thresholds, so the COD hint below can name real numbers.
-  // cvs / cvsCod 是 7-11，cvsFamily* 是全家 —— 兩家門檻不同（699 / 1500）。
+  // cvs / cvsCod 是 7-11，cvsFamily* 是全家 —— 兩家門檻不同（899 / 1500）。
   const [shippingCfg, setShippingCfg] = useState<{
     cvs: { free_threshold: number }
     cvsCod: { free_threshold: number }

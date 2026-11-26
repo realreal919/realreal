@@ -6,26 +6,36 @@ import { useState, useRef, useEffect, useMemo } from "react"
 import { Menu, X, User, ChevronDown } from "lucide-react"
 import { CartButton } from "@/components/cart/CartButton"
 import type { Category } from "@/lib/catalog"
+import { INSTOCK_HREF, INSTOCK_TITLE } from "@/lib/instock-offers"
 
 export function Header({
   categories,
   headerUser,
+  hasInstockOffers = false,
 }: {
   categories: Category[]
   headerUser: { initial: string } | null
+  /** 現在有沒有在檔的現貨優惠組合 —— 沒有就不列那一項（見 lib/instock-offers）。 */
+  hasInstockOffers?: boolean
 }) {
   // 了解產品 dropdown children come from DB (spec P).
   // - Skip "all" (WooCommerce legacy)
   // - Hide categories with 0 products (user choice; empty pages hidden until populated)
   // - Sort by sort_order
+  //
+  // 「現貨優惠組合」不是一個分類（那兩個組合要留在植物蛋白粉底下，一個商品只能
+  // 掛一個分類），所以它是手動的一項，連到蛋白粉頁的那一區。沒有在檔的組合時
+  // 不列 —— 導覽列每一頁都看得到，空入口的代價比其他地方都大。
   const productChildren = useMemo(
-    () =>
-      categories
+    () => [
+      ...(hasInstockOffers ? [{ href: INSTOCK_HREF, label: INSTOCK_TITLE }] : []),
+      ...categories
         .filter((c) => c.slug !== "all")
         .filter((c) => (c.product_count ?? 0) > 0)
         .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
         .map((c) => ({ href: `/category/${c.slug}`, label: c.name })),
-    [categories],
+    ],
+    [categories, hasInstockOffers],
   )
 
   const NAV_LINKS = useMemo(

@@ -10,7 +10,12 @@ import type { Metadata } from "next"
 import { TestimonialsCarousel } from "@/components/ui/testimonials-carousel"
 import { RetailCarousel } from "@/components/ui/retail-carousel"
 import { ProductCard } from "@/components/catalog/ProductCard"
-import { classifyProteinProduct } from "@/lib/protein-series"
+import {
+  getInstockOffers,
+  INSTOCK_HREF,
+  INSTOCK_SUBTITLE,
+  INSTOCK_TITLE,
+} from "@/lib/instock-offers"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
 
@@ -37,23 +42,6 @@ async function getPinnedProducts(): Promise<Product[]> {
     if (data.length > 0) return data
     const { data: fallback } = await getProducts({ limit: 8 })
     return fallback
-  } catch {
-    return []
-  }
-}
-
-/**
- * 首頁的「現貨優惠組合」—— 跟蛋白粉分類頁的那一區同一批商品。
- *
- * 用 classifyProteinProduct 而不是另外寫一份條件：判準只有一個地方
- * （規格 attributes 的「現貨優惠組」標記），店主在後台加上或刪掉那一欄，
- * 分類頁和首頁會同時跟著變。兩邊各寫一份的話，活動結束只下架一邊，
- * 首頁就會留著一個點進去已經沒有的區塊。
- */
-async function getInstockOffers(): Promise<Product[]> {
-  try {
-    const { data } = await getProducts({ category: "plant-based-powder", limit: 24, sort: "price_desc" })
-    return data.filter((p) => classifyProteinProduct(p) === "instock")
   } catch {
     return []
   }
@@ -525,11 +513,11 @@ export default async function HomePage() {
       {/* 1a-2. 現貨優惠組合 —— 沒有在檔的組合時整區不出現 */}
       {instockOffers.length > 0 && (
         <ProductSection
-          title="現貨優惠組合"
-          subtitle="補給不中斷。"
+          title={INSTOCK_TITLE}
+          subtitle={`${INSTOCK_SUBTITLE}。`}
           products={instockOffers}
           moreLabel="看所有蛋白粉 →"
-          moreHref="/category/plant-based-powder"
+          moreHref={INSTOCK_HREF}
         />
       )}
 
