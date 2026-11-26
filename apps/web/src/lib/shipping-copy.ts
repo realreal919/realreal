@@ -7,8 +7,8 @@
  * 想到它也在講同一件事。
  *
  * 2026-11-26 起 7-11 多了一道階梯（滿 699 運費 40、滿 999 免運，取貨與取貨付款
- * 都算），來源收在 shippingSteps()。它只出現在 FAQ —— 跑馬燈那邊店主要求只講
- * 「滿999元免運」一句，不要兩句並排。
+ * 都算），來源收在 shippingSteps()。跑馬燈把它與免運併成一句（「…滿699元運費
+ * 40元．滿999元免運」），FAQ 則各自成句 —— 語氣各自保留，數字同一份來源。
  *
  * 後台改一個數字，兩個地方要一起變，唯一可靠的辦法是它們讀同一份資料、走同一
  * 段分組邏輯。文案語氣各自保留（跑馬燈講「999元」，FAQ 講「NT$999」），但
@@ -182,17 +182,47 @@ function collapseCvsLabels(labels: string[]): string[] {
 /**
  * 跑馬燈用：短句，口語的「元」。
  *
- * **只講免運，不講階梯。** 店主 2026-11-26 決定把「滿699元運費40元」與
- * 「滿999元免運」併成後面那一句 —— 跑馬燈是一瞥而過的介面，同一個通路的兩句
- * 運費條件並排，讀起來像兩個互相矛盾的承諾。階梯留在 FAQ「運費如何計算？」，
- * 那裡本來就是把運費講清楚的地方（見 shippingFeeAnswer）。
+ * 7-11 的階梯與免運併成同一句，用「．」分隔：
+ *
+ *   7-11 超商取貨滿699元運費40元．滿999元免運
+ *
+ * 店主 2026-11-26 的最終版。中間試過兩句並排、也試過只講免運那句：並排在滾動
+ * 的跑馬燈上像兩個互相矛盾的承諾，只講免運則漏掉了 699 那一階。一句講完整道
+ * 階梯，客人不必自己把兩句湊起來，也不會只看到其中一半。
+ *
+ * 併的對象只能是「標籤剛好就是 7-11 的那一組」。階梯只屬於 7-11（見
+ * shippingSteps），門檻碰巧跟全家或宅配相同而被分到同一組時就不能併 —— 那會
+ * 變成對全家承諾 40 元運費。那種情形讓階梯回去自己一句，寧可多一句也不要講錯。
  */
 export function marqueeShippingMessages(s: ShippingConfig | null): string[] {
-  return freeShippingGroups(s).map((g) =>
-    g.coversEveryMethod
+  const steps = shippingSteps(s)
+  const stepClauses = steps.map((t) => `滿${t.at}元運費${t.fee}元`)
+  const stepLabel = steps[0]?.label
+
+  // 階梯能不能併進免運那一句：要有階梯，而且那一組的標籤剛好只有 7-11 自己。
+  const canMerge = (g: FreeShippingGroup) =>
+    stepClauses.length > 0 &&
+    !g.coversEveryMethod &&
+    g.labels.length === 1 &&
+    g.labels[0] === stepLabel
+
+  const free = freeShippingGroups(s)
+  const merged = free.some(canMerge)
+
+  const lines = free.map((g) => {
+    if (canMerge(g)) {
+      return `${g.labels[0]}${stepClauses.join("．")}．滿${g.threshold}元免運`
+    }
+    return g.coversEveryMethod
       ? `全站消費滿${g.threshold}元免運`
-      : `${g.labels.join("、")}滿${g.threshold}元免運`,
-  )
+      : `${g.labels.join("、")}滿${g.threshold}元免運`
+  })
+
+  // 併不進去的時候，階梯仍然要講 —— 自己一句，排在最前面（金額最低）。
+  if (stepClauses.length > 0 && !merged) {
+    return [...steps.map((t) => `${t.label}滿${t.at}元運費${t.fee}元`), ...lines]
+  }
+  return lines
 }
 
 /** FAQ「運費如何計算？」的完整答案，含各方式運費與免運門檻。 */

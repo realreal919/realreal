@@ -295,12 +295,8 @@ describe("7-11 與全家門檻不同", () => {
  * 階梯運費（2026-11-26 起）：7-11 滿 699 運費 40、滿 999 免運。取貨與取貨付款
  * 都適用（店主 2026-11-26 指定），全家與宅配不適用。
  *
- * **跑馬燈不講階梯。** 店主 2026-11-26 決定那兩句合併成一句「7-11 超商取貨滿
- * 999元免運」—— 跑馬燈是一瞥而過的介面，兩句同一個通路的運費條件並排，讀起來
- * 像兩個互相矛盾的承諾。階梯留在 FAQ「運費如何計算？」那一題，那裡本來就是
- * 把三種方式的運費講清楚的地方。
- *
- * 所以這組鎖的是：FAQ 要講、跑馬燈不要講，而且兩邊仍然只有一份來源。
+ * 跑馬燈把階梯與免運併成一句（「…滿699元運費40元．滿999元免運」），FAQ 則
+ * 各自成句。語氣各自保留，數字同一份來源 —— 這個檔案存在的理由就是後者。
  */
 const LADDER: ShippingConfig = {
   cvs: { fee: 80, free_threshold: 999, steps: [{ at: 699, fee: 40 }] },
@@ -311,14 +307,14 @@ const LADDER: ShippingConfig = {
 }
 
 describe("階梯運費文案", () => {
-  it("★ 跑馬燈只留免運那句，不提階梯", () => {
+  // 跑馬燈改成「階梯與免運併成一句」（店主 2026-11-26 最終版），詳細的斷言在
+  // 下面「跑馬燈：7-11 階梯與免運併句」那一組。這裡只確認 7-11 仍然是一句。
+  it("★ 跑馬燈的 7-11 是一句，含階梯與免運", () => {
     const msgs = marqueeShippingMessages(LADDER)
     expect(msgs).toEqual([
-      "7-11 超商取貨滿999元免運",
+      "7-11 超商取貨滿699元運費40元．滿999元免運",
       "全家超商取貨、宅配滿1500元免運",
     ])
-    expect(msgs.join("")).not.toContain("699")
-    expect(msgs.join("")).not.toContain("運費40元")
   })
 
   it("★ FAQ 要講階梯，而且不加「非取貨付款」—— 兩種付款方式都是 40", () => {
@@ -353,5 +349,75 @@ describe("階梯運費文案", () => {
     expect(shippingSteps(LADDER)).toEqual([
       { label: "7-11 超商取貨", at: 699, fee: 40 },
     ])
+  })
+})
+
+/**
+ * 跑馬燈的 7-11 那一句：階梯與免運併成同一句，用「．」分隔。
+ *
+ *   7-11 超商取貨滿699元運費40元．滿999元免運
+ *
+ * 店主 2026-11-26 第三次調整。先是兩句並排，再是只留免運那句，最後決定併成
+ * 一句 —— 一句講完整道階梯，客人不必在滾動的跑馬燈上自己把兩句湊起來，也不會
+ * 只看到其中一半。
+ *
+ * 併的對象只能是「標籤剛好就是 7-11 的那一組」。門檻碰巧跟全家或宅配相同而被
+ * 分到同一組時不能併 —— 那會變成對全家承諾 40 元運費。那種情形就讓階梯回去
+ * 自己一句。
+ */
+describe("跑馬燈：7-11 階梯與免運併句", () => {
+  const LIVE: ShippingConfig = {
+    cvs: { fee: 80, free_threshold: 999, steps: [{ at: 699, fee: 40 }] },
+    cvsCod: { fee: 80, free_threshold: 999, steps: [{ at: 699, fee: 40 }] },
+    cvsFamily: { fee: 80, free_threshold: 1500 },
+    cvsFamilyCod: { fee: 80, free_threshold: 1500 },
+    home: { fee: 150, free_threshold: 1500 },
+  }
+
+  it("★ 併成一句，用「．」分隔", () => {
+    expect(marqueeShippingMessages(LIVE)).toEqual([
+      "7-11 超商取貨滿699元運費40元．滿999元免運",
+      "全家超商取貨、宅配滿1500元免運",
+    ])
+  })
+
+  it("★ 多階也併進同一句 —— 由低到高，免運在最後", () => {
+    const two: ShippingConfig = {
+      ...LIVE,
+      cvs: { fee: 80, free_threshold: 999, steps: [{ at: 699, fee: 40 }, { at: 849, fee: 20 }] },
+    }
+    expect(marqueeShippingMessages(two)[0]).toBe(
+      "7-11 超商取貨滿699元運費40元．滿849元運費20元．滿999元免運",
+    )
+  })
+
+  it("★ 門檻跟全家相同而被分到同一組時不能併 —— 那會變成對全家承諾 40", () => {
+    const sameThreshold: ShippingConfig = {
+      cvs: { fee: 80, free_threshold: 1500, steps: [{ at: 699, fee: 40 }] },
+      cvsCod: { fee: 80, free_threshold: 1500, steps: [{ at: 699, fee: 40 }] },
+      cvsFamily: { fee: 80, free_threshold: 1500 },
+      cvsFamilyCod: { fee: 80, free_threshold: 1500 },
+      home: { fee: 150, free_threshold: 1500 },
+    }
+    const msgs = marqueeShippingMessages(sameThreshold)
+    // 階梯自己一句，免運那句照原樣講「全站」或並列
+    expect(msgs[0]).toBe("7-11 超商取貨滿699元運費40元")
+    expect(msgs.some((m) => m.includes("1500") && !m.includes("運費40元"))).toBe(true)
+    // 絕對不能出現「全家…運費40元」這種句子
+    expect(msgs.join("")).not.toMatch(/全家[^．]*運費40元/)
+  })
+
+  it("沒有階梯時就是原本的免運句，不多也不少", () => {
+    expect(marqueeShippingMessages(SAME)).toEqual(["全站消費滿999元免運"])
+  })
+
+  it("拿不到設定時不產生任何句子", () => {
+    expect(marqueeShippingMessages(null)).toEqual([])
+  })
+
+  it("FAQ 不受影響 —— 它仍然是各自成句的完整說明", () => {
+    const answer = shippingFeeAnswer(LIVE)
+    expect(answer).toContain("7-11 超商取貨消費滿 NT$699 運費 NT$40。")
+    expect(answer).toContain("消費滿 NT$999 7-11 超商取貨免運。")
   })
 })
