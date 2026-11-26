@@ -28,19 +28,45 @@ export const metadata: Metadata = {
 
 /* ---------- data fetching ---------- */
 
+const HOME_SPOTLIGHT_COUNT = 8
+
+/** 商品卡自己的「已售完」判準（ProductCard：total_stock === 0）—— 兩邊要同一條。 */
+function inStock(list: Product[]): Product[] {
+  return list.filter((p) => p.total_stock !== 0)
+}
+
+/**
+ * 首頁第一排的商品。
+ *
+ * 置頂（is_featured）優先，照 display_priority 排 —— 現貨優惠組合那兩個組合
+ * 就是靠置頂站在最前面（199／198，高於三果日麗的 180）。順序與進出都在後台的
+ * 置頂鈕上，不寫在程式裡。
+ *
+ * 2026-11-26 兩個修正：
+ *
+ *   1. 已售完的不放首頁。置頂的商品有三個是 total_stock 0（可可、杏仁火龍果、
+ *      芝麻藍莓 300 克），客人進站第一排就看到兩張「已售完」—— 首頁是拿來賣東西的，
+ *      不是公佈缺貨的地方。缺貨本身照舊顯示在商店與分類頁。
+ *   2. 濾掉之後用一般清單補滿。只濾不補的話這一排會從 8 格變成 6 格，桌機版
+ *      第二排缺兩格、像壞掉。補進來的同樣只收有庫存的，而且不重複。
+ *
+ * 兩邊都抓 24 筆再濾：濾完才知道剩幾個，先抓 8 筆會在缺貨多的時候補不滿。
+ */
 async function getPinnedProducts(): Promise<Product[]> {
   try {
-    // 置頂 (is_featured) products first; fall back to the default listing so the
-    // homepage spotlight is never empty when nothing is pinned yet.
-    //
-    // 2026-11-26：現貨優惠組合原本是首頁自己一個區塊，但它排在這一排之後，
-    // 手機上要往下滑兩個半螢幕才看得到 —— 店主根本沒發現它在那裡。改成把那兩個
-    // 組合設為置頂（display_priority 199/198，高於三果日麗的 180），它們就是這一排
-    // 的頭兩張卡，首頁也不用多一個區塊。順序與進出都在後台的置頂鈕上，不在程式裡。
-    const { data } = await getProducts({ featured: true, limit: 8 })
-    if (data.length > 0) return data
-    const { data: fallback } = await getProducts({ limit: 8 })
-    return fallback
+    const [pinned, rest] = await Promise.all([
+      getProducts({ featured: true, limit: 24 }),
+      getProducts({ limit: 24 }),
+    ])
+    const out: Product[] = []
+    const seen = new Set<string>()
+    for (const p of [...inStock(pinned.data), ...inStock(rest.data)]) {
+      if (seen.has(p.id)) continue
+      seen.add(p.id)
+      out.push(p)
+      if (out.length === HOME_SPOTLIGHT_COUNT) break
+    }
+    return out
   } catch {
     return []
   }
