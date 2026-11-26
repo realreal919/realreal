@@ -10,7 +10,8 @@ type ShippingMethod = "home_delivery" | "cvs_711" | "cvs_family" | "overseas_cod
  *   shipping.free_threshold_home / shipping.free_threshold_cvs — free over X
  *   shipping.free_threshold_cvs_family — 全家專屬門檻（取貨與取貨付款共用）
  *   shipping.step_threshold_cvs_711 / shipping.step_fee_cvs_711
- *       — 7-11 取貨的階梯：滿 N 元起運費降為 M 元（還沒到免運門檻的那一段）
+ *       — 7-11 的階梯：滿 N 元起運費降為 M 元（還沒到免運門檻的那一段）。
+ *         取貨與取貨付款共用這一組，全家與宅配不適用。
  *
  * When the threshold is 0 (or unset), free shipping is disabled.
  */
@@ -84,11 +85,24 @@ export async function getShippingRule(
     return { fee, free_threshold: threshold }
   }
 
-  // 超商取貨付款（代收貨款）：使用專屬費率，滿專屬門檻同樣享免運
+  // 超商取貨付款（代收貨款）：使用專屬費率，滿專屬門檻同樣享免運。
+  //
+  // 階梯也適用 —— 店主 2026-11-26 指定「7-11 取貨付款的運費也是 40」。階梯是
+  // 「7-11 的」而不是「7-11 取貨的」，兩種付款方式讀同一組設定鍵。全家不吃
+  // （它在上面那個分支就回去了）。
   if (isCod) {
     const fee = Number((await getSetting("shipping.fee_cvs_cod")) ?? "80")
     const threshold = Number((await getSetting("shipping.free_threshold_cvs_cod")) ?? "999")
-    return { fee, free_threshold: threshold }
+    const codSteps = await readStep(
+      "shipping.step_threshold_cvs_711",
+      "shipping.step_fee_cvs_711",
+      fee,
+      threshold,
+      { at: 699, fee: 40 },
+    )
+    return codSteps
+      ? { fee, free_threshold: threshold, steps: codSteps }
+      : { fee, free_threshold: threshold }
   }
 
   const isHome = method === "home_delivery"
@@ -97,7 +111,10 @@ export async function getShippingRule(
     ? "shipping.free_threshold_home"
     : "shipping.free_threshold_cvs"
 
-  const fee = Number((await getSetting(feeKey)) ?? "80")
+  // 運費的退路也要分家：宅配 150、超商 80，跟 SETTING_DEFAULTS 一致。兩者共用
+  // 一行 "80" 的話，設定讀不到時宅配會少收 70 —— 跟下面門檻那件事同一類問題，
+  // 平常看不出來（資料庫有值），只有掉線時才現形。
+  const fee = Number((await getSetting(feeKey)) ?? (isHome ? "150" : "80"))
   // 7-11 的退路是 999、宅配是 1500 —— 跟 SETTING_DEFAULTS 一致。原本 7-11 寫 "0"
   // （等於「沒有免運」），Supabase 停權那次 getSetting 全部回 null，前台就顯示
   // 成完全沒有免運門檻。退路寫成現行政策，至少掉線時講的還是對的數字。
@@ -105,9 +122,10 @@ export async function getShippingRule(
     (await getSetting(thresholdKey)) ?? (isHome ? "1500" : "999"),
   )
 
-  // 階梯只給 7-11 取貨（店主 2026-11-26 指定：滿 699 運費 40、滿 999 免運）。
-  // 宅配不在範圍內；全家與「超商取貨付款」走上面的分支，本來就碰不到這裡。
-  // 要擴到別的方式就各自加一組設定鍵，不要讓一組鍵悄悄適用到沒談過的通路。
+  // 階梯只給 7-11（店主 2026-11-26 指定：滿 699 運費 40、滿 999 免運，取貨與
+  // 取貨付款都算）。取貨付款在上面那個分支讀同一組鍵；這裡處理的是取貨。
+  // 宅配與全家不在範圍內 —— 要擴到別的方式就各自加一組設定鍵，不要讓一組鍵
+  // 悄悄適用到沒談過的通路。
   const steps =
     method === "cvs_711"
       ? await readStep(

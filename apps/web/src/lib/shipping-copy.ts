@@ -6,8 +6,9 @@
  * 修好跑馬燈之後，FAQ 裡同一句話仍然寫死著 649 —— 因為那是另一個檔案，沒人
  * 想到它也在講同一件事。
  *
- * 2026-11-26 起 7-11 取貨多了一道階梯（滿 699 運費 40、滿 999 免運），同樣是
- * 一句話要出現在兩個畫面，所以也收在這裡 —— 見 shippingSteps()。
+ * 2026-11-26 起 7-11 多了一道階梯（滿 699 運費 40、滿 999 免運，取貨與取貨付款
+ * 都算），來源收在 shippingSteps()。它只出現在 FAQ —— 跑馬燈那邊店主要求只講
+ * 「滿999元免運」一句，不要兩句並排。
  *
  * 後台改一個數字，兩個地方要一起變，唯一可靠的辦法是它們讀同一份資料、走同一
  * 段分組邏輯。文案語氣各自保留（跑馬燈講「999元」，FAQ 講「NT$999」），但
@@ -93,17 +94,13 @@ export function shippingSteps(s: ShippingConfig | null): ShippingStep[] {
   const steps = s.cvs.steps ?? []
   if (steps.length === 0) return []
 
-  // 取貨付款的免運門檻跟取貨相同時，免運那句會把兩者合併成「7-11 超商取貨」
-  // （collapseCvsLabels，那是對的，兩者真的同門檻）。同一條跑馬燈上，階梯那句
-  // 若也只寫「7-11 超商取貨」就會被讀成連取貨付款都只要 40 —— 階梯只有取貨有。
-  // 這時候才加註記；本來就各自一句的時候加了反而囉嗦。
-  const codMerged = s.cvsCod.free_threshold === s.cvs.free_threshold
-  const label = codMerged ? "7-11 超商取貨(非取貨付款)" : "7-11 超商取貨"
-
+  // 「7-11 超商取貨」在這裡涵蓋取貨與取貨付款 —— 店主 2026-11-26 指定兩者的階梯
+  // 運費都是 40（API 的 cvs 與 cvsCod 都會帶 steps）。曾經加過「非取貨付款」的
+  // 註記，那是階梯只給取貨時的事，現在加了就是講錯。
   return steps
     .slice()
     .sort((a, b) => a.at - b.at)
-    .map((step) => ({ label, at: step.at, fee: step.fee }))
+    .map((step) => ({ label: "7-11 超商取貨", at: step.at, fee: step.fee }))
 }
 
 export type FreeShippingGroup = {
@@ -185,19 +182,17 @@ function collapseCvsLabels(labels: string[]): string[] {
 /**
  * 跑馬燈用：短句，口語的「元」。
  *
- * 階梯那幾句排在免運前面 —— 金額由低到高，讀起來才是一道階梯。而且階梯一定
- * 自己一句：黏在免運那句後面（「滿699元運費40元免運」）會被讀成 699 就免運。
+ * **只講免運，不講階梯。** 店主 2026-11-26 決定把「滿699元運費40元」與
+ * 「滿999元免運」併成後面那一句 —— 跑馬燈是一瞥而過的介面，同一個通路的兩句
+ * 運費條件並排，讀起來像兩個互相矛盾的承諾。階梯留在 FAQ「運費如何計算？」，
+ * 那裡本來就是把運費講清楚的地方（見 shippingFeeAnswer）。
  */
 export function marqueeShippingMessages(s: ShippingConfig | null): string[] {
-  const steps = shippingSteps(s).map(
-    (t) => `${t.label}滿${t.at}元運費${t.fee}元`,
-  )
-  const free = freeShippingGroups(s).map((g) =>
+  return freeShippingGroups(s).map((g) =>
     g.coversEveryMethod
       ? `全站消費滿${g.threshold}元免運`
       : `${g.labels.join("、")}滿${g.threshold}元免運`,
   )
-  return [...steps, ...free]
 }
 
 /** FAQ「運費如何計算？」的完整答案，含各方式運費與免運門檻。 */

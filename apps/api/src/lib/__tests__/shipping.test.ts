@@ -85,7 +85,12 @@ describe("shipping settings", () => {
       free_threshold: 999,
       steps: [{ at: 699, fee: 40 }],
     })
-    await expect(getShippingRule("home_delivery")).resolves.toEqual({ fee: 80, free_threshold: 1500 })
+    await expect(getShippingRule("cvs_711", "cvs_cod")).resolves.toEqual({
+      fee: 80,
+      free_threshold: 999,
+      steps: [{ at: 699, fee: 40 }],
+    })
+    await expect(getShippingRule("home_delivery")).resolves.toEqual({ fee: 150, free_threshold: 1500 })
   })
 })
 
@@ -102,7 +107,10 @@ describe("階梯運費 — 7-11 取貨", () => {
 
   const LADDER = async (key: string) => {
     if (key === "shipping.fee_cvs") return "80"
+    if (key === "shipping.fee_cvs_cod") return "80"
     if (key === "shipping.free_threshold_cvs") return "999"
+    if (key === "shipping.free_threshold_cvs_cod") return "999"
+    if (key === "shipping.free_threshold_cvs_family") return "1500"
     if (key === "shipping.step_threshold_cvs_711") return "699"
     if (key === "shipping.step_fee_cvs_711") return "40"
     return null
@@ -144,14 +152,35 @@ describe("階梯運費 — 7-11 取貨", () => {
     await expect(computeShipping("cvs_711", 999)).resolves.toBe(0)
   })
 
-  it("階梯只給 7-11 取貨 —— 全家、宅配、取貨付款都不受影響", async () => {
+  /**
+   * 階梯是「7-11」的，不是「7-11 取貨」的 —— 店主 2026-11-26 指定取貨付款的
+   * 運費也是 40。所以 cvs_711 的兩種付款方式都吃階梯，全家與宅配都不吃。
+   */
+  it("★ 階梯給 7-11 的兩種付款方式 —— 取貨與取貨付款都是 40", async () => {
     mockGetSetting.mockImplementation(LADDER)
-    // 全家 1500、宅配 1500、7-11 取貨付款 999：三者都沒有 40 元那一階。
-    // 取貨付款的免運門檻跟取貨一樣（都 999），但階梯只給取貨 —— 代收貨款有
-    // 額外成本，而且它走的是另一個分支，根本讀不到階梯設定。
+    await expect(computeShipping("cvs_711", 700)).resolves.toBe(40)
+    await expect(computeShipping("cvs_711", 700, "cvs_cod")).resolves.toBe(40)
+    // 取貨付款的三段也要完整：未滿 699 收 80、999 以上免運
+    await expect(computeShipping("cvs_711", 698, "cvs_cod")).resolves.toBe(80)
+    await expect(computeShipping("cvs_711", 999, "cvs_cod")).resolves.toBe(0)
+  })
+
+  it("階梯不給全家、也不給宅配", async () => {
+    mockGetSetting.mockImplementation(LADDER)
     await expect(computeShipping("cvs_family", 700)).resolves.toBe(80)
-    await expect(computeShipping("home_delivery", 700)).resolves.toBe(80)
-    await expect(computeShipping("cvs_711", 700, "cvs_cod")).resolves.toBe(80)
+    await expect(computeShipping("cvs_family", 700, "cvs_cod")).resolves.toBe(80)
+    // 這組 mock 沒設 fee_home_delivery，宅配走退路 150（不是 80）——
+    // 重點仍然是「沒有 40 元那一階」。
+    await expect(computeShipping("home_delivery", 700)).resolves.toBe(150)
+  })
+
+  it("取貨付款的規則也要把階梯帶出來", async () => {
+    mockGetSetting.mockImplementation(LADDER)
+    await expect(getShippingRule("cvs_711", "cvs_cod")).resolves.toEqual({
+      fee: 80,
+      free_threshold: 999,
+      steps: [{ at: 699, fee: 40 }],
+    })
   })
 
   it("階梯門檻 >= 免運門檻時濾掉 —— 永遠輪不到，留著只會誤導後台", async () => {
@@ -254,5 +283,42 @@ describe("feeForSubtotal", () => {
         feeForSubtotal(rule, amount),
       )
     }
+  })
+})
+
+/**
+ * 運費本身的退路也要是現行政策。
+ *
+ * 一般分支（宅配 / 7-11 取貨）共用一行 `?? "80"`，但 SETTING_DEFAULTS 的宅配
+ * 運費是 150。平常看不出來（資料庫有值），只有設定讀不到的時候會掉到 80
+ * —— 跟免運門檻那個「退路寫成 0 等於宣告沒有免運」是同一類問題，而且方向是
+ * 少收客人 70 元。
+ */
+describe("運費的退路", () => {
+  beforeEach(() => {
+    mockGetSetting.mockReset()
+  })
+
+  it("★ 設定讀不到時，宅配 150、超商 80 —— 跟 SETTING_DEFAULTS 一致", async () => {
+    mockGetSetting.mockResolvedValue(null)
+    await expect(getShippingRule("home_delivery")).resolves.toEqual({
+      fee: 150,
+      free_threshold: 1500,
+    })
+    const cvs = await getShippingRule("cvs_711")
+    expect(cvs.fee).toBe(80)
+    const family = await getShippingRule("cvs_family")
+    expect(family.fee).toBe(80)
+    const cod = await getShippingRule("cvs_711", "cvs_cod")
+    expect(cod.fee).toBe(80)
+  })
+
+  it("有設定時照設定走，退路不介入", async () => {
+    mockGetSetting.mockImplementation(async (key: string) => {
+      if (key === "shipping.fee_home_delivery") return "120"
+      return null
+    })
+    const home = await getShippingRule("home_delivery")
+    expect(home.fee).toBe(120)
   })
 })
