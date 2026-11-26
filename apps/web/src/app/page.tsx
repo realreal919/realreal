@@ -10,12 +10,6 @@ import type { Metadata } from "next"
 import { TestimonialsCarousel } from "@/components/ui/testimonials-carousel"
 import { RetailCarousel } from "@/components/ui/retail-carousel"
 import { ProductCard } from "@/components/catalog/ProductCard"
-import {
-  getInstockOffers,
-  INSTOCK_HREF,
-  INSTOCK_SUBTITLE,
-  INSTOCK_TITLE,
-} from "@/lib/instock-offers"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
 
@@ -38,6 +32,11 @@ async function getPinnedProducts(): Promise<Product[]> {
   try {
     // 置頂 (is_featured) products first; fall back to the default listing so the
     // homepage spotlight is never empty when nothing is pinned yet.
+    //
+    // 2026-11-26：現貨優惠組合原本是首頁自己一個區塊，但它排在這一排之後，
+    // 手機上要往下滑兩個半螢幕才看得到 —— 店主根本沒發現它在那裡。改成把那兩個
+    // 組合設為置頂（display_priority 199/198，高於三果日麗的 180），它們就是這一排
+    // 的頭兩張卡，首頁也不用多一個區塊。順序與進出都在後台的置頂鈕上，不在程式裡。
     const { data } = await getProducts({ featured: true, limit: 8 })
     if (data.length > 0) return data
     const { data: fallback } = await getProducts({ limit: 8 })
@@ -482,10 +481,9 @@ function RetailSection() {
 export default async function HomePage() {
   // Resolve category slugs for the two product sections
   // Fetch products, content and blog posts in parallel
-  const [pinnedProducts, instockOffers, heroContent, allPostsResult, testimonialResult] =
+  const [pinnedProducts, heroContent, allPostsResult, testimonialResult] =
     await Promise.all([
       getPinnedProducts(),
-      getInstockOffers(),
       getSiteContent<HeroContent>("homepage_hero"),
       getPosts({ limit: 20 }),
       getPosts({ category: "真實見證", limit: 10 }),
@@ -509,17 +507,6 @@ export default async function HomePage() {
         moreLabel="查看全部商品 →"
         moreHref="/shop"
       />
-
-      {/* 1a-2. 現貨優惠組合 —— 沒有在檔的組合時整區不出現 */}
-      {instockOffers.length > 0 && (
-        <ProductSection
-          title={INSTOCK_TITLE}
-          subtitle={`${INSTOCK_SUBTITLE}。`}
-          products={instockOffers}
-          moreLabel="看所有蛋白粉 →"
-          moreHref={INSTOCK_HREF}
-        />
-      )}
 
       {/* 1b. Square images */}
       <HomeSquareImages />
