@@ -34,6 +34,7 @@ import {
 } from "../lib/points"
 import {
   computeAddonPricing,
+  buildEvaluatorCartItems,
   mergeItemsByVariant,
   type VariantPricingRow,
 } from "../lib/addon-pricing"
@@ -383,15 +384,6 @@ ordersRouter.post("/preview", optionalAuth, async (req, res) => {
       excludedThresholdCents(expandedItems, (id) => variantMap.get(id)?.products?.slug),
   )
 
-  // Per-variant blended line totals (from the expanded add-on/normal legs) so the
-  // campaign evaluator's unit_price × qty === the line total it's actually charged.
-  const lineTotalCentsByVariant = new Map<string, number>()
-  for (const e of expandedItems) {
-    lineTotalCentsByVariant.set(
-      e.variantId,
-      (lineTotalCentsByVariant.get(e.variantId) ?? 0) + e.unitPriceCents * e.qty,
-    )
-  }
   const shippingRule = await getShippingRule(shippingMethod, paymentMethodHint)
   const feeDollars =
     shippingRule.free_threshold > 0 &&
@@ -421,24 +413,12 @@ ordersRouter.post("/preview", optionalAuth, async (req, res) => {
   }
 
   // Build variant lookup for category_id (campaign scope matching). Known
-  // variants use the blended per-unit price (so 加購價 lines feed the evaluator
-  // a unit_price where unit_price × qty === line total); unknown variants fall
-  // back to the client-sent unitPrice (graceful preview path).
+  // variants give the evaluator ONE ROW PER PRICE LEG (加購腿 + 原價腿) so the
+  // 「送最便宜的一件」rules see the real per-unit price — see
+  // buildEvaluatorCartItems. Unknown variants fall back to the client-sent
+  // unitPrice (graceful preview path).
   const cartItems: CartItem[] = [
-    ...knownMerged.map((item) => {
-      const v = variantMap.get(item.variantId)
-      const blendedUnitPrice = (lineTotalCentsByVariant.get(item.variantId)! / item.qty) / 100
-      return {
-        product_id: v?.product_id ?? "",
-        variant_id: item.variantId,
-        category_id: v?.products?.category_id ?? null,
-        product_slug: v?.products?.slug ?? null,
-        sku: v?.sku ?? null,
-        name: item.productName ?? v?.products?.name ?? v?.name ?? "",
-        unit_price: blendedUnitPrice,
-        qty: item.qty,
-      }
-    }),
+    ...buildEvaluatorCartItems(expandedItems, knownMerged, variantMap),
     ...unknownMerged.map((item) => ({
       product_id: "",
       variant_id: item.variantId,
@@ -846,15 +826,6 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
     mergedItems.map((i) => ({ variantId: i.variantId, qty: i.qty })),
     variantMap,
   )
-  // Per-variant blended line totals (from the expanded add-on/normal legs) so the
-  // campaign evaluator's unit_price × qty === the line total it's actually charged.
-  const lineTotalCentsByVariant = new Map<string, number>()
-  for (const e of expandedItems) {
-    lineTotalCentsByVariant.set(
-      e.variantId,
-      (lineTotalCentsByVariant.get(e.variantId) ?? 0) + e.unitPriceCents * e.qty,
-    )
-  }
   // 門檻用的小計：扣掉不列入門檻的品項（湯匙加購品）。必須跟 /preview 一模一樣，
   // 否則結帳頁顯示的運費與贈品會跟實際收的不同。見 lib/threshold-exclusions。
   const thresholdSubtotalCents = Math.max(
@@ -938,23 +909,15 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
   }
 
   // Cart items for the campaign evaluator — reuse variantMap (built above for
-  // authoritative pricing) and the merged cart. unit_price is the blended
-  // per-unit price (加購價 leg + normal leg) so unit_price × qty === the line
-  // total actually charged; authoritative dollars, never client-supplied.
-  const cartItems: CartItem[] = mergedItems.map((item) => {
-    const v = variantMap.get(item.variantId)
-    const blendedUnitPrice = (lineTotalCentsByVariant.get(item.variantId)! / item.qty) / 100
-    return {
-      product_id: v?.product_id ?? "",
-      variant_id: item.variantId,
-      category_id: v?.products?.category_id ?? null,
-      product_slug: v?.products?.slug ?? null,
-      sku: v?.sku ?? null,
-      name: item.productName ?? v?.products?.name ?? v?.name ?? "",
-      unit_price: blendedUnitPrice,
-      qty: item.qty,
-    }
-  })
+  // authoritative pricing) and the merged cart. ONE ROW PER PRICE LEG (加購腿 +
+  // 原價腿), authoritative dollars, never client-supplied. Must be the same
+  // helper POST /preview uses, or the checkout page shows a different number
+  // from the one actually charged.
+  const cartItems: CartItem[] = buildEvaluatorCartItems(
+    expandedItems,
+    mergedItems,
+    variantMap,
+  )
 
   const earlyCouponId = await resolveValidCouponId(couponCode, thresholdSubtotalCents, profileTierId, userId)
 

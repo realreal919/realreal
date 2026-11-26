@@ -466,3 +466,46 @@ describe("evalFirstPurchase — excluded_coupon_ids", () => {
     expect(r.applied).toBe(true)
   })
 })
+
+// #10000518（2026-11-25）：「蛋白粉任選 買 10 送 1」folded a 加購價 line into a
+// blended average, so the真正最便宜的一件（加購價 69）never reached the sort and
+// the order was discounted 70 instead of 69. buildEvaluatorCartItems now feeds the
+// evaluator one row per price leg; these are the rows it produces for that cart.
+describe("★ 加購價的腿要各自成列（#10000518 折 70 應為 69）", () => {
+  const BUY10 = {
+    scope: "all",
+    buy_quantity: 10,
+    get_quantity: 1,
+    free_item_rule: "lowest_price",
+    same_item_only: false,
+  }
+
+  it("拆成兩列時，折掉的是加購價那一件 69", async () => {
+    const r = await evalBuyXGetY(
+      campaign(BUY10),
+      ctxWith([
+        item("plain", 70, 7),
+        item("ginkgo-addon", 69, 2), // 加購腿（上限 2）
+        item("ginkgo-normal", 75, 2), // 超過上限，回原價
+      ]),
+    )
+    expect(r.applied).toBe(true)
+    expect(r.discount_amount).toBe(69)
+  })
+
+  it("壓成混合平均價 72 的舊行為會折 70 —— 這是當初算錯的樣子", async () => {
+    const r = await evalBuyXGetY(
+      campaign(BUY10),
+      ctxWith([item("plain", 70, 7), item("ginkgo", 72, 4)]),
+    )
+    expect(r.discount_amount).toBe(70)
+  })
+
+  it("小計不受拆列影響 —— 兩種列法的 Σ(單價 × 件數) 都是 778", () => {
+    const split = [item("plain", 70, 7), item("g-a", 69, 2), item("g-n", 75, 2)]
+    const blended = [item("plain", 70, 7), item("ginkgo", 72, 4)]
+    const sum = (xs: CartItem[]) => xs.reduce((s, i) => s + i.unit_price * i.qty, 0)
+    expect(sum(split)).toBe(778)
+    expect(sum(blended)).toBe(778)
+  })
+})

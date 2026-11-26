@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest"
 import {
   computeAddonPricing,
   mergeItemsByVariant,
+  buildEvaluatorCartItems,
   type VariantPricingRow,
 } from "../addon-pricing"
 
@@ -300,5 +301,100 @@ describe("mergeItemsByVariant", () => {
     ]
     mergeItemsByVariant(items)
     expect(items[0].qty).toBe(1) // original untouched
+  })
+})
+
+describe("buildEvaluatorCartItems", () => {
+  // #10000518（2026-11-25）：11 件隨身包，其中銀杏 4 件 —— 加購上限 2，所以
+  // 2 件 69 元、2 件回原價 75 元。「蛋白粉任選買 10 送 1」是 lowest_price，
+  // 最便宜的一件是 69，但實際折了 70。
+  //
+  // 原因在這裡：舊做法把一個規格壓成一列，單價取混合平均（(69×2+75×2)/4=72），
+  // 69 這個真實單價在活動眼裡根本不存在，最便宜的就變成那些 70 元的隨身包。
+  // 加購腿與原價腿要各自成列，活動才看得到真正的每件單價。
+  it("★ 加購價與原價各自成列 —— 不壓成混合平均價（#10000518 折 70 應為 69）", () => {
+    const map = mapOf(
+      variant("plain", { price: 70, is_addon: false }),
+      variant("ginkgo", { price: 75, addon_price: 69, addon_limit: 2, is_addon: true }),
+    )
+    const merged = mergeItemsByVariant([
+      { variantId: "plain", qty: 7 },
+      { variantId: "ginkgo", qty: 4 },
+    ])
+    const { expandedItems } = computeAddonPricing(merged, map)
+
+    const rows = buildEvaluatorCartItems(expandedItems, merged, map)
+
+    expect(rows.map((r) => [r.variant_id, r.unit_price, r.qty])).toEqual([
+      ["plain", 70, 7],
+      ["ginkgo", 69, 2],
+      ["ginkgo", 75, 2],
+    ])
+    // 每一列都是真實單價，最便宜的一件就是 69
+    expect(Math.min(...rows.map((r) => r.unit_price))).toBe(69)
+  })
+
+  it("小計不變 —— 拆成兩列之後 Σ(unit_price × qty) 要跟實收一樣", () => {
+    const map = mapOf(
+      variant("plain", { price: 70, is_addon: false }),
+      variant("ginkgo", { price: 75, addon_price: 69, addon_limit: 2, is_addon: true }),
+    )
+    const merged = mergeItemsByVariant([
+      { variantId: "plain", qty: 7 },
+      { variantId: "ginkgo", qty: 4 },
+    ])
+    const { expandedItems, subtotalCents } = computeAddonPricing(merged, map)
+
+    const rows = buildEvaluatorCartItems(expandedItems, merged, map)
+    const sum = rows.reduce((s, r) => s + r.unit_price * r.qty, 0)
+
+    expect(sum).toBe(subtotalCents / 100)
+    expect(sum).toBe(778) // #10000518 的小計
+  })
+
+  it("沒有加購價的購物車 —— 每個規格還是一列，行為不變", () => {
+    const map = mapOf(variant("a", { price: 400, is_addon: false }))
+    const merged = mergeItemsByVariant([{ variantId: "a", qty: 3 }])
+    const { expandedItems } = computeAddonPricing(merged, map)
+
+    const rows = buildEvaluatorCartItems(expandedItems, merged, map)
+
+    expect(rows).toHaveLength(1)
+    expect([rows[0].unit_price, rows[0].qty]).toEqual([400, 3])
+  })
+
+  it("帶出活動要用的欄位 —— 分類、slug、商品 id 都要在，兩條腿都一樣", () => {
+    const g = variant("ginkgo", { price: 75, addon_price: 69, addon_limit: 2, is_addon: true })
+    g.products = { category_id: "cat-powder", name: "銀杏水蜜桃", slug: "ginkgo-50", is_addon: true }
+    const map = mapOf(variant("plain", { price: 70, is_addon: false }), g)
+    const merged = mergeItemsByVariant([
+      { variantId: "plain", qty: 7 },
+      { variantId: "ginkgo", qty: 4 },
+    ])
+    const { expandedItems } = computeAddonPricing(merged, map)
+
+    const rows = buildEvaluatorCartItems(expandedItems, merged, map).filter(
+      (r) => r.variant_id === "ginkgo",
+    )
+
+    expect(rows).toHaveLength(2)
+    for (const r of rows) {
+      expect(r.category_id).toBe("cat-powder")
+      expect(r.product_slug).toBe("ginkgo-50")
+      expect(r.product_id).toBe("prod-ginkgo")
+      expect(r.sku).toBe("SKU-ginkgo")
+    }
+  })
+
+  it("商品名稱優先用購物車帶的 —— 沿用舊行為", () => {
+    const map = mapOf(variant("a", { price: 400, is_addon: false }))
+    const merged = mergeItemsByVariant([
+      { variantId: "a", qty: 1, productName: "客人車上那個名字" },
+    ])
+    const { expandedItems } = computeAddonPricing(merged, map)
+
+    const rows = buildEvaluatorCartItems(expandedItems, merged, map)
+
+    expect(rows[0].name).toBe("客人車上那個名字")
   })
 })

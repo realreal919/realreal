@@ -92,3 +92,51 @@ export function computeAddonPricing(
   }
   return { lines, expandedItems, subtotalCents }
 }
+
+/**
+ * 把加購價展開後的每一條腿，做成活動計算用的購物車列。
+ *
+ * 一個規格可能拆成兩列：加購腿（前 addon_limit 件，加購價）與原價腿（其餘）。
+ * 不要再壓成「一個規格一列、單價取混合平均」—— 那會讓「買 N 送 1 送最便宜的
+ * 一件」看不到真正的最低單價。#10000518（2026-11-25）就是這樣少折了 1 元：
+ * 銀杏 4 件是 2×69 + 2×75，壓成平均 72 之後，最便宜的變成別人的 70 元隨身包，
+ * 折了 70 而不是 69。
+ *
+ * 拆開不影響任何「看金額」的活動：同一個規格兩列的 Σ(unit_price × qty) 跟原本
+ * 一列完全相等，所以小計、滿額門檻、百分比折扣的結果都不變。而 scope 過濾是
+ * 逐列比 variant_id / category_id，兩列帶一樣的欄位，過濾結果也一樣。
+ *
+ * preview 與 POST 兩邊都要呼叫同一支 —— 這兩段的購物車只要算得不一樣，結帳頁
+ * 顯示的金額就會跟實際收的不同。
+ */
+export function buildEvaluatorCartItems(
+  expandedItems: ExpandedOrderItem[],
+  mergedItems: Array<{ variantId: string; qty: number; productName?: string | null }>,
+  variantMap: Map<string, VariantPricingRow>,
+): Array<{
+  product_id: string
+  variant_id: string
+  category_id: string | null
+  product_slug?: string | null
+  sku: string | null
+  name: string
+  unit_price: number
+  qty: number
+}> {
+  const nameByVariant = new Map<string, string | null | undefined>()
+  for (const m of mergedItems) nameByVariant.set(m.variantId, m.productName)
+
+  return expandedItems.map((e) => {
+    const v = variantMap.get(e.variantId)
+    return {
+      product_id: v?.product_id ?? "",
+      variant_id: e.variantId,
+      category_id: v?.products?.category_id ?? null,
+      product_slug: v?.products?.slug ?? null,
+      sku: v?.sku ?? null,
+      name: nameByVariant.get(e.variantId) ?? v?.products?.name ?? v?.name ?? "",
+      unit_price: e.unitPriceCents / 100,
+      qty: e.qty,
+    }
+  })
+}
