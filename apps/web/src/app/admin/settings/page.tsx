@@ -124,8 +124,19 @@ const FIELD_META: Record<
   "shipping.fee_cvs":             { label: "超商運費 NT$", placeholder: "65" },
   "shipping.fee_cvs_cod":         { label: "超商取貨付款運費 NT$", placeholder: "80", hint: "超商取貨付款（代收貨款）專屬費率" },
   "shipping.free_threshold_home": { label: "宅配免運門檻 NT$", placeholder: "1500", hint: "0 = 不提供免運" },
-  "shipping.free_threshold_cvs":  { label: "7-11 免運門檻 NT$", placeholder: "899", hint: "0 = 不提供免運" },
-  "shipping.free_threshold_cvs_cod": { label: "7-11 取貨付款免運門檻 NT$", placeholder: "899", hint: "0 = 不提供免運" },
+  "shipping.free_threshold_cvs":  { label: "7-11 免運門檻 NT$", placeholder: "999", hint: "0 = 不提供免運" },
+  "shipping.free_threshold_cvs_cod": { label: "7-11 取貨付款免運門檻 NT$", placeholder: "999", hint: "0 = 不提供免運" },
+  // 階梯運費：免運門檻之前的那一段。只適用 7-11 取貨（不含取貨付款）。
+  "shipping.step_threshold_cvs_711": {
+    label: "7-11 階梯運費門檻 NT$",
+    placeholder: "699",
+    hint: "滿這個金額但未達免運門檻時，改收下面那個運費。0 = 不分階，一律收超商運費",
+  },
+  "shipping.step_fee_cvs_711": {
+    label: "7-11 階梯運費 NT$",
+    placeholder: "40",
+    hint: "必須低於超商運費，否則視為沒設；門檻也必須低於免運門檻",
+  },
   "shipping.free_threshold_cvs_family": { label: "全家免運門檻 NT$", placeholder: "1500", hint: "取貨與取貨付款共用；0 = 不提供免運" },
   "shipping.fee_overseas_cod":    { label: "海外到付運費（顯示用）", placeholder: "0", hint: "實際由司機收取，固定顯示 NT$0，此設定僅供備忘" },
   // 會員制度（誠真之友 v2）

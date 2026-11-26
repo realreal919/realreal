@@ -6,13 +6,25 @@
  * 修好跑馬燈之後，FAQ 裡同一句話仍然寫死著 649 —— 因為那是另一個檔案，沒人
  * 想到它也在講同一件事。
  *
+ * 2026-11-26 起 7-11 取貨多了一道階梯（滿 699 運費 40、滿 999 免運），同樣是
+ * 一句話要出現在兩個畫面，所以也收在這裡 —— 見 shippingSteps()。
+ *
  * 後台改一個數字，兩個地方要一起變，唯一可靠的辦法是它們讀同一份資料、走同一
  * 段分組邏輯。文案語氣各自保留（跑馬燈講「999元」，FAQ 講「NT$999」），但
  * 「哪幾種寄送方式共用同一個門檻」這件事只有這裡說了算。
  */
 import { API_URL } from "./api-url"
 
-type Rule = { fee: number; free_threshold: number }
+type Rule = {
+  fee: number
+  free_threshold: number
+  /**
+   * 階梯運費：滿 `at` 元起運費降為 `fee` 元（還沒到免運門檻的那一段）。
+   * 由低到高。可選 —— 前台可能比 API 早部署，舊版 /config 沒有這個欄位；
+   * 拿不到就當作沒有階梯，少講一句比憑空生出一個數字好。
+   */
+  steps?: Array<{ at: number; fee: number }>
+}
 
 /**
  * cvs / cvsCod 指的是 **7-11**。全家從 2026-11-17 起有自己的免運門檻
@@ -63,6 +75,35 @@ function shippingMethods(s: ShippingConfig): MethodRow[] {
     { key: "cvsFamilyCod", label: "全家超商取貨付款", threshold: familyCod.free_threshold },
     { key: "home", label: "宅配", threshold: s.home.free_threshold },
   ]
+}
+
+/**
+ * 階梯運費的句子，由 /config 的 steps 長出來。
+ *
+ * **一定指名 7-11**，不走 shippingMethods() 那套標籤合併。原因：階梯只有
+ * 7-11 取貨有（見 apps/api/src/lib/shipping.ts，只有 cvs_711 的非取貨付款
+ * 分支讀階梯設定），而標籤合併會在兩家超商門檻相同時把話寫成「超商取貨」
+ * —— 那就是對全家的客人承諾一個他沒有的運費。免運門檻可以合併，因為那是
+ * 兩家真的一樣；階梯不行，因為它從來只屬於一家。
+ */
+export type ShippingStep = { label: string; at: number; fee: number }
+
+export function shippingSteps(s: ShippingConfig | null): ShippingStep[] {
+  if (!s) return []
+  const steps = s.cvs.steps ?? []
+  if (steps.length === 0) return []
+
+  // 取貨付款的免運門檻跟取貨相同時，免運那句會把兩者合併成「7-11 超商取貨」
+  // （collapseCvsLabels，那是對的，兩者真的同門檻）。同一條跑馬燈上，階梯那句
+  // 若也只寫「7-11 超商取貨」就會被讀成連取貨付款都只要 40 —— 階梯只有取貨有。
+  // 這時候才加註記；本來就各自一句的時候加了反而囉嗦。
+  const codMerged = s.cvsCod.free_threshold === s.cvs.free_threshold
+  const label = codMerged ? "7-11 超商取貨(非取貨付款)" : "7-11 超商取貨"
+
+  return steps
+    .slice()
+    .sort((a, b) => a.at - b.at)
+    .map((step) => ({ label, at: step.at, fee: step.fee }))
 }
 
 export type FreeShippingGroup = {
@@ -141,13 +182,22 @@ function collapseCvsLabels(labels: string[]): string[] {
   return out
 }
 
-/** 跑馬燈用：短句，口語的「元」。 */
+/**
+ * 跑馬燈用：短句，口語的「元」。
+ *
+ * 階梯那幾句排在免運前面 —— 金額由低到高，讀起來才是一道階梯。而且階梯一定
+ * 自己一句：黏在免運那句後面（「滿699元運費40元免運」）會被讀成 699 就免運。
+ */
 export function marqueeShippingMessages(s: ShippingConfig | null): string[] {
-  return freeShippingGroups(s).map((g) =>
+  const steps = shippingSteps(s).map(
+    (t) => `${t.label}滿${t.at}元運費${t.fee}元`,
+  )
+  const free = freeShippingGroups(s).map((g) =>
     g.coversEveryMethod
       ? `全站消費滿${g.threshold}元免運`
       : `${g.labels.join("、")}滿${g.threshold}元免運`,
   )
+  return [...steps, ...free]
 }
 
 /** FAQ「運費如何計算？」的完整答案，含各方式運費與免運門檻。 */
@@ -160,6 +210,12 @@ export function shippingFeeAnswer(s: ShippingConfig | null): string {
     `超商取貨運費 NT$${s.cvs.fee}，` +
     `超商取貨付款運費 NT$${s.cvsCod.fee}。`
 
+  // 階梯先講（金額低的在前），再講免運 —— 跟跑馬燈同一個順序，兩個畫面讀起來
+  // 才是同一道階梯。
+  const steps = shippingSteps(s)
+    .map((t) => `${t.label}消費滿 NT$${t.at} 運費 NT$${t.fee}。`)
+    .join("")
+
   const free = freeShippingGroups(s)
     .map((g) =>
       g.coversEveryMethod
@@ -168,7 +224,7 @@ export function shippingFeeAnswer(s: ShippingConfig | null): string {
     )
     .join("")
 
-  return `${fees}${free}${overseas}`
+  return `${fees}${steps}${free}${overseas}`
 }
 
 const WEEKDAY_NAMES = ["日", "一", "二", "三", "四", "五", "六"]

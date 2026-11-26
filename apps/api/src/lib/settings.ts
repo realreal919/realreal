@@ -245,6 +245,10 @@ export const ALLOWED_KEYS = new Set<string>([
   "shipping.free_threshold_cvs",
   "shipping.free_threshold_cvs_cod",
   "shipping.free_threshold_cvs_family",
+  // 7-11 取貨的階梯運費：滿 step_threshold 元起，運費降為 step_fee 元。
+  // 門檻設 0 就關掉這一階，回到單一運費。見 lib/shipping.ts。
+  "shipping.step_threshold_cvs_711",
+  "shipping.step_fee_cvs_711",
   "shipping.fee_overseas_cod",
   // Logistics
   "logistics.skip_ecpay",
@@ -406,6 +410,8 @@ export const SECTIONS: Record<string, { label: string; keys: string[] }> = {
       "shipping.free_threshold_cvs",
       "shipping.free_threshold_cvs_cod",
       "shipping.free_threshold_cvs_family",
+      "shipping.step_threshold_cvs_711",
+      "shipping.step_fee_cvs_711",
       "shipping.fee_overseas_cod",
     ],
   },
@@ -430,9 +436,15 @@ export const SETTING_DEFAULTS: Record<string, string> = {
   "shipping.fee_cvs": "80",
   "shipping.fee_cvs_cod": "80",
   "shipping.free_threshold_home": "1500",
-  "shipping.free_threshold_cvs": "899",
-  "shipping.free_threshold_cvs_cod": "899",
+  // 2026-11-26 店主在後台把 7-11 的取貨與取貨付款都設成 999（線上 /config 已確認），
+  // 退路跟著對上 —— 這裡的規矩是「退路寫成現行政策」，不然設定讀不到時
+  // 前台會講一個沒人設定過的數字。兩個鍵仍然分開，只是現在值一樣。
+  "shipping.free_threshold_cvs": "999",
+  "shipping.free_threshold_cvs_cod": "999",
   "shipping.free_threshold_cvs_family": "1500",
+  // 2026-11-26 店主指定：7-11 取貨滿 699 運費 40、滿 999 免運。
+  "shipping.step_threshold_cvs_711": "699",
+  "shipping.step_fee_cvs_711": "40",
   "shipping.fee_overseas_cod": "0",
   "logistics.skip_ecpay": "true",
 }

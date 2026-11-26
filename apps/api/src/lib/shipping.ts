@@ -9,13 +9,57 @@ type ShippingMethod = "home_delivery" | "cvs_711" | "cvs_family" | "overseas_cod
  *   shipping.fee_home_delivery / shipping.fee_cvs            — base fee
  *   shipping.free_threshold_home / shipping.free_threshold_cvs — free over X
  *   shipping.free_threshold_cvs_family — 全家專屬門檻（取貨與取貨付款共用）
+ *   shipping.step_threshold_cvs_711 / shipping.step_fee_cvs_711
+ *       — 7-11 取貨的階梯：滿 N 元起運費降為 M 元（還沒到免運門檻的那一段）
  *
  * When the threshold is 0 (or unset), free shipping is disabled.
  */
+export type ShippingRule = {
+  fee: number
+  free_threshold: number
+  /**
+   * 階梯運費：滿 `at` 元起，運費降為 `fee` 元。由低到高排序。
+   *
+   * 只描述「還沒到免運門檻」的那一段 —— 免運先判（見 computeShipping），所以
+   * 設在免運門檻之上的階梯永遠輪不到。沒有階梯時這個欄位不存在，/config 的
+   * JSON 與既有前台的行為就完全不變。
+   */
+  steps?: Array<{ at: number; fee: number }>
+}
+
+/**
+ * 讀出一個階梯，順便把設錯的擋掉。
+ *
+ * 兩種設法是錯的，而且錯的方向都會傷到客人或店家：
+ *   - 門檻 >= 免運門檻：永遠輪不到（免運先判），留著只會讓後台以為它在生效。
+ *   - 階梯運費 >= 原運費：買更多反而更貴。
+ * 兩種都當作「沒有這一階」，退回原本的單一運費 —— 那是加這個功能之前的行為，
+ * 設定寫壞時至少不會收錯錢。
+ */
+async function readStep(
+  thresholdKey: string,
+  feeKey: string,
+  baseFee: number,
+  freeThreshold: number,
+  fallback: { at: number; fee: number },
+): Promise<Array<{ at: number; fee: number }> | undefined> {
+  const rawAt = await getSetting(thresholdKey)
+  const rawFee = await getSetting(feeKey)
+  // 設定讀不到（例如 Supabase 停權那次全部回 null）就用現行政策當退路，
+  // 跟免運門檻的退路同一個理由：掉線時講的、收的至少還是對的數字。
+  const at = rawAt == null ? fallback.at : Number(rawAt)
+  const fee = rawFee == null ? fallback.fee : Number(rawFee)
+  if (!Number.isFinite(at) || !Number.isFinite(fee)) return undefined
+  if (at <= 0) return undefined
+  if (freeThreshold > 0 && at >= freeThreshold) return undefined
+  if (fee >= baseFee) return undefined
+  return [{ at, fee }]
+}
+
 export async function getShippingRule(
   method: ShippingMethod,
   paymentMethod?: string,
-): Promise<{ fee: number; free_threshold: number }> {
+): Promise<ShippingRule> {
   // 海外到付：運費由司機收取，線上顯示 0
   if (method === "overseas_cod") return { fee: 0, free_threshold: 0 }
 
@@ -24,7 +68,8 @@ export async function getShippingRule(
 
   // 全家：免運門檻跟著「哪一家超商」走，不跟著付款方式走。
   //
-  // 2026-11-26 店主定案：7-11 滿 899（原本 699）、全家與宅配滿 1500。全家的店到店成本比
+  // 2026-11-26 店主定案：7-11 取貨滿 999 免運、滿 699 運費減為 40（階梯見下方），
+  // 全家與宅配滿 1500。全家的店到店成本比
   // 7-11 高，但客人眼中兩家是同一件事，所以差別只能出現在門檻上 —— 取貨與取貨
   // 付款共用同一個數字，不然同一家超商會出現兩個免運標準，客服解釋不完。
   //
@@ -42,7 +87,7 @@ export async function getShippingRule(
   // 超商取貨付款（代收貨款）：使用專屬費率，滿專屬門檻同樣享免運
   if (isCod) {
     const fee = Number((await getSetting("shipping.fee_cvs_cod")) ?? "80")
-    const threshold = Number((await getSetting("shipping.free_threshold_cvs_cod")) ?? "899")
+    const threshold = Number((await getSetting("shipping.free_threshold_cvs_cod")) ?? "999")
     return { fee, free_threshold: threshold }
   }
 
@@ -53,14 +98,51 @@ export async function getShippingRule(
     : "shipping.free_threshold_cvs"
 
   const fee = Number((await getSetting(feeKey)) ?? "80")
-  // 7-11 的退路是 899、宅配是 1500 —— 跟 SETTING_DEFAULTS 一致。原本 7-11 寫 "0"
+  // 7-11 的退路是 999、宅配是 1500 —— 跟 SETTING_DEFAULTS 一致。原本 7-11 寫 "0"
   // （等於「沒有免運」），Supabase 停權那次 getSetting 全部回 null，前台就顯示
   // 成完全沒有免運門檻。退路寫成現行政策，至少掉線時講的還是對的數字。
   const threshold = Number(
-    (await getSetting(thresholdKey)) ?? (isHome ? "1500" : "899"),
+    (await getSetting(thresholdKey)) ?? (isHome ? "1500" : "999"),
   )
 
-  return { fee, free_threshold: threshold }
+  // 階梯只給 7-11 取貨（店主 2026-11-26 指定：滿 699 運費 40、滿 999 免運）。
+  // 宅配不在範圍內；全家與「超商取貨付款」走上面的分支，本來就碰不到這裡。
+  // 要擴到別的方式就各自加一組設定鍵，不要讓一組鍵悄悄適用到沒談過的通路。
+  const steps =
+    method === "cvs_711"
+      ? await readStep(
+          "shipping.step_threshold_cvs_711",
+          "shipping.step_fee_cvs_711",
+          fee,
+          threshold,
+          { at: 699, fee: 40 },
+        )
+      : undefined
+
+  return steps
+    ? { fee, free_threshold: threshold, steps }
+    : { fee, free_threshold: threshold }
+}
+
+/**
+ * 由「規則 + 金額」算出運費。**這段邏輯只能有這一份。**
+ *
+ * 加階梯運費時發現 POST /orders/preview 自己抄了一份舊判斷（比一次免運門檻、
+ * 否則收 rule.fee），沒有看 steps。800 元的 7-11 取貨於是在結帳頁顯示 NT$80、
+ * 實際下單收 NT$40 —— 顯示與實收不一致。抄一份的代價就是這個，所以 preview
+ * 與 computeShipping 都呼叫這裡。
+ *
+ * 純函式（不讀設定），呼叫端已經拿著規則時就不必為了算運費再查一次。
+ */
+export function feeForSubtotal(rule: ShippingRule, subtotal: number): number {
+  // 免運先判，再看階梯 —— 階梯講的是「還沒免運的那一段」。
+  if (rule.free_threshold > 0 && subtotal >= rule.free_threshold) return 0
+  // 由低到高掃過，取最後一個達到的 —— 達到多階時給最便宜的那個（最高那一階）。
+  let fee = rule.fee
+  for (const step of rule.steps ?? []) {
+    if (subtotal >= step.at) fee = step.fee
+  }
+  return fee
 }
 
 export async function computeShipping(
@@ -68,9 +150,7 @@ export async function computeShipping(
   subtotal: number,
   paymentMethod?: string,
 ): Promise<number> {
-  const rule = await getShippingRule(method, paymentMethod)
-  if (rule.free_threshold > 0 && subtotal >= rule.free_threshold) return 0
-  return rule.fee
+  return feeForSubtotal(await getShippingRule(method, paymentMethod), subtotal)
 }
 
 /**

@@ -289,3 +289,125 @@ describe("7-11 與全家門檻不同", () => {
     ])
   })
 })
+
+/**
+ * 階梯運費（2026-11-26 起）：7-11 取貨滿 699 運費 40、滿 999 免運。
+ *
+ * 這一段跟免運門檻一樣會被講在兩個畫面（跑馬燈、FAQ），所以照這個檔案的規矩
+ * 只能有一份來源。鎖三件事：
+ *   1. 兩個畫面講的是同一組數字
+ *   2. 階梯自己一句，不要黏在免運那句後面 —— 黏在一起客人會以為 699 就免運
+ *   3. **一定指名 7-11**。階梯只有 7-11 取貨有，而既有的標籤邏輯在兩家超商
+ *      門檻相同時會把標籤合併成「超商取貨」；階梯若跟著合併，就是對全家的
+ *      客人承諾一個他沒有的運費。
+ */
+const LADDER: ShippingConfig = {
+  cvs: { fee: 80, free_threshold: 999, steps: [{ at: 699, fee: 40 }] },
+  cvsCod: { fee: 80, free_threshold: 899 },
+  cvsFamily: { fee: 80, free_threshold: 1500 },
+  cvsFamilyCod: { fee: 80, free_threshold: 1500 },
+  home: { fee: 150, free_threshold: 1500 },
+}
+
+describe("階梯運費文案", () => {
+  it("★ 跑馬燈：階梯自己一句，排在免運那句前面", () => {
+    const msgs = marqueeShippingMessages(LADDER)
+    expect(msgs[0]).toBe("7-11 超商取貨滿699元運費40元")
+    expect(msgs).toContain("7-11 超商取貨滿999元免運")
+  })
+
+  it("★ FAQ 講的是同一組數字", () => {
+    const answer = shippingFeeAnswer(LADDER)
+    expect(answer).toContain("7-11 超商取貨消費滿 NT$699 運費 NT$40")
+    expect(answer).toContain("NT$999")
+  })
+
+  it("★ 兩家超商門檻相同時也要指名 7-11 —— 階梯不是全家的", () => {
+    const bothSame: ShippingConfig = {
+      cvs: { fee: 80, free_threshold: 999, steps: [{ at: 699, fee: 40 }] },
+      cvsCod: { fee: 80, free_threshold: 999 },
+      cvsFamily: { fee: 80, free_threshold: 999 },
+      cvsFamilyCod: { fee: 80, free_threshold: 999 },
+      home: { fee: 150, free_threshold: 999 },
+    }
+    const msgs = marqueeShippingMessages(bothSame)
+    // 免運那句會合併成「全站」，但階梯那句必須還是只講 7-11。
+    // 這組設定裡取貨付款也是同門檻，所以還會多一個「非取貨付款」的註記
+    // （見下面那個 describe）—— 重點是它指名了 7-11，沒有變成「全站」。
+    expect(msgs[0]).toBe("7-11 超商取貨(非取貨付款)滿699元運費40元")
+    expect(msgs[0]).not.toContain("全站")
+    expect(msgs[0]).toContain("7-11")
+    expect(shippingFeeAnswer(bothSame)).toContain("7-11 超商取貨(非取貨付款)消費滿 NT$699")
+  })
+
+  it("沒有階梯時完全不提 —— 舊版 API 沒有這個欄位也不會多一句", () => {
+    expect(marqueeShippingMessages(SAME)).toEqual(["全站消費滿999元免運"])
+    expect(shippingFeeAnswer(SAME)).not.toContain("運費 NT$40")
+  })
+
+  it("多階也照順序講 —— 由低到高", () => {
+    const two: ShippingConfig = {
+      ...LADDER,
+      cvs: { fee: 80, free_threshold: 999, steps: [{ at: 699, fee: 40 }, { at: 849, fee: 20 }] },
+    }
+    const msgs = marqueeShippingMessages(two)
+    expect(msgs.slice(0, 2)).toEqual([
+      "7-11 超商取貨滿699元運費40元",
+      "7-11 超商取貨滿849元運費20元",
+    ])
+  })
+
+  it("免運門檻那句不受影響 —— 分組邏輯沒被階梯動到", () => {
+    expect(freeShippingGroups(LADDER).map((g) => [g.threshold, g.labels])).toEqual([
+      [999, ["7-11 超商取貨"]],
+      [899, ["7-11 超商取貨付款"]],
+      [1500, ["全家超商取貨", "宅配"]],
+    ])
+  })
+})
+
+/**
+ * 線上實況（2026-11-26）：7-11 的取貨與取貨付款免運門檻都是 999，所以免運那句
+ * 會合併成「7-11 超商取貨滿999元免運」——「取貨付款」被收進同一句裡。
+ *
+ * 階梯卻只有取貨有（代收貨款有額外成本，而且 API 只在非取貨付款的分支讀階梯
+ * 設定）。這時候階梯那句若也只寫「7-11 超商取貨」，在同一條跑馬燈上就會被讀成
+ * 「連取貨付款也只要 40」—— 選了取貨付款的客人結帳被收 80 才發現。
+ *
+ * 所以：兩者門檻相同（會被合併）時，階梯那句要明講「非取貨付款」。
+ */
+describe("階梯 vs 取貨付款的混淆", () => {
+  const BOTH_999: ShippingConfig = {
+    cvs: { fee: 80, free_threshold: 999, steps: [{ at: 699, fee: 40 }] },
+    cvsCod: { fee: 80, free_threshold: 999 },
+    cvsFamily: { fee: 80, free_threshold: 1500 },
+    cvsFamilyCod: { fee: 80, free_threshold: 1500 },
+    home: { fee: 150, free_threshold: 1500 },
+  }
+
+  it("★ 取貨付款同門檻被合併時，階梯要註明「非取貨付款」", () => {
+    const msgs = marqueeShippingMessages(BOTH_999)
+    expect(msgs[0]).toBe("7-11 超商取貨(非取貨付款)滿699元運費40元")
+    // 免運那句照舊合併 —— 那是對的，兩者真的都是 999
+    expect(msgs).toContain("7-11 超商取貨滿999元免運")
+    expect(shippingFeeAnswer(BOTH_999)).toContain("7-11 超商取貨(非取貨付款)消費滿 NT$699")
+  })
+
+  it("取貨付款門檻不同、本來就各自一句時，不必加註記", () => {
+    const split: ShippingConfig = {
+      ...BOTH_999,
+      cvsCod: { fee: 80, free_threshold: 899 },
+    }
+    const msgs = marqueeShippingMessages(split)
+    expect(msgs[0]).toBe("7-11 超商取貨滿699元運費40元")
+    expect(msgs).toContain("7-11 超商取貨付款滿899元免運")
+  })
+
+  it("取貨付款不提供免運（0）時也不必加註記 —— 它不會被合併進來", () => {
+    const noCod: ShippingConfig = {
+      ...BOTH_999,
+      cvsCod: { fee: 80, free_threshold: 0 },
+    }
+    expect(marqueeShippingMessages(noCod)[0]).toBe("7-11 超商取貨滿699元運費40元")
+  })
+})

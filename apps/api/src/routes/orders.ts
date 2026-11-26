@@ -20,7 +20,7 @@ import { requestPayment as linePayRequestPayment } from "../lib/linepay"
 import { initiatePayment as jkoPayInitiatePayment } from "../lib/jkopay"
 import { getApiBaseUrl, getSiteUrl } from "../lib/urls"
 import { verifyRepayToken } from "../lib/repay-token"
-import { computeShipping, getShippingRule, shippingBucket } from "../lib/shipping"
+import { computeShipping, feeForSubtotal, getShippingRule, shippingBucket } from "../lib/shipping"
 import { inventoryQueue } from "../lib/queue"
 import { enqueuePostPaymentJobs, notifyOrderPlacedCod } from "../lib/enqueue-post-payment"
 import { saveCustomerContact } from "../lib/save-customer-contact"
@@ -385,11 +385,10 @@ ordersRouter.post("/preview", optionalAuth, async (req, res) => {
   )
 
   const shippingRule = await getShippingRule(shippingMethod, paymentMethodHint)
-  const feeDollars =
-    shippingRule.free_threshold > 0 &&
-    thresholdSubtotalCents / 100 >= shippingRule.free_threshold
-      ? 0
-      : shippingRule.fee
+  // 運費一律由 feeForSubtotal 算 —— 這裡原本抄了一份「免運門檻比一次、否則收
+  // rule.fee」，階梯運費上線後就漏掉了 40 元那一階：結帳頁顯示 NT$80、實際
+  // 下單（走 computeShipping）收 NT$40。顯示與實收不一致，不要再抄第二份。
+  const feeDollars = feeForSubtotal(shippingRule, thresholdSubtotalCents / 100)
   let shippingFeeCents = Math.round(feeDollars * 100)
 
   // Fetch user profile fields needed by evaluator (tier, birthday, created_at)

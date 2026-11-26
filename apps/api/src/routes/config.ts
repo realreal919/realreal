@@ -1,5 +1,5 @@
 import { Router } from "express"
-import { getShippingRule } from "../lib/shipping"
+import { getShippingRule, type ShippingRule } from "../lib/shipping"
 import { supabase } from "../lib/supabase"
 import { getSetting } from "../lib/settings"
 import { loadScoopGiftConfig } from "../lib/scoop-gift"
@@ -37,15 +37,18 @@ configRouter.get("/", async (_req, res) => {
   // failure returns nulls and the caller falls back to omitting the numbers.
   //
   // cvs / cvsCod 指的是 **7-11**，全家另外給 cvsFamily / cvsFamilyCod。
-  // 兩家超商的免運門檻從 2026-11-17 起不同（2026-11-26 起 7-11 899、全家 1500），
+  // 兩家超商的免運門檻從 2026-11-17 起不同（2026-11-26 起 7-11 取貨 999、全家 1500），
   // 所以前台不能再用同一個「超商取貨」的數字講兩家 —— 選了全家的客人會以為
   // 7-11 的門檻就是自己的門檻。
+  // ShippingRule 含可選的 steps（階梯運費）—— 前台靠它講出「滿 699 運費 40」
+  // 那一段。型別直接用 lib/shipping 的，不要在這裡抄一份：抄的那份不會跟著
+  // 新欄位長大，欄位就會在這裡被靜靜地截掉。
   let shipping: {
-    cvs: { fee: number; free_threshold: number }
-    cvsCod: { fee: number; free_threshold: number }
-    cvsFamily: { fee: number; free_threshold: number }
-    cvsFamilyCod: { fee: number; free_threshold: number }
-    home: { fee: number; free_threshold: number }
+    cvs: ShippingRule
+    cvsCod: ShippingRule
+    cvsFamily: ShippingRule
+    cvsFamilyCod: ShippingRule
+    home: ShippingRule
   } | null = null
   try {
     const [cvs, cvsCod, cvsFamily, cvsFamilyCod, home] = await Promise.all([
