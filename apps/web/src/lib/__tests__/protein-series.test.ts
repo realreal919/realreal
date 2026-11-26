@@ -158,3 +158,55 @@ describe("試飲組", () => {
     ).toBe("steady")
   })
 })
+
+describe("現貨優惠組合", () => {
+  const instockVariant = {
+    name: "選擇風味: 原味×15．銀杏水蜜桃×15",
+    attributes: {
+      recipe: { fixed: [{ variant_id: "a", qty: 15 }, { variant_id: "b", qty: 15 }] },
+      現貨優惠組: "是",
+    },
+  }
+
+  it("★ 標記勝過 recipe —— 固定配方的組合不會掉回自由搭配", () => {
+    expect(
+      classifyProteinProduct({
+        name: "穩定支持 | 50克隨身包30入組合",
+        variants: [instockVariant],
+      }),
+    ).toBe("instock")
+  })
+
+  it("★ 一個規格有標記就算，不必每個都標", () => {
+    expect(
+      classifyProteinProduct({
+        name: "穩定支持 | 50克隨身包30入組合",
+        variants: [{ name: "選擇風味: 原味 30包" }, instockVariant],
+      }),
+    ).toBe("instock")
+  })
+
+  it("標記勝過試飲組的名稱規則", () => {
+    expect(
+      classifyProteinProduct({ name: "探索誠真 | 全口味試飲11入組", variants: [instockVariant] }),
+    ).toBe("instock")
+  })
+
+  it("刪掉標記就回到自由搭配 —— 活動結束不必改程式", () => {
+    expect(
+      classifyProteinProduct({
+        name: "穩定支持 | 50克隨身包30入組合",
+        variants: [{ name: instockVariant.name, attributes: { recipe: instockVariant.attributes.recipe } }],
+      }),
+    ).toBe("steady")
+  })
+
+  it("值不是「是」就不算", () => {
+    expect(
+      classifyProteinProduct({
+        name: "穩定支持 | 50克隨身包30入組合",
+        variants: [{ name: instockVariant.name, attributes: { 現貨優惠組: "否" } }],
+      }),
+    ).toBe("fruit")
+  })
+})

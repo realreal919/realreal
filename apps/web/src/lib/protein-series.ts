@@ -19,16 +19,17 @@
  * 少了這些規則它們會全部掉到「果實系列」。
  */
 
-export type ProteinSeries = "pure" | "fruit" | "steady" | "trial"
+export type ProteinSeries = "pure" | "fruit" | "instock" | "steady" | "trial"
 
 export const PROTEIN_SERIES_META: Record<ProteinSeries, { title: string; subtitle: string }> = {
   pure: { title: "純粹系列", subtitle: "原味、可可——簡單純粹的日常之選" },
   fruit: { title: "果實系列", subtitle: "草莓、杏仁火龍果、芝麻藍莓——真實水果的自然風味" },
+  instock: { title: "現貨優惠組合", subtitle: "補給不中斷" },
   steady: { title: "自由搭配", subtitle: "依喜好選口味、配份量的組合" },
   trial: { title: "多日體驗", subtitle: "初次嘗試的天數體驗組合" },
 }
 
-export const PROTEIN_SERIES_ORDER: ProteinSeries[] = ["pure", "fruit", "steady", "trial"]
+export const PROTEIN_SERIES_ORDER: ProteinSeries[] = ["pure", "fruit", "instock", "steady", "trial"]
 
 type VariantLike = { name?: string | null; attributes?: Record<string, unknown> | null }
 export type ProductForSeries = { name: string; variants?: VariantLike[] | null }
@@ -59,7 +60,27 @@ function variantNamesSayMixAndMatch(product: ProductForSeries): boolean {
   })
 }
 
+/**
+ * 現貨優惠組合：店主在規格 attributes 裡標 { "現貨優惠組": "是" }。
+ *
+ * 這一區跟其他四區不同 —— 它不是「這組裝了什麼」，而是「這組現在在特價、而且
+ * 有現貨」，那是一個商業決定，推不出來。配方、名稱、價格都看不出差別：
+ * 固定配方的 30 入組跟自由搭配的 30 入組在資料上長得一模一樣。
+ *
+ * 所以用一個店主自己控制的標記，跟停售／置頂／置底同一套做法（後台規格編輯器
+ * 把字串值的 attributes 顯示成「欄位：值」，加得掉也刪得掉）。活動結束只要把
+ * 這一欄刪掉，商品就回到「自由搭配」，不必改程式。
+ */
+export const INSTOCK_ATTR_KEY = "現貨優惠組"
+
+function isInstockOffer(product: ProductForSeries): boolean {
+  return (product.variants ?? []).some((v) => v?.attributes?.[INSTOCK_ATTR_KEY] === "是")
+}
+
 export function classifyProteinProduct(product: ProductForSeries): ProteinSeries {
+  // 店主的標記勝過所有推論 —— 包括下面的試飲組規則。
+  if (isInstockOffer(product)) return "instock"
+
   // 試飲組／體驗組排在最前面，連 recipe 都要讓它。
   //
   // 「全口味試飲11入組」的內容是我們配好的固定組合，所以它有 recipe 屬性，
