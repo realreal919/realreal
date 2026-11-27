@@ -5,6 +5,29 @@ import { cardStockContribution, readPackOf } from "./pack-stock"
 // Shared by routes/products.ts (GET /products, GET /products/:slug) and
 // routes/kols.ts (GET /kols/:slug recommended products) — moved here so
 // route files don't import from one another.
+/**
+ * 規格名稱裡的「袋數」。認不出來就回 null（那個規格不參與每袋價換算）。
+ *
+ * 商品卡要顯示「單袋價 – 最低每袋價」（例：NT$400 – NT$314），而不是
+ * 「單袋 – 10入組總價」—— 後者看起來像一袋要三千多。
+ *
+ * 兩種寫法都要認：
+ *   「3入組」    舊寫法，其他口味還在用
+ *   「3入18份」  2026-11-27 起原味夾鏈袋改用（18 份＝3 袋 × 每袋 6 份）
+ *               取的是**袋數 3**，不是份數 18。拿份數去除會算出每份價，
+ *               跟卡片上另一端的「單袋價」不是同一種單位。
+ *
+ * 刻意不寫成寬鬆的 /^(\d+)入/：蛋白粉盲盒的規格叫「10入（口味隨機）」，
+ * 那是一個商品不是 10 袋，寬鬆比對會把它的卡片價格除以 10。
+ *
+ * 1 入回 null —— 除以 1 等於沒換算，讓它照舊顯示總價。
+ */
+export function packSizeFromVariantName(name: string | null | undefined): number | null {
+  const m = /^(?:(\d+)入組|(\d+)入\d+份)$/.exec(String(name ?? ""))
+  const n = Number(m?.[1] ?? m?.[2] ?? 0)
+  return Number.isFinite(n) && n > 1 ? n : null
+}
+
 export async function enrichProducts(products: any[]) {
   if (products.length === 0) return products
 
@@ -45,17 +68,14 @@ export async function enrichProducts(products: any[]) {
     )
   }
 
-  // 隨身包單一口味頁的選項是「單包／2入組／15入組」。商品卡要顯示「單包價 – 最低每包價」
-  // （例：NT$67 – NT$60），而不是「單包 – 15入組總價」—— 後者看起來像一包要上千。
-  // 只認這種名稱，組合商品（「選擇風味: 原味 3入」）照舊顯示總價區間。
   const perPackMin = new Map<string, number>()
   for (const v of variants ?? []) {
-    const m = /^(?:單包|(\d+)入組)$/.exec(String((v as { name?: string }).name ?? ""))
-    if (!m || !m[1] || Number(m[1]) <= 1) continue
+    const packs = packSizeFromVariantName((v as { name?: string }).name)
+    if (packs === null) continue
     const price = Number(v.price)
     const salePrice = v.sale_price != null ? Number(v.sale_price) : null
     const effective = salePrice != null && salePrice < price ? salePrice : price
-    const each = Math.round(effective / Number(m[1]))
+    const each = Math.round(effective / packs)
     const cur = perPackMin.get(v.product_id)
     if (cur === undefined || each < cur) perPackMin.set(v.product_id, each)
   }
