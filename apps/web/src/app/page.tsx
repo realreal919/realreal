@@ -11,7 +11,8 @@ import { TestimonialsCarousel } from "@/components/ui/testimonials-carousel"
 import { RetailCarousel } from "@/components/ui/retail-carousel"
 import { ProductCard } from "@/components/catalog/ProductCard"
 import { HeroCarousel } from "@/components/catalog/HeroCarousel"
-import type { HeroSlide } from "@/components/catalog/HeroCarousel"
+import { heroSlides, HERO_RATIO_W, HERO_RATIO_H } from "@/lib/hero"
+import type { HeroContent } from "@/lib/hero"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
 
@@ -75,46 +76,6 @@ async function getPinnedProducts(): Promise<Product[]> {
 }
 
 /* ---------- sections ---------- */
-
-type HeroContent = {
-  heading?: string
-  subheading?: string
-  cta_text?: string
-  cta_link?: string
-  image?: string
-  /**
-   * 輪播用的多張主視覺。有填就用這個，`image` 只當作舊資料的退路。
-   *
-   * 每一筆可以是網址字串，或 `{ src, alt }`。圖上有實質資訊（檢驗結果、
-   * 保固之類）的要寫 alt；純情境照留空字串就好。
-   *
-   * 放在 site_contents.homepage_hero 裡，所以換圖、加圖、調順序都是改資料，
-   * 不用重新部署。
-   */
-  images?: Array<string | { src?: string; alt?: string }>
-  image_scale?: number      // percent, e.g. 100 = fill width, 60 = 60% scaled
-  image_position_x?: number // 0–100, default 50
-  image_position_y?: number // 0–100, default 50
-}
-
-// 主視覺的框。輪播的每一張都套這個比例（object-cover），所以**新圖請沿用
-// 1672×941**。比例不同的圖會被裁 —— 裁掉邊邊，比整頁在換張時上下跳好。
-const HERO_RATIO_W = 1672
-const HERO_RATIO_H = 941
-
-const HERO_FALLBACK = "/home/banner.jpg"
-
-/** site_contents 的 images 可能是字串或物件，兩種都收；沒有 src 的丟掉。 */
-export function heroSlides(content?: HeroContent | null): HeroSlide[] {
-  const raw = content?.images
-  if (Array.isArray(raw) && raw.length > 0) {
-    const out = raw
-      .map((it) => (typeof it === "string" ? { src: it, alt: "" } : { src: it?.src ?? "", alt: it?.alt ?? "" }))
-      .filter((it) => it.src.trim().length > 0)
-    if (out.length > 0) return out
-  }
-  return [{ src: content?.image || HERO_FALLBACK, alt: "" }]
-}
 
 function HeroSection({ content }: { content?: HeroContent | null }) {
   return (

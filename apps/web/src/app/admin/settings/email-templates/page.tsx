@@ -8,15 +8,10 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AdminTabs } from "../../_components/AdminTabs"
+import { SETTINGS_TABS } from "../_tabs"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
 
-const SETTINGS_TABS = [
-  { href: "/admin/settings", label: "系統參數" },
-  { href: "/admin/settings/team", label: "團隊成員" },
-  { href: "/admin/settings/email-templates", label: "Email 模板" },
-  { href: "/admin/settings/carousel", label: "顧客回饋輪播" },
-]
 
 const TEMPLATE_NAMES: Record<string, string> = {
   email_order_confirmation: "訂單確認",

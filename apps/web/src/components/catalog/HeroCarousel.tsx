@@ -76,7 +76,7 @@ export function HeroCarousel({ slides, ratioW, ratioH, autoPlayMs = 6000 }: Prop
   if (slides.length === 1) {
     return (
       <section>
-        <HeroImage slide={slides[0]} ratioW={ratioW} ratioH={ratioH} priority />
+        <HeroImage slide={slides[0]} ratioW={ratioW} ratioH={ratioH} isFirst />
       </section>
     )
   }
@@ -103,7 +103,7 @@ export function HeroCarousel({ slides, ratioW, ratioH, autoPlayMs = 6000 }: Prop
             aria-roledescription="slide"
             aria-label={`第 ${i + 1} 張，共 ${slides.length} 張`}
           >
-            <HeroImage slide={slide} ratioW={ratioW} ratioH={ratioH} priority={i === 0} />
+            <HeroImage slide={slide} ratioW={ratioW} ratioH={ratioH} isFirst={i === 0} />
           </div>
         ))}
       </div>
@@ -149,20 +149,28 @@ export function HeroCarousel({ slides, ratioW, ratioH, autoPlayMs = 6000 }: Prop
 }
 
 function HeroImage({
-  slide, ratioW, ratioH, priority,
-}: { slide: HeroSlide; ratioW: number; ratioH: number; priority: boolean }) {
+  slide, ratioW, ratioH, isFirst,
+}: { slide: HeroSlide; ratioW: number; ratioH: number; isFirst: boolean }) {
   return (
     <div className="relative w-full" style={{ aspectRatio: `${ratioW} / ${ratioH}` }}>
       {/* 首頁流量最大的圖。用 next/image 而不是 <img>：主視覺放在 Supabase
           Storage，直接 <img> 等於每個訪客每次重整都去 Supabase 重抓原檔
           （2026-11 的 Cached Egress 超額就是這樣來的）。走 next/image 之後
           由 Vercel 抓一次、轉檔縮圖，再從它的 CDN 送出去。 */}
+      {/* 第一張才預載 —— 它就是 LCP，而且不分螢幕大小都是它。
+          （Next 16 起 `priority` 已 deprecated，改用 `preload`。）
+
+          後面幾張不能一起預載，那會跟 LCP 搶頻寬；但也不能留預設的 lazy ——
+          它們在捲動容器的右邊、不在畫面裡，要等到自動換頁時才開始抓，使用者
+          會先看到一格空白。所以照樣 eager 抓，但把 fetchPriority 壓到 low。 */}
       <Image
         src={slide.src}
         alt={slide.alt}
         fill
         sizes="100vw"
-        priority={priority}
+        preload={isFirst}
+        loading="eager"
+        fetchPriority={isFirst ? "high" : "low"}
         className="object-cover"
       />
     </div>
