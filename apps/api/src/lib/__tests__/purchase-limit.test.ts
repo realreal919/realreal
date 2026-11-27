@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { findLimitBreaches, parsePurchaseLimit, withPurchaseLimit } from "../purchase-limit"
+import { findLimitBreaches, limitBreachMessage, parsePurchaseLimit, withPurchaseLimit } from "../purchase-limit"
 
 describe("parsePurchaseLimit", () => {
   it("讀得出數字，也讀得出後台打成字串的數字", () => {
@@ -47,8 +47,8 @@ describe("withPurchaseLimit", () => {
 
 describe("findLimitBreaches", () => {
   const map = new Map([
-    ["v1", { name: "單包", attributes: { 限購: 2 } }],
-    ["v2", { name: "7入組", attributes: {} }],
+    ["v1", { name: "單包", attributes: { 限購: 2 }, products: { name: "果真草莓 50克" } }],
+    ["v2", { name: "7入組", attributes: {}, products: { name: "果真草莓 50克" } }],
   ])
 
   it("剛好買到上限放行", () => {
@@ -57,7 +57,8 @@ describe("findLimitBreaches", () => {
 
   it("超過上限就擋，而且講得出規格名稱與上限", () => {
     expect(findLimitBreaches([{ variantId: "v1", qty: 3 }], map)).toEqual([
-      { variantId: "v1", name: "單包", qty: 3, limit: 2 },
+      // 規格名常常只是「單包」，光這樣客人不知道是哪個商品 —— 要連商品名
+      { variantId: "v1", name: "果真草莓 50克・單包", qty: 3, limit: 2 },
     ])
   })
 
@@ -71,10 +72,24 @@ describe("findLimitBreaches", () => {
 
   it("一次回報全部超量的品項，不是只報第一個", () => {
     const m = new Map([
-      ["a", { name: "草莓單包", attributes: { 限購: 2 } }],
-      ["b", { name: "可可單包", attributes: { 限購: 1 } }],
+      ["a", { name: "單包", attributes: { 限購: 2 }, products: { name: "草莓" } }],
+      ["b", { name: "單包", attributes: { 限購: 1 }, products: { name: "可可" } }],
     ])
     const out = findLimitBreaches([{ variantId: "a", qty: 3 }, { variantId: "b", qty: 2 }], m)
-    expect(out.map((x) => x.name)).toEqual(["草莓單包", "可可單包"])
+    expect(out.map((x) => x.name)).toEqual(["草莓・單包", "可可・單包"])
+  })
+})
+
+describe("limitBreachMessage", () => {
+  it("講得出是哪個商品、上限幾件", () => {
+    expect(limitBreachMessage({ variantId: "v1", name: "果真草莓 50克・單包", qty: 3, limit: 2 }))
+      .toBe("「果真草莓 50克・單包」每張訂單限購 2 件，請調整數量後再結帳")
+  })
+})
+
+describe("findLimitBreaches 的名稱", () => {
+  it("商品名拿不到時退回規格名，不要印出空的括號", () => {
+    const m = new Map([["a", { name: "單包", attributes: { 限購: 1 } }]])
+    expect(findLimitBreaches([{ variantId: "a", qty: 2 }], m)[0].name).toBe("單包")
   })
 })

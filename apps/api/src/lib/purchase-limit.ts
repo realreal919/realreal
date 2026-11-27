@@ -45,10 +45,22 @@ export function withPurchaseLimit<T extends WithAttributes>(
 export type LimitBreach = { variantId: string; name: string; qty: number; limit: number }
 
 /**
+ * 給客人看的那句話。
+ *
+ * 要連商品名一起講 —— 規格名常常只是「單包」「7入組」，購物車裡有好幾樣
+ * 東西的時候，光看「『單包』限購 2 件」根本不知道要改哪一行。
+ */
+export function limitBreachMessage(b: LimitBreach): string {
+  return `「${b.name}」每張訂單限購 ${b.limit} 件，請調整數量後再結帳`
+}
+
+/**
  * 找出超過上限的品項。傳進來的必須是**已經依規格合併過**的購物車 ——
  * 同一個規格拆成兩行送出來的話，逐行檢查每一行都過，合計卻超過。
  */
-export function findLimitBreaches<T extends WithAttributes & { name?: string | null }>(
+export function findLimitBreaches<
+  T extends WithAttributes & { name?: string | null; products?: { name?: string | null } | null },
+>(
   mergedItems: Array<{ variantId: string; qty: number }>,
   variantMap: Map<string, T>,
 ): LimitBreach[] {
@@ -58,8 +70,16 @@ export function findLimitBreaches<T extends WithAttributes & { name?: string | n
     if (!v) continue
     const limit = parsePurchaseLimit(v)
     if (limit !== null && item.qty > limit) {
-      out.push({ variantId: item.variantId, name: v.name ?? "", qty: item.qty, limit })
+      out.push({ variantId: item.variantId, name: displayName(v), qty: item.qty, limit })
     }
   }
   return out
+}
+
+/** 「商品名・規格名」。只有其中一個就用那一個，兩個都沒有就回空字串。 */
+function displayName(v: { name?: string | null; products?: { name?: string | null } | null }): string {
+  const product = (v.products?.name ?? "").trim()
+  const variant = (v.name ?? "").trim()
+  if (product && variant) return `${product}・${variant}`
+  return product || variant
 }

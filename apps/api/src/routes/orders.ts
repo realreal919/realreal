@@ -21,7 +21,7 @@ import { initiatePayment as jkoPayInitiatePayment } from "../lib/jkopay"
 import { getApiBaseUrl, getSiteUrl } from "../lib/urls"
 import { verifyRepayToken } from "../lib/repay-token"
 import { computeShipping, feeForSubtotal, getShippingRule, shippingBucket } from "../lib/shipping"
-import { findLimitBreaches } from "../lib/purchase-limit"
+import { findLimitBreaches, limitBreachMessage } from "../lib/purchase-limit"
 import { inventoryQueue } from "../lib/queue"
 import { enqueuePostPaymentJobs, notifyOrderPlacedCod } from "../lib/enqueue-post-payment"
 import { saveCustomerContact } from "../lib/save-customer-contact"
@@ -780,9 +780,8 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
   {
     const breaches = findLimitBreaches(mergedItems, variantMap)
     if (breaches.length > 0) {
-      const b = breaches[0]
       res.status(400).json({
-        error: `「${b.name}」每張訂單限購 ${b.limit} 件，請調整數量後再結帳`,
+        error: limitBreachMessage(breaches[0]),
         limitBreaches: breaches,
       })
       return
