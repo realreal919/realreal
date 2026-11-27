@@ -53,11 +53,27 @@ describe("renderOrderShipped", () => {
     expect(html).not.toContain("取件資訊")
   })
 
-  // 這批出貨的臨時附註。這兩題鎖住的是「可以關掉」—— 公告留在信裡太久比沒公告
-  // 更糟，所以關掉的那條路必須有測試守著，不能只靠記得去改常數。
-  it("預設會附上這批出貨的附註", () => {
+  // 這批出貨的臨時附註。鎖住的是「可以關掉」—— 公告留在信裡太久比沒公告更糟，
+  // 所以關掉的那條路必須有測試守著，不能只靠記得去改常數。
+  //
+  // 注意：SHIPPING_NOTE 是空字串時 toContain(SHIPPING_NOTE) 恆真，那種斷言
+  // 等於沒測。所以這裡改成測「有沒有那個附註區塊」，兩種狀態都測得到。
+  const NOTE_BLOCK = "border-left:3px solid #10305a"
+
+  it("目前沒有臨時附註 —— 信裡不會出現附註區塊", () => {
+    expect(SHIPPING_NOTE).toBe("")
     const html = renderOrderShipped({ orderNumber: "10000480", customerName: "顧客" })
-    expect(html).toContain(SHIPPING_NOTE)
+    expect(html).not.toContain(NOTE_BLOCK)
+  })
+
+  it("有附註時會附上，而且就是傳進去的那句話", () => {
+    const html = renderOrderShipped({
+      orderNumber: "10000480",
+      customerName: "顧客",
+      note: "這批包裝換成新的紙盒。",
+    })
+    expect(html).toContain(NOTE_BLOCK)
+    expect(html).toContain("這批包裝換成新的紙盒。")
   })
 
   it("note 傳空字串時整段附註都不出現", () => {
@@ -66,7 +82,6 @@ describe("renderOrderShipped", () => {
       customerName: "顧客",
       note: "",
     })
-    expect(html).not.toContain(SHIPPING_NOTE)
-    expect(html).not.toContain("border-left:3px solid #10305a")
+    expect(html).not.toContain(NOTE_BLOCK)
   })
 })
