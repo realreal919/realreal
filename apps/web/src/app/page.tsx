@@ -10,6 +10,8 @@ import type { Metadata } from "next"
 import { TestimonialsCarousel } from "@/components/ui/testimonials-carousel"
 import { RetailCarousel } from "@/components/ui/retail-carousel"
 import { ProductCard } from "@/components/catalog/ProductCard"
+import { HeroCarousel } from "@/components/catalog/HeroCarousel"
+import type { HeroSlide } from "@/components/catalog/HeroCarousel"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
 
@@ -80,37 +82,43 @@ type HeroContent = {
   cta_text?: string
   cta_link?: string
   image?: string
+  /**
+   * 輪播用的多張主視覺。有填就用這個，`image` 只當作舊資料的退路。
+   *
+   * 每一筆可以是網址字串，或 `{ src, alt }`。圖上有實質資訊（檢驗結果、
+   * 保固之類）的要寫 alt；純情境照留空字串就好。
+   *
+   * 放在 site_contents.homepage_hero 裡，所以換圖、加圖、調順序都是改資料，
+   * 不用重新部署。
+   */
+  images?: Array<string | { src?: string; alt?: string }>
   image_scale?: number      // percent, e.g. 100 = fill width, 60 = 60% scaled
   image_position_x?: number // 0–100, default 50
   image_position_y?: number // 0–100, default 50
 }
 
-// 主視覺的預設比例（目前那張 1672×941）。width/height 在這裡只負責
-// 「載入前先把位置佔好」與算 srcset，實際寬高由 CSS 的 w-full / h-auto 決定，
-// 所以換一張不同比例的 banner 不會變形，最多是載入瞬間的位移。
+// 主視覺的框。輪播的每一張都套這個比例（object-cover），所以**新圖請沿用
+// 1672×941**。比例不同的圖會被裁 —— 裁掉邊邊，比整頁在換張時上下跳好。
 const HERO_RATIO_W = 1672
 const HERO_RATIO_H = 941
 
-function HeroSection({ content }: { content?: HeroContent | null }) {
-  const banner = content?.image || "/home/banner.jpg"
+const HERO_FALLBACK = "/home/banner.jpg"
 
+/** site_contents 的 images 可能是字串或物件，兩種都收；沒有 src 的丟掉。 */
+export function heroSlides(content?: HeroContent | null): HeroSlide[] {
+  const raw = content?.images
+  if (Array.isArray(raw) && raw.length > 0) {
+    const out = raw
+      .map((it) => (typeof it === "string" ? { src: it, alt: "" } : { src: it?.src ?? "", alt: it?.alt ?? "" }))
+      .filter((it) => it.src.trim().length > 0)
+    if (out.length > 0) return out
+  }
+  return [{ src: content?.image || HERO_FALLBACK, alt: "" }]
+}
+
+function HeroSection({ content }: { content?: HeroContent | null }) {
   return (
-    <section>
-      {/* 首頁流量最大的一張圖。用 next/image 而不是 <img>：主視覺放在
-          Supabase Storage，而那邊回的是 `Cache-Control: private, no-cache`，
-          直接 <img> 等於每個訪客、每次重整都去 Supabase 重抓一次原檔
-          （2026-11 的 Cached Egress 超額就是這樣來的）。走 next/image 之後
-          由 Vercel 抓一次、轉檔縮圖，再從它的 CDN 送出去。 */}
-      <Image
-        src={banner}
-        alt=""
-        width={HERO_RATIO_W}
-        height={HERO_RATIO_H}
-        sizes="100vw"
-        priority
-        className="w-full h-auto block"
-      />
-    </section>
+    <HeroCarousel slides={heroSlides(content)} ratioW={HERO_RATIO_W} ratioH={HERO_RATIO_H} />
   )
 }
 
