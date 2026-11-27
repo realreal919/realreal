@@ -22,6 +22,8 @@ export interface RecommendedProduct {
   /** 特價（sale_price）低於原價時帶值，否則 null —— 卡片顯示特價＋原價劃線。 */
   salePrice: number | null
   stockQty: number
+  /** 每張訂單限購幾件。沒有＝不限。見 apps/api/src/lib/purchase-limit.ts。 */
+  limitQty?: number
   imageUrl?: string
 }
 
@@ -38,6 +40,7 @@ interface ApiProduct {
     price: number | string
     sale_price?: number | string | null
     stock_qty: number | string
+    purchase_limit?: number | null
   }>
   default_variant?: {
     id: string
@@ -45,6 +48,7 @@ interface ApiProduct {
     price: number | string
     sale_price?: number | string | null
     stock_qty: number | string
+    purchase_limit?: number | null
   } | null
 }
 
@@ -98,6 +102,9 @@ export async function fetchRecommendations(
           price,
           salePrice,
           stockQty: stock,
+          // 限購要一起帶走：購物車抽屜的「＋加」是另一條加入購物車的路，
+          // 漏了的話一直按就能超過限購。
+          ...(v.purchase_limit ? { limitQty: Number(v.purchase_limit) } : {}),
           imageUrl: p.images?.[0],
         })
         if (out.length >= limit) break

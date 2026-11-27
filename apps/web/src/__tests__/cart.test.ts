@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
+import { toast } from "sonner"
 import { useCart, type CartItem } from "@/lib/cart"
 
-// Silence sonner toast calls
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+// Silence sonner toast calls。warning 也要 mock —— 卡在庫存／限購上限時走的是它。
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
 
 function makeItem(overrides: Partial<CartItem> = {}): CartItem {
   return {
@@ -19,6 +20,7 @@ describe("Cart Zustand store", () => {
   beforeEach(() => {
     // Reset store to empty state before each test
     useCart.setState({ items: [] })
+    vi.clearAllMocks()
   })
 
   /* ---- addItem ---- */
@@ -129,5 +131,53 @@ describe("Cart Zustand store", () => {
       useCart.getState().clear()
       expect(useCart.getState().total()).toBe(0)
     })
+  })
+})
+
+/* ---- 限購（每張訂單的單一規格上限） ---- */
+
+describe("limitQty", () => {
+  // 這個 describe 在外層 describe 之外，外層的 beforeEach 吃不到 —— 自己清。
+  beforeEach(() => {
+    useCart.setState({ items: [] })
+    vi.clearAllMocks()
+  })
+
+  it("加到上限就停住，而且說的是限購不是缺貨", () => {
+    useCart.getState().addItem(makeItem({ qty: 2, stockQty: 6, limitQty: 2 }))
+    useCart.getState().addItem(makeItem({ qty: 1, stockQty: 6, limitQty: 2 }))
+    expect(useCart.getState().items[0].qty).toBe(2)
+    expect(toast.warning).toHaveBeenCalledWith("每張訂單限購 2 件")
+  })
+
+  it("庫存比限購更緊時，講的是庫存", () => {
+    useCart.getState().addItem(makeItem({ qty: 1, stockQty: 1, limitQty: 5 }))
+    useCart.getState().addItem(makeItem({ qty: 1, stockQty: 1, limitQty: 5 }))
+    expect(useCart.getState().items[0].qty).toBe(1)
+    expect(toast.warning).toHaveBeenCalledWith("已達庫存上限（1 件）")
+  })
+
+  it("一次加超過上限會被夾到上限，不是整筆拒絕", () => {
+    useCart.getState().addItem(makeItem({ qty: 9, stockQty: 6, limitQty: 2 }))
+    expect(useCart.getState().items[0].qty).toBe(2)
+  })
+
+  it("updateQty 也擋得住 —— 購物車裡直接改數量是另一條路", () => {
+    useCart.getState().addItem(makeItem({ qty: 1, stockQty: 6, limitQty: 2 }))
+    useCart.getState().updateQty("v1", 5)
+    expect(useCart.getState().items[0].qty).toBe(2)
+    expect(toast.warning).toHaveBeenCalledWith("每張訂單限購 2 件")
+  })
+
+  it("後來那筆沒帶 limitQty 時，沿用這一行原本記得的上限", () => {
+    // 購物車抽屜的「＋加」若漏帶限購，不能因此變成無限
+    useCart.getState().addItem(makeItem({ qty: 2, stockQty: 6, limitQty: 2 }))
+    useCart.getState().addItem(makeItem({ qty: 1, stockQty: 6 }))
+    expect(useCart.getState().items[0].qty).toBe(2)
+  })
+
+  it("沒有限購的商品不受影響", () => {
+    useCart.getState().addItem(makeItem({ qty: 20, stockQty: 100 }))
+    expect(useCart.getState().items[0].qty).toBe(20)
   })
 })

@@ -12,6 +12,13 @@ export type CartItem = {
   qty: number
   /** Latest known stock for the variant — used to clamp adds/updates. */
   stockQty?: number
+  /**
+   * 這個規格的每張訂單限購數（後端 attributes 的「限購」算出來的）。
+   *
+   * 不把它併進 stockQty：併進去雖然擋得住，但提示會變成「已達庫存上限」——
+   * 明明還有貨，客人只會以為快賣完了。兩個上限分開存，訊息才講得出實話。
+   */
+  limitQty?: number
   imageUrl?: string
   /**
    * Whether this line is an add-on item (product.is_addon=true). DISPLAY ONLY —
@@ -33,6 +40,12 @@ type CartStore = {
   total: () => number
 }
 
+/** 卡在上限時要說的話。限購優先講 —— 有貨卻買不到更多，原因是限購不是缺貨。 */
+export function capMessage(stockCap: number, limitCap: number): string {
+  if (limitCap <= stockCap && Number.isFinite(limitCap)) return `每張訂單限購 ${limitCap} 件`
+  return `已達庫存上限（${stockCap} 件）`
+}
+
 export const useCart = create<CartStore>()(
   persist(
     (set, get) => ({
@@ -42,18 +55,20 @@ export const useCart = create<CartStore>()(
           const existing = state.items.find((i) => i.variantId === item.variantId)
           // Stock cap — use the latest known stockQty from either the incoming
           // item or the existing line (the product page snapshots it at add time).
-          const cap = item.stockQty ?? existing?.stockQty ?? Infinity
+          const stockCap = item.stockQty ?? existing?.stockQty ?? Infinity
+          const limitCap = item.limitQty ?? existing?.limitQty ?? Infinity
+          const cap = Math.min(stockCap, limitCap)
           if (existing) {
             const newQty = Math.min(existing.qty + item.qty, cap)
             if (newQty === existing.qty) {
-              toast.warning(`已達庫存上限（${cap} 件）`)
+              toast.warning(capMessage(stockCap, limitCap))
               return state
             }
             toast.success("已加入購物車")
             return {
               items: state.items.map((i) =>
                 i.variantId === item.variantId
-                  ? { ...i, qty: newQty, stockQty: item.stockQty ?? i.stockQty, price: item.price ?? i.price, originalPrice: item.originalPrice ?? i.originalPrice }
+                  ? { ...i, qty: newQty, stockQty: item.stockQty ?? i.stockQty, limitQty: item.limitQty ?? i.limitQty, price: item.price ?? i.price, originalPrice: item.originalPrice ?? i.originalPrice }
                   : i,
               ),
             }
@@ -76,9 +91,10 @@ export const useCart = create<CartStore>()(
           return {
             items: state.items.map((i) => {
               if (i.variantId !== variantId) return i
-              const cap = i.stockQty ?? Infinity
-              const clamped = Math.min(qty, cap)
-              if (clamped < qty) toast.warning(`已達庫存上限（${cap} 件）`)
+              const stockCap = i.stockQty ?? Infinity
+              const limitCap = i.limitQty ?? Infinity
+              const clamped = Math.min(qty, stockCap, limitCap)
+              if (clamped < qty) toast.warning(capMessage(stockCap, limitCap))
               return { ...i, qty: clamped }
             }),
           }

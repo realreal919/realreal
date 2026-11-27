@@ -15,6 +15,8 @@ type Variant = {
   price: string
   sale_price: string | null
   stock_qty: number
+  /** 每張訂單限購幾件（後端由 attributes 的「限購」算好）。null／沒有＝不限。 */
+  purchase_limit?: number | null
 }
 
 export function AddToCartSection({
@@ -114,6 +116,20 @@ export function AddToCartSection({
   const hasDiscount = selected?.sale_price && Number(selected.sale_price) < originalPrice
   const outOfStock = selected?.stock_qty === 0
 
+  // 數量選擇器按得到的上限。庫存與限購取小的那個 —— 購物車那邊也會再擋一次，
+  // 但讓按鈕直接按不下去，比按了才跳警告好。
+  const limitQty = selected?.purchase_limit ?? null
+  const maxQty = Math.min(
+    selected?.stock_qty ?? Infinity,
+    limitQty ?? Infinity,
+  )
+
+  // 選別的規格時把數量收回上限內 —— 不然「限購 5 的規格選 4 件」再切到
+  // 限購 2 的規格，數量還留著 4。
+  useEffect(() => {
+    setQty((q) => (Number.isFinite(maxQty) ? Math.max(1, Math.min(q, maxQty)) : q))
+  }, [maxQty])
+
   function handleAdd() {
     if (!selected || outOfStock) return
     addItem({
@@ -124,6 +140,7 @@ export function AddToCartSection({
       originalPrice: Number(selected.price),
       qty,
       stockQty: selected.stock_qty ?? undefined,
+      limitQty: limitQty ?? undefined,
       imageUrl,
     })
     setQty(1)
@@ -234,6 +251,12 @@ export function AddToCartSection({
         </div>
       )}
 
+      {limitQty !== null && !outOfStock && (
+        <p className="text-sm" style={{ color: "#92400e" }}>
+          數量有限，每張訂單限購 <strong>{limitQty}</strong> 件
+        </p>
+      )}
+
       {/* Quantity selector + Add to cart */}
       <div className="flex items-center gap-3">
         <div className="flex items-center rounded-lg border">
@@ -251,8 +274,9 @@ export function AddToCartSection({
           </span>
           <button
             type="button"
-            className="flex h-10 w-10 items-center justify-center hover:bg-accent transition-colors rounded-r-lg"
-            onClick={() => setQty((q) => q + 1)}
+            className="flex h-10 w-10 items-center justify-center hover:bg-accent transition-colors rounded-r-lg disabled:opacity-40 disabled:cursor-not-allowed"
+            onClick={() => setQty((q) => Math.min(q + 1, maxQty))}
+            disabled={qty >= maxQty}
             aria-label="增加數量"
           >
             <Plus className="h-4 w-4" />

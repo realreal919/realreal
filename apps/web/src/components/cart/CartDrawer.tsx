@@ -319,6 +319,7 @@ function RecommendationStrip({
                     originalPrice: p.price,
                     qty: 1,
                     stockQty: p.stockQty,
+                    limitQty: p.limitQty,
                     imageUrl: p.imageUrl,
                   })
                 }

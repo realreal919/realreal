@@ -7,6 +7,7 @@ import { enrichProducts } from "../lib/enrich-products"
 import { visibleSortedVariants } from "../lib/variant-order"
 import { z } from "zod"
 import { withDerivedStock, stockIdsToFetch } from "../lib/pack-stock"
+import { withPurchaseLimit } from "../lib/purchase-limit"
 
 export const productsRouter = Router()
 export const productsAdminRouter = Router()
@@ -65,11 +66,13 @@ async function withVisibleVariants<T extends { product_variants?: unknown }>(
     //
     // 預購商品跳過換算：它賣的就是「現在沒有、等到貨」，照配方回推會讓缺貨
     // 的口味整個消失，而那正是要預購的那幾種。
-    product_variants: visibleSortedVariants(
+    // purchase_limit 由後端算好再送出去，前台不必自己解析 attributes ——
+    // 前台一份、後端一份的話，兩邊對「限購」的解讀遲早會不一樣。
+    product_variants: withPurchaseLimit(visibleSortedVariants(
       (row as { is_preorder?: boolean }).is_preorder
         ? allVariants[i]
         : withDerivedStock(allVariants[i], external),
-    ),
+    )),
   }))
 }
 
@@ -267,12 +270,12 @@ productsRouter.get("/:slug", async (req, res) => {
   const isPreorder = Boolean((rest as { is_preorder?: boolean }).is_preorder)
   // 預購商品不從配方回推可售數量 —— 見 lib/preorder.ts
   const externalStock = isPreorder ? new Map<string, number>() : await externalStockFor([ownVariants])
-  const variants = visibleSortedVariants(
+  const variants = withPurchaseLimit(visibleSortedVariants(
     (isPreorder ? ownVariants : withDerivedStock(ownVariants, externalStock)) as Array<{
       name: string
       attributes?: Record<string, unknown> | null
     }>,
-  )
+  ))
   res.json({ data: { ...rest, images, variants, min_tier: minTierRaw ?? null } })
 })
 

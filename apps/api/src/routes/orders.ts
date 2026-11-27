@@ -21,6 +21,7 @@ import { initiatePayment as jkoPayInitiatePayment } from "../lib/jkopay"
 import { getApiBaseUrl, getSiteUrl } from "../lib/urls"
 import { verifyRepayToken } from "../lib/repay-token"
 import { computeShipping, feeForSubtotal, getShippingRule, shippingBucket } from "../lib/shipping"
+import { findLimitBreaches } from "../lib/purchase-limit"
 import { inventoryQueue } from "../lib/queue"
 import { enqueuePostPaymentJobs, notifyOrderPlacedCod } from "../lib/enqueue-post-payment"
 import { saveCustomerContact } from "../lib/save-customer-contact"
@@ -771,6 +772,22 @@ ordersRouter.post("/", optionalAuth, idempotencyMiddleware, async (req, res) => 
   // the shared helper. mergedItems is the authoritative cart for pricing,
   // order_items, the campaign evaluator and stock deduction below.
   const mergedItems = mergeItemsByVariant(items.map((i) => ({ ...i })))
+
+  // 限購：補貨量少的時候讓多一點人買得到。檢查的是**合併後**的數量 ——
+  // 同一個規格拆成兩行送出來，逐行檢查每一行都過，合計卻超過。
+  // 前台的數量選擇器也擋，但那是給人看的；購物車存在客人的瀏覽器裡，
+  // 只有這裡擋得住改過的請求與放久了的購物車。
+  {
+    const breaches = findLimitBreaches(mergedItems, variantMap)
+    if (breaches.length > 0) {
+      const b = breaches[0]
+      res.status(400).json({
+        error: `「${b.name}」每張訂單限購 ${b.limit} 件，請調整數量後再結帳`,
+        limitBreaches: breaches,
+      })
+      return
+    }
+  }
 
   // Membership tier restriction — check BEFORE pricing/stock.
   // If any product in the cart has min_tier_id set, the buyer must be logged in
